@@ -20,8 +20,8 @@
 
 - Guneev Pannu
 - Sanjay Ram
-- Bogdan Zmeul
-- Vansh Sehrewat
+- Bohdan Zmeul
+- Vansh Sehrawat
 - Shahyar Anfaz
 - Isaac Tilahun
 - Jimmy Zhu
