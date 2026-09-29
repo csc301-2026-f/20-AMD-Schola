@@ -1,8 +1,8 @@
 # AMD Schola for Godot
 
-This folder contains Team 20's Godot prototype for AMD Schola.
+This folder contains the Godot prototype for AMD Schola.
 
-The prototype demonstrates the proposed Godot workflow for creating a local reinforcement-learning environment using Godot nodes and the Inspector. It is being developed for CSC301 Deliverable 1.
+The prototype demonstrates the proposed Godot workflow for creating a local reinforcement-learning environment using Godot nodes and the Inspector.
 
 ## Run the prototype
 
@@ -15,10 +15,10 @@ The demo displays rewards for forward movement, backward movement, and remaining
 
 ## Scope
 
-This is an interactive frontend prototype only. It does not include Python training, gRPC communication, model inference, persistence, or a connection to the existing Unreal implementation.
+This is an interactive frontend prototype only. It does not include Python training, gRPC communication, etc.
 
 ## Folder overview
 
-- `addons/amd_schola/` — the Godot add-on.
-- `demo/` — the interactive demonstration scene.
-- `assets/` — prototype assets.
+- `addons/amd_schola/` - the Godot plugin/add-on.
+- `demo/` - the interactive demonstration scene.
+- `assets/` - prototype assets.
