@@ -3,7 +3,7 @@
 ## Product Details
  
 #### Q1: What is the product?
-We are building a Godot Engine port of AMD Schola, an open-source cross-platform reinforcement learning library currently built for Unreal Engine. We are partnering with AMD to extend their tool to support Godot. Our partners are: Alexander Cann (Member of Technical Staff) and Michael Liu (Senior Software Engineer). This tool will allow developers to natively define Reinforcement Learning (RL) Environments and Agents within Godot, attaching modular sensors and actuators, and connecting them to Python-based RL frameworks like Gymnasium, RLlib, or Stable-Baselines3. For example, a developer can create a racing car in Godot and train it to navigate a track using RL, without having to write the complex engine-to-Python communication logic from scratch.
+We are building a Godot Engine port of AMD Schola, an open-source cross-platform reinforcement learning library currently built for Unreal Engine. We are partnering with AMD to extend their tool to support Godot. Our partners are Alexander Cann (Member of Technical Staff) and TianYue Liu, who also uses the name Michael (Senior Software Engineer). This tool will allow developers to natively define Reinforcement Learning (RL) Environments and Agents within Godot, attaching modular sensors and actuators, and connecting them to Python-based RL frameworks like Gymnasium, RLlib, or Stable-Baselines3. For example, a developer can create a racing car in Godot and train it to navigate a track using RL, without having to write the complex engine-to-Python communication logic from scratch.
 
 #### Q2: Who are your target users?
 - Game developers building NPCs or AI gameplay systems using Godot.
@@ -11,42 +11,19 @@ We are building a Godot Engine port of AMD Schola, an open-source cross-platform
 - Robotics and sim-to-real practitioners leveraging game engines for prototyping simulation environments before transferring to hardware.
 
 #### Q3: Why would your users choose your product? What are they using today to solve their problem/need?
-Currently, developers wanting to use Godot for RL either have to write custom sockets/RPC layers from scratch or rely on unsupported/unofficial Godot plugins which may not support the latest Python framework updates. Our product brings the official, actively supported AMD Schola architecture to Godot. It saves significant time by providing pre-built modular sensors, actuators, and an established gRPC communication layer to connect Godot directly to robust Python RL frameworks. This aligns with AMD's goal of broadening access to machine learning tools.
+Currently, developers wanting to use Godot for RL either have to write custom sockets or RPC layers from scratch or rely on unofficial Godot integrations that are separate from Schola's maintained Python ecosystem. Our product brings Schola's environment, training, and inference workflow to Godot. The MVP saves developers from implementing engine-to-Python communication, episode coordination, space serialization, and local policy inference themselves. Reusable specialized sensor and actuator nodes are a stretch goal rather than an MVP promise. This supports AMD's goal of making Schola a maintained multi-engine platform with transferable concepts across engines.
 
 #### Q4: What are the user stories that make up the Minumum Viable Product (MVP)?
 
- * At least 5 user stories concerning the main features of the application - note that this can broken down further
- * You must follow proper user story format (as taught in lecture) ```As a <user of the app>, I want to <do something in the app> in order to <accomplish some goal>```
- * User stories must contain acceptance criteria. Examples of user stories with different formats can be found here: https://www.justinmind.com/blog/user-story-examples/. **It is important that you provide a link to an artifact containing your user stories**.
- * If you have a partner, these must be reviewed and accepted by them. You need to include the evidence of partner approval (e.g., screenshot from email) or at least communication to the partner (e.g., email you sent)
+The MVP is defined by seven user stories covering the complete workflow from configuring a Godot environment to training and running a learned policy. The detailed stories, acceptance criteria, and partner-review status are maintained in the [MVP user-story artifact](./user-stories.md). Implementation tasks, ownership, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
-US1: Defining an Environment
-
-As a Godot developer, I want to create an RL environment by implementing a simple interface, in order to train an agent without writing networking code.
-
-US2: Declaring Spaces
-
-As a Godot developer, I want to declare my agent's observation and action spaces using reusable types, in order to tell Python the shape of my problem.
-
-US3: Transport - gRPC Server
-
-As an ML practitioner, I want my Godot game to answer the same gRPC calls Unreal does, in order to reuse Python's existing training tools unmodified.
-
-US4: Core - The Connector Loop
-
-As a Godot developer, I want reset/step/auto-reset to behave exactly like Unreal's, in order for training to work identically across engines.
-
-US5: Godot Bindings + The Demo Environment
-
-As a Godot developer, I want to build an RL environment using normal Godot nodes and the Inspector, in order to work the way I already work in Godot.
-
-US6: ONNX Export (Python)
-
-As a Godot developer, I want to export a trained policy to ONNX, in order to run it later without Python.
-
-US7: ONNX Inference + Shipping
-
-As a Godot developer, I want a trained policy to drive my agent with Python closed, and to ship my game without training bloat.
+1. Define a reinforcement-learning environment using Godot-native APIs.
+2. Declare reusable observation and action spaces.
+3. Connect a Godot environment to Schola's existing Python training tools.
+4. Execute the complete reinforcement-learning episode lifecycle correctly.
+5. Configure agents and environments through Godot nodes and the Inspector.
+6. Export a trained policy from Python to ONNX.
+7. Run the ONNX policy in Godot and ship without training-only dependencies.
 
 #### Q5: Have you decided on how you will build it? Share what you know now or tell us the options you are considering.
 
@@ -133,7 +110,9 @@ List/describe the artifacts you will produce to organize your team. (We strongly
 Our team functions as an external feature expansion team for AMD. The partner's team developed the core Schola library and the Unreal implementation. We are taking the role of porting this functionality to a new engine (Godot), effectively opening up a new platform for their product. We act semi-autonomously, relying on their Unreal plugin as a reference architecture, and contributing back to their open-source ecosystem.
 
 #### Q12. How does your project fit within the overall product from the partner?
-Our project is a horizontal expansion of the AMD Schola product. Currently, Schola provides an Unreal Engine plugin and an engine-agnostic Python package. Our project provides a Godot plugin that interfaces with the exact same Python package. It fits seamlessly alongside the Unreal plugin, offering developers a choice of game engine while keeping the RL training pipeline identical. The partner considers success to be achieving feature parity with the Unreal reference on Godot and validating end-to-end training on at least one benchmark environment.
+Our project is a horizontal expansion of AMD Schola. Schola currently provides an Unreal Engine plugin and a Python package that supports reinforcement-learning frameworks such as Gymnasium, RLlib, and Stable-Baselines3. Our team is responsible for the initial Godot engine integration and will reuse the existing Python stack wherever practical. AMD continues to maintain the Python and Unreal components and can assist when multi-engine compatibility requires changes to them.
+
+The Godot port is not intended to copy every Unreal feature or implementation decision. For this project, success is a small, well-designed, extensible core that completes one end-to-end workflow: define a simple environment in Godot, train a policy through Schola's Python tooling, export it to ONNX, and run it in Godot without Python. Training dependencies must remain separable from the runtime and inference components so they can be excluded from a shipped game.
 
 ## Potential Risks
 
