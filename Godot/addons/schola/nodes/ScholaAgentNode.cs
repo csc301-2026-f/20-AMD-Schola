@@ -13,13 +13,7 @@ public partial class ScholaAgentNode : Node
 	// Called when the node enters the scene tree for the first time.
 	public override void _Ready()
 	{
-		
-	}
-
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-		if (Environment = EnvironmentPath.IsEmpty)
+		if (EnvironmentPath.IsEmpty)
 		{
 			// fallback
 			Environment = GetTree().GetFirstNodeInGroup("schola_environment") as ScholaEnvironmentNode;
@@ -27,20 +21,29 @@ public partial class ScholaAgentNode : Node
 		{
 			Environment = GetNodeOrNull<ScholaEnvironmentNode>(EnvironmentPath);
 		}
+
+		if (Environment == null)
+			GD.PushWarning("ScholaAgentNode needs a ScholaEnvironmentNode");
 	}
+
 
 	public void AddReward(float amount, string reason = "")
 	{
-		
+		Environment.AddReward(amount, reason);
 	}
 
-    public void CompleteEpisode()
-    {
+	public void CompleteEpisode()
+	{
+		Environment.CompleteEpisode();
+	}
 
-    }
+	public void FailEpisode(string reason = "Failed")
+	{
+		Environment.FailEpisode(reason);
+	}
 
-    public void FailEpisode(string reason = "Failed")
-    {
-
-    }
+	public bool ResetEpisode()
+	{
+		return Environment != null && Environment.ResetEpisode();
+	}
 }
