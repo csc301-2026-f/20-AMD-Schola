@@ -1,0 +1,41 @@
+{
+  "godot_cpp": {
+    "source": "git-submodule",
+    "path": "Godot/godot-cpp",
+    "tag": "10.0.0-stable",
+    "commit": "507ed9d840c01a3c5b2a39af8bb4000bfac30bf5",
+    "godot_api": "4.7"
+  },
+  "grpc": {
+    "source": "repository-bundled",
+    "path": "Source/ThirdParty/gRPC",
+    "version": "1.80.0",
+    "targets": [
+      "linux-x86_64",
+      "windows-x86_64"
+    ]
+  },
+  "protobuf": {
+    "source": "repository-bundled-with-grpc",
+    "path": "Source/ThirdParty/gRPC",
+    "version": "6.31.1",
+    "targets": [
+      "linux-x86_64",
+      "windows-x86_64"
+    ]
+  },
+  "onnxruntime": {
+    "source": "release-archive",
+    "version": "1.30.0",
+    "archives": {
+      "linux-x86_64": {
+        "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-linux-x64-1.30.0.tgz",
+        "sha256": "a5ed5a3cac51fbb2e90da632ae43d19212faaa20e76484e62bcb7c23ddb3b3fd"
+      },
+      "windows-x86_64": {
+        "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip",
+        "sha256": "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949"
+      }
+    }
+  }
+}

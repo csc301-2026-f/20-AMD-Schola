@@ -13,7 +13,7 @@ This directory contains the Godot port of AMD Schola. The design keeps reusable 
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC and Windows/MSVC |
 
-`godot-cpp` is a pinned Git submodule. The training target will reuse the repository's bundled gRPC 1.80.0 and Protocol Buffers 6.31.1 builds. ONNX Runtime will be added as a pinned CPU release archive when inference is connected; that dependency must be introduced centrally rather than selected on a feature branch. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+Dependency sources, versions, supported archives, and checksums are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` is a pinned Git submodule. The training target will reuse the repository's bundled gRPC and Protocol Buffers builds. ONNX Runtime will be obtained from the pinned CPU release archives when inference is connected. Feature branches must not select dependency versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
 
 ## Build and run
 
