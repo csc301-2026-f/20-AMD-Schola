@@ -94,6 +94,9 @@ jobs:
       - name: Install Godot test dependencies
         run: python Godot/tools/setup_test_dependencies.py
 
+      - name: Import project resources
+        run: ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot --import
+
       - name: Load extension and example scene
         run: ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot --quit-after 1
 
