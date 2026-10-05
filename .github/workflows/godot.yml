@@ -88,6 +88,8 @@ jobs:
           curl --fail --location --retry 3 \
             --output godot.zip \
             https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  godot.zip" \
+            | sha256sum --check --strict
           unzip -q godot.zip
           chmod +x Godot_v4.7.2-stable_linux.x86_64
 
