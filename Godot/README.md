@@ -2,6 +2,38 @@
 
 This directory contains the Godot port of AMD Schola. The design keeps reusable reinforcement-learning logic independent from Godot, gRPC, and ONNX so that each part can be developed and tested separately.
 
+## Supported toolchain
+
+| Component | Initial baseline |
+| --- | --- |
+| Godot | 4.7.2 |
+| `godot-cpp` | `10.0.0-stable` (`507ed9d840c01a3c5b2a39af8bb4000bfac30bf5`) |
+| C++ | C++17, matching `godot-cpp` |
+| SCons | 4.10.1 |
+| Primary CI | Ubuntu 22.04, x86-64, GCC |
+| Local development | Linux/GCC and Windows/MSVC |
+
+`godot-cpp` is a pinned Git submodule. The training target will reuse the repository's bundled gRPC 1.80.0 and Protocol Buffers 6.31.1 builds. ONNX Runtime will be added as a pinned CPU release archive when inference is connected; that dependency must be introduced centrally rather than selected on a feature branch. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+
+## Build and run
+
+From a fresh checkout:
+
+```sh
+git submodule update --init --recursive
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r Godot/requirements.txt
+scons -C Godot platform=linux target=template_debug -j"$(nproc)"
+godot --editor --path Godot
+```
+
+On macOS, use `platform=macos` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, use the same SCons command with `platform=windows` from a developer shell. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+
+The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime/core code as transport support is added. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
+
+The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
+
 ## Directory structure
 
 ```text
@@ -32,7 +64,7 @@ Contains the engine-independent environment interfaces, space and point types, a
 
 ### `src/bindings`
 
-Adapts the core abstractions to Godot nodes, resources, the Inspector, and the engine lifecycle. This is the only project that may reference Godot APIs.
+Adapts the core abstractions to user-facing Godot nodes, resources, the Inspector, and the engine lifecycle. User-facing Godot APIs belong here. The `src/runtime` and `src/training` composition roots may use the minimal Godot registration APIs needed to assemble and initialize their extensions; they must not define user-story APIs.
 
 ### `src/transport/grpc`
 
