@@ -61,4 +61,15 @@ training_targets = build_extension(
     "schola_training",
 )
 
+test_environment = environment.Clone()
+test_environment.Append(CPPPATH=["catch2/extras"])
+unit_test_program = test_environment.Program(
+    "build/tests/schola_core_tests",
+    source=(
+        sources_under("src/core", "tests/unit")
+        + ["catch2/extras/catch_amalgamated.cpp"]
+    ),
+)
+Alias("unit_tests", unit_test_program)
+
 Default(*(runtime_targets + training_targets))

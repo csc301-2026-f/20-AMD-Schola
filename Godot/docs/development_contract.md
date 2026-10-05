@@ -56,3 +56,10 @@ These rules assign ownership and paths without choosing the transport API or res
 ## Shared-file policy
 
 The extension entry points, `SConstruct`, `.gdextension` descriptors, dependency pins, CI workflow, and this contract are shared infrastructure. Feature branches should use the established module hooks and source discovery. A change to shared infrastructure should be isolated in a prerequisite commit or pull request rather than bundled into a user-story API change.
+
+## Tests
+
+- Engine-independent C++ unit tests use the pinned Catch2 release under `tests/unit/` and build through the shared `unit_tests` SCons target.
+- Godot scene, binding, and extension integration tests use the pinned GdUnit4 release under `tests/integration/`.
+- Python compatibility tests remain in the existing pytest suite.
+- Tests assert externally observable behavior. A user-story branch must not introduce another test framework without a focused change to this contract and the shared CI workflow.

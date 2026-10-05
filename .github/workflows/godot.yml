@@ -57,6 +57,11 @@ jobs:
       - name: Build debug extensions
         run: scons -C Godot platform=linux target=template_debug -j2
 
+      - name: Build and run core unit tests
+        run: |
+          scons -C Godot unit_tests platform=linux target=template_debug -j2
+          ./Godot/build/tests/schola_core_tests
+
       - name: Upload extensions
         uses: actions/upload-artifact@v4
         with:
@@ -86,5 +91,14 @@ jobs:
           unzip -q godot.zip
           chmod +x Godot_v4.7.2-stable_linux.x86_64
 
+      - name: Install Godot test dependencies
+        run: python Godot/tools/setup_test_dependencies.py
+
       - name: Load extension and example scene
         run: ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot --quit-after 1
+
+      - name: Run Godot integration tests
+        run: |
+          ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot \
+            -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+            --ignoreHeadlessMode -a res://tests/integration

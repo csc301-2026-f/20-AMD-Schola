@@ -15,6 +15,15 @@ This directory contains the Godot port of AMD Schola. The design keeps reusable 
 
 Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` is a pinned Git submodule, and ONNX Runtime will be obtained from pinned CPU release archives when inference is connected. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
 
+Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
+
+```sh
+scons -C Godot unit_tests platform=linux target=template_debug -j"$(nproc)"
+./Godot/build/tests/schola_core_tests
+```
+
+Use the matching platform value on macOS or Windows. Godot scene and extension integration tests use pinned GdUnit4 and live under `tests/integration/`. Install the test add-on with `python Godot/tools/setup_test_dependencies.py`; CI runs these tests headlessly against the supported Godot version.
+
 ## Build and run
 
 From a fresh checkout:

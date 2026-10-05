@@ -6,6 +6,19 @@
     "commit": "507ed9d840c01a3c5b2a39af8bb4000bfac30bf5",
     "godot_api": "4.7"
   },
+  "catch2": {
+    "source": "git-submodule",
+    "path": "Godot/catch2",
+    "tag": "v3.8.1",
+    "commit": "2b60af89e23d28eefc081bc930831ee9d45ea58b"
+  },
+  "gdunit4": {
+    "source": "release-archive",
+    "version": "6.2.1",
+    "url": "https://github.com/godot-gdunit-labs/gdUnit4/archive/refs/tags/v6.2.1.zip",
+    "sha256": "ffb48847c46f386bf0c7a716fd68c6dace7d67730775cf7f748adce8ef3ed794",
+    "archive_path": "gdUnit4-6.2.1/addons/gdUnit4"
+  },
   "grpc": {
     "status": "research-required",
     "source": null,
