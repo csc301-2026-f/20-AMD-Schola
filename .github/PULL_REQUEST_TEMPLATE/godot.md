@@ -16,4 +16,5 @@
 
 - [ ] This pull request has one focused scope.
 - [ ] Affected documentation is updated.
+- [ ] New source and build-script files include the standard AMD copyright notice.
 - [ ] Generated or vendored files were not edited manually.

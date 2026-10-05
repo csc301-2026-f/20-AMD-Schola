@@ -86,10 +86,10 @@ Place new automation tests under `Source/<Module>/Private/Test/` as `*Test.cpp` 
 
 ### Copyright headers
 
-New source files should include the standard AMD copyright notice at the top, matching neighboring files:
+New source and build-script files should include the standard AMD copyright notice at the top, matching neighboring files. This applies to the Godot implementation as well as the upstream Unreal and Python code:
 
 - C++: `// Copyright (c) <year> Advanced Micro Devices, Inc. All Rights Reserved.`
-- Python: `# Copyright (c) <year> Advanced Micro Devices, Inc. All Rights Reserved.`
+- Python, SCons, and GDScript: `# Copyright (c) <year> Advanced Micro Devices, Inc. All Rights Reserved.`
 
 
 ### Protocol buffers and generated code

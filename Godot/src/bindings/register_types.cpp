@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 #include "bindings/register_types.h"
 
 #include "bindings/schola_runtime_probe.h"

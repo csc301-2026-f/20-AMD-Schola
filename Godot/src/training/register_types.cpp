@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 #include "training/register_types.h"
 
 #include "training/bindings/register_types.h"

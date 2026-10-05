@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 #include "runtime/register_types.h"
 
 #include "bindings/register_types.h"
