@@ -7,22 +7,24 @@
     "godot_api": "4.7"
   },
   "grpc": {
-    "source": "repository-bundled",
-    "path": "Source/ThirdParty/gRPC",
-    "version": "1.80.0",
-    "targets": [
-      "linux-x86_64",
-      "windows-x86_64"
-    ]
+    "status": "research-required",
+    "source": null,
+    "version": null,
+    "reference_implementation": {
+      "path": "Source/ThirdParty/gRPC",
+      "version": "1.80.0",
+      "note": "Unreal-specific bundled build; do not link it into Godot without a compatibility spike and AMD approval."
+    }
   },
   "protobuf": {
-    "source": "repository-bundled-with-grpc",
-    "path": "Source/ThirdParty/gRPC",
-    "version": "6.31.1",
-    "targets": [
-      "linux-x86_64",
-      "windows-x86_64"
-    ]
+    "status": "research-required",
+    "source": null,
+    "version": null,
+    "reference_implementation": {
+      "path": "Source/ThirdParty/gRPC",
+      "version": "6.31.1",
+      "note": "Bundled with the Unreal gRPC build; the Godot source and version must be selected together with gRPC."
+    }
   },
   "onnxruntime": {
     "source": "release-archive",

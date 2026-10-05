@@ -1,7 +1,4 @@
-#ifndef SCHOLA_TRAINING_BINDINGS_REGISTER_TYPES_H
-#define SCHOLA_TRAINING_BINDINGS_REGISTER_TYPES_H
+#pragma once
 
 void register_schola_training_binding_types();
 void unregister_schola_training_binding_types();
-
-#endif // SCHOLA_TRAINING_BINDINGS_REGISTER_TYPES_H

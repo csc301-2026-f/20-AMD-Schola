@@ -13,7 +13,7 @@ This directory contains the Godot port of AMD Schola. The design keeps reusable 
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC and Windows/MSVC |
 
-Dependency sources, versions, supported archives, and checksums are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` is a pinned Git submodule. The training target will reuse the repository's bundled gRPC and Protocol Buffers builds. ONNX Runtime will be obtained from the pinned CPU release archives when inference is connected. Feature branches must not select dependency versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` is a pinned Git submodule, and ONNX Runtime will be obtained from pinned CPU release archives when inference is connected. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
 
 ## Build and run
 
@@ -102,6 +102,8 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US7: Run and ship an ONNX policy | `src/inference/` and `addons/schola/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
+
+Shared C++ conventions, ownership rules, and infrastructure-change policy are defined in [`docs/development_contract.md`](docs/development_contract.md). That contract deliberately leaves user-story interfaces to their owners.
 
 ## Code style and formatting
 
