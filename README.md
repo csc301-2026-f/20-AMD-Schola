@@ -1,91 +1,71 @@
-<p align="center">
-  <img src="./Docs/Sphinx/_static/AMD_Schola_Lockup_RGB_Blk.png" alt="Schola Lockup" width="50%"/>
-</p>
+# Schola for Godot - Team 20, The Hard Workers
 
-<div align="center">
+Schola for Godot is a CSC301 project developed by our 7-person student team in partnership with AMD. The project is currently in its planning and prototyping stage.
 
-[![GitHub License](https://img.shields.io/github/license/GPUOpen-LibrariesAndSDKs/Schola)](https://opensource.org/license/MIT)
-[![Discord](https://img.shields.io/badge/Discord-Join_Us-5865F2?style=flat&logo=discord&logoColor=white)](https://discord.gg/amd-dev)
-[![Codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FGPUOpen-LibrariesAndSDKs%2FSchola%2Frefs%2Fheads%2FAlex%2FBeautify-Readme%2FResources%2Fpython%2Fpyproject.toml)](https://www.python.org/downloads/)
-[![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine%20-%205.5%20%7C%205.6%20%7C%205.7%20-%20white?style=flat&logo=unrealengine&color=F26522)](https://www.unrealengine.com/download)
+## Partner introduction
 
+Our partner is AMD, the organization that maintains the open-source Schola reinforcement-learning toolkit.
 
-</div>
+- **Primary contact:** Alexander Cann, Member of Technical Staff, [alexander.cann@amd.com](mailto:alexander.cann@amd.com)
+- **Secondary contact:** TianYue "Michael" Liu, Senior Software Engineer, [tianyliu@amd.com](mailto:tianyliu@amd.com)
 
----
+## Project description
 
-The Schola project is an effort to build a toolkit/plugin for controlling Objects in Unreal with Reinforcement Learning. It provides tools to help the user create Environments, define Agents, connect to python based RL Frameworks (e.g. Gym, RLlib or Stable Baselines 3), and power NPCs with RL during games.
+We are building a Godot 4.7 port of AMD Schola. It will let Godot developers define reinforcement-learning environments and agents, train them with Schola's Python tools, export trained policies to ONNX, and run those policies inside Godot without Python. The port removes the need for developers to create their own engine-to-Python communication, episode coordination, and inference infrastructure.
 
-## Getting Started
+## Key features
 
-### Install Unreal Engine
-As Schola is an Unreal Engine Project, you will need to first install Unreal Engine. Refer to the below table to identify the correct version of Unreal Engine for each version of Schola. 
+- **Godot-native environment definition:** Developers will configure environments and agents through Godot nodes and the Inspector.
+- **Observation and action spaces:** The port will support Box, Discrete, MultiDiscrete, and MultiBinary spaces and validate values against their declared spaces.
+- **Python training integration:** Godot environments will communicate with Schola's existing Python ecosystem through its gRPC protocol.
+- **Complete episode lifecycle:** The integration will coordinate actions, observations, rewards, terminal states, truncation, and resets across complete episodes.
+- **Local ONNX inference:** Exported policies will run inside Godot without a live Python process or training connection.
+- **Separable packaging:** Training-only dependencies will be removable from exported games that only need inference.
 
->[!NOTE]
-> Each Schola release may be compatible with other versions of Unreal Engine beyond the ones listed here, however these are the version(s) tested for each release.
+The full MVP and its acceptance criteria are in the [D1 planning document](deliverables/D1/planning.md). The [architecture diagram](deliverables/D1/d1-architecture-diagram.png) shows the planned components and workflow.
 
-| Schola version | Unreal Version |
-| -------------- | -------------- |
-| **2.1** | **5.5-5.7** |
-| 2.0 | 5.5-5.6 |
-| 1.3 | 5.5-5.6 |
-| 1.2 | 5.5 |
-| 1.1 | 5.5 |
-| 1.0 | 5.4 |
+## Instructions
 
+The D1 interactive prototype is preserved in [`Godot/archive/d1_demo`](Godot/archive/d1_demo) as a historical reference, and a [video walkthrough is available on YouTube](https://youtu.be/zg4K3fiQjJw). It demonstrates Godot-native environment and agent nodes, configurable rewards and episode limits, reward feedback, and episode resets. It does not include a training backend or persistence.
 
-### Installing Schola Into Your Project
-To use Schola in an existing Unreal Engine Project copy this repository to the `/Plugins` folder of your project, and pip install the Schola python package in `/Resources/python` using `pip install -e <path-to-plugin>/Resources/python[all]` (the folder that contains `pyproject.toml`).
+The archived project requires Godot 4.7.2 with .NET support and the .NET 8 SDK. Its C# implementation is not the production add-on; the production add-on uses the native C++ GDExtension architecture. Environment and reward APIs are still being developed, so the demo has not been ported.
 
-> [!IMPORTANT]
-> Since Schola is provided as C++ source you must recompile your project after adding it. Otherwise, you will receive a warning about Schola being built for another version of Unreal Engine regardless of what version you are using.
+## Development requirements
 
-### Dependencies
+The engine-side implementation targets Godot 4.7 and uses native C++ GDExtensions. The shared build, dependency, testing, packaging, and module foundation is defined; user-story APIs are implemented separately by their owners. The training integration will use gRPC and Protocol Buffers, while shipped-policy inference will use ONNX Runtime. The Python side will reuse Schola's Gymnasium, Stable-Baselines3, and RLlib integrations where practical.
 
-#### Python
+See the [Godot development guide](Godot/README.md) for supported tools, dependency pins, build and test commands, module boundaries, and contribution workflow.
 
-See `Resources/python/pyproject.toml` for a comprehensive list of dependencies. The following **optional dependency extras** are available when installing with pip (for example `pip install -e ./Resources/python[sb3]`):
+## Deployment and GitHub workflow
 
-| Extra | Description |
-| ----- | ----------- |
-| `sb3` | Dependencies for running training with Stable Baselines 3 |
-| `rllib` | Dependencies for running training with RLlib |
-| `minari` | Dependencies for collecting Minari datasets with Schola |
-| `all` | Equivalent to installing `sb3`, `rllib`, and `minari` together |
-| `docs` | Dependencies for building documentation with Sphinx |
+This project is a developer library rather than a hosted service. The Godot integration will be distributed as an add-on, with training-only code packaged separately from the core and inference components.
 
-Test dependencies are declared under `[dependency-groups]` in `pyproject.toml`, not as a pip extra. Install them with **`pip install --group test`** (for example `pip install --group test -e ./Resources/python[all]` from your project, or the same with `cd` into `Resources/python` first).
+The 7 team members track work on the [Trello board](https://trello.com/b/Ry0Qkx2R). Each change is developed on a branch and submitted to `main` through a pull request. At least 1 other team member must review and approve the pull request before it is merged. The related Trello card remains in progress until the pull request is merged. This workflow keeps work attributable, reduces conflicts, and prevents unreviewed changes from entering `main`.
 
-#### C++
+Commit messages follow Conventional Commits, using prefixes such as `feat:`, `fix:`, `docs:`, and `test:`. Changes that affect shared architecture or protocol behavior are discussed with the team and AMD before implementation.
 
-All C++ dependencies for using Schola are bundled with the plugin under `/Source/ThirdParty` and do not need to be installed separately. These consist of `gRPC`, `protobuf` and `absl`(dependency of gRPC).
+## Coding standards and guidelines
 
-## Build and Test
+C++ code follows Godot's C++ style and is formatted with `clang-format`. Python code follows PEP 8 and is formatted with Black. New behavior must include relevant tests, and generated Protocol Buffer files must not be edited by hand.
 
->[!IMPORTANT]
-> Schola comes with all dependencies included. Only run these if you encounter issues during the setup.
+## License
 
-### Building Third Party Dependencies
+The project uses the [MIT License](LICENSE.txt), matching AMD Schola. This permits use, modification, and redistribution while requiring preservation of the license and copyright notice.
 
-Third party dependencies, specifically gRPC and Protobuf can be built using `Schola\Plugins\Schola\Resources\Build\windows_dependencies.bat` or `Schola\Plugins\Schola\Resources\Build\linux_dependencies.sh` depending on your OS. This will update the plugin ThirdParty folder to include copies of the dependencies including .lib/.a files, and copy protoc, and relevant plugins to the tools directory.
+## Project resources
 
-### Generating gRPC/Protobuf Code
+- [D1 planning document](deliverables/D1/planning.md)
+- [D1 architecture diagram](deliverables/D1/d1-architecture-diagram.png)
+- [Archived D1 Godot prototype](Godot/archive/d1_demo)
+- [Prototype video walkthrough](https://youtu.be/zg4K3fiQjJw)
+- [Team and stakeholder records](deliverables/team/)
+- [Meeting minutes](deliverables/team/minutes/)
+- [Trello project board](https://trello.com/b/Ry0Qkx2R)
 
-To generate code for gRPC and Protobuf run `schola compile-proto`. This will generate `*.pb.cc`, `*.pb.h` and `*.pb.py` files to the correct folders as well as fix several bugs in the default generator (e.g. ignore warnings in C++ code, and fix relative imports for python)
+## Deployed URL and access instructions
 
-### Generating Documentation
+The D1 prototype is preserved as a local Godot project under [`Godot/archive/d1_demo`](Godot/archive/d1_demo). View the [video walkthrough](https://youtu.be/zg4K3fiQjJw) or use the archived project's README to run it. The finished product will be distributed as a local Godot add-on, with Python packages installed locally for training.
 
-Documentation for Schola is build using a combination of Doxygen + Sphinx + Breathe.
+## D3 improvement highlight
 
-1. Install Doxygen from [the website](https://www.doxygen.nl/) 
-2. Install documentation requirements for Schola using pip, for example `pip install -e "./Resources/python[docs]"` from the plugin root (or `pip install -e ".[docs]"` after `cd` into `Resources/python`).
-3. Run the command `schola build-docs --builder html` from the root of this project (or supply the path to the plugin folder)
-
-## Contact
-
-For questions about Schola, contact the team at [Schola@amd.com](mailto:Schola@amd.com).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for issue and pull request guidelines, coding standards, and testing expectations.
+Not applicable for D1. This section will summarize the changes made between D2 and D3.
