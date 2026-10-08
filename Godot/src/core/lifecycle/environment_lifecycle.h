@@ -5,10 +5,15 @@
 #include "core/common/types.h"
 #include "core/lifecycle/training_types.h"
 
+#include "core/common/status.h"
+
 namespace schola {
 
 // Enforces legal state transitions for one non-owned environment. This is the
 // only US4 class that directly depends on the provisional US1 Environment API.
+// US1 must let this class initialize definitions, reset with settings, apply
+// actions before physics, and collect agent state after physics. Environment
+// membership and definitions remain fixed after initialize().
 class EnvironmentLifecycle {
 public:
 	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
@@ -27,20 +32,23 @@ public:
 	// RESET_PENDING. Initialization may succeed only once.
 	Status initialize();
 
-	// Starts a new episode and transitions to ACTIVE. The output is changed only
-	// when the reset succeeds.
-	Status reset(const ResetSettings &p_settings,
-		               InitialEnvironmentState &r_initial_state);
+	// Starts a new episode and transitions to ACTIVE. Reset is allowed from
+	// RESET_PENDING, ACTIVE, or COMPLETE, so an explicit request may interrupt an
+	// active episode. The output is changed only when the reset succeeds.
+	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
 	// Requires ACTIVE. Validation is mutation-free, allowing a coordinator to
 	// validate a complete batch before any environment advances.
 	Status validate_step(const std::map<AgentId, Point> &p_actions) const;
 
-	// Requires ACTIVE. Applies actions and transitions to STEP_PENDING.
+	// Requires ACTIVE. Applies actions only for agents that have not completed
+	// and transitions to STEP_PENDING.
 	Status begin_step(const std::map<AgentId, Point> &p_actions);
 
 	// Requires STEP_PENDING and must be called after one physics boundary.
-	// Captures an owned snapshot and transitions to ACTIVE or COMPLETE. The
+	// Captures an owned snapshot, retaining the final state of agents that had
+	// already completed. The environment transitions to COMPLETE when every
+	// agent is terminated or truncated; otherwise it returns to ACTIVE. The
 	// output is changed only when collection succeeds.
 	Status finish_step(EnvironmentState &r_state);
 
