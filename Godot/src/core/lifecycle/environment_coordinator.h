@@ -9,7 +9,10 @@
 
 namespace schola {
 
-// Coordinates a fixed, ordered set of lifecycle instances and owns them.
+// Coordinates a fixed, ordered set of lifecycle instances and owns them. Every
+// request is fully validated before mutation begins. If an operation fails
+// after any environment mutates, the coordinator closes the complete session;
+// later operations fail with CLOSED rather than continuing from partial state.
 class EnvironmentCoordinator {
 public:
 	EnvironmentCoordinator() = default;
