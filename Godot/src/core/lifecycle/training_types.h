@@ -16,6 +16,16 @@ enum class AutoResetMode {
 	DISABLED,
 };
 
+enum class LifecycleState {
+	UNINITIALIZED,
+	ACTIVE,
+	COMPLETE,
+	RESET_PENDING,
+	STEP_PENDING,
+	FAULTED,
+	CLOSED,
+};
+
 struct EnvironmentDefinition {
 	std::map<AgentId, InteractionDefinition> agents;
 };
