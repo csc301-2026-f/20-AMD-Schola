@@ -102,6 +102,7 @@ Conventions for every C++ API in this document:
 
 - Functions that can fail return `Status`. Data they produce is written to parameters prefixed `r_`; inputs are prefixed `p_`, following godot-cpp.
 - Containers keyed by ID use `std::map`, so iteration order is deterministic.
+- Callers keep output containers (`r_` maps, vectors, and points) between steps, and implementations update their existing entries in place, so a step with unchanged agents and sizes performs no heap allocation.
 - Declarations are listed in reading order. Real headers may order them differently, for example to resolve the `Space`/`DictSpace` recursion.
 
 ### 3.1 Errors: `core/common/status.h` (shared)
@@ -550,6 +551,7 @@ public:
 	virtual Status open(const TrainingDefinition &p_definition) = 0;                                   // Starts listening and serves the definition to Python.
 	virtual Status wait_for_start(StartRequest &r_request, std::chrono::milliseconds p_timeout) = 0;   // Blocks until Python starts the connector; TIMEOUT otherwise.
 	virtual Status wait_for_update(ConnectorUpdate &r_update, std::chrono::milliseconds p_timeout) = 0; // Blocks the main thread until Python's next message. TIMEOUT after p_timeout (zero waits indefinitely); CLOSED if Python reported an error.
+	virtual Status poll_update(ConnectorUpdate &r_update) = 0;                                         // Never blocks. OK with an update if one has arrived, NOT_FOUND if not yet; CLOSED as for wait_for_update.
 	virtual Status reply(const TrainingState *p_state, const InitialState *p_initial_state) = 0;       // Answers the last update; nullptr leaves that field unset.
 	virtual void close() = 0;                                                                          // Stops listening and joins worker threads; safe to call twice.
 };
@@ -558,7 +560,8 @@ public:
 class ConnectorLoop {
 public:
 	Status start(Connector &p_connector, TrainingBackend &p_backend, std::chrono::milliseconds p_start_timeout); // define, open, wait_for_start, then set_autoreset_mode.
-	Status tick(std::chrono::milliseconds p_update_timeout);                                                     // One physics frame: wait for an update, run it on the backend, reply. CLOSED when Python disconnects.
+	Status tick(std::chrono::milliseconds p_update_timeout);                                                     // Headless mode, one physics frame: wait for an update, run it on the backend, reply. CLOSED when Python disconnects.
+	Status poll_tick(std::chrono::milliseconds p_update_timeout);                                                // Windowed mode: if an update has arrived, run it and reply; otherwise return NOT_FOUND at once. TIMEOUT once no update has arrived for p_update_timeout.
 	void stop();                                                                                                 // Closes the connector.
 };
 
@@ -753,7 +756,18 @@ var step_timeout_sec: float                       # schola/training/step_timeout
 signal training_finished(error: String)           # Empty when Python closed the connection normally.
 ```
 
-The connector is created by code and never placed in a scene, so its properties cannot be edited in the Inspector. It reads them from the [project settings](#project-settings) when created. `_ready()` calls `ConnectorLoop::start`; `_physics_process()` calls `ConnectorLoop::tick`.
+The connector is created by code and never placed in a scene, so its properties cannot be edited in the Inspector. It reads them from the [project settings](#project-settings) when created. `_ready()` calls `ConnectorLoop::start`.
+
+#### Headless and windowed training
+
+Each Python step corresponds to exactly one physics frame in both modes. The mode is chosen automatically:
+
+| Mode | When | Each physics frame | Why |
+| --- | --- | --- | --- |
+| Headless | `DisplayServer.get_name()` is `"headless"`, e.g. a game launched by Python with `--headless` | `ConnectorLoop::tick` blocks until Python's next message | Fastest; there is no window to keep responsive. This is how the Unreal plugin works. |
+| Windowed | Any other display, e.g. running from the editor with `schola/training/listen_in_editor` | `ConnectorLoop::poll_tick` returns at once. While no message has arrived, the connector pauses the scene tree (`get_tree().paused`), so physics and game logic do not advance; when a message arrives, it unpauses and handles it. | Blocking would freeze the game window whenever Python is slow, for example during a PPO update that sends no steps for several seconds, and Windows would report the game as "Not Responding". Pausing keeps the window drawing. |
+
+In windowed mode the connector uses `process_mode = PROCESS_MODE_ALWAYS` so it keeps running while the tree is paused, and `step_timeout_sec` is measured in real time.
 
 Training never hangs silently. It ends in one of these ways:
 
@@ -963,7 +977,7 @@ public:
 class FakeConnector final : public Connector { // US3
 public:
 	StartRequest start_request;                // Returned by wait_for_start().
-	std::deque<ConnectorUpdate> updates;       // wait_for_update() pops the next one; TIMEOUT when empty.
+	std::deque<ConnectorUpdate> updates;       // wait_for_update() pops the next one, TIMEOUT when empty; poll_update() pops the next one, NOT_FOUND when empty.
 	std::optional<TrainingDefinition> opened;  // Definition passed to open().
 	std::vector<TrainingState> state_replies;  // Every non-null p_state passed to reply().
 	std::vector<InitialState> initial_replies; // Every non-null p_initial_state passed to reply().
@@ -1142,3 +1156,4 @@ Conversion between core types and protobuf lives only in the training extension:
 | 13 | Test doubles | Hand-written fakes; each interface owner writes the fake for their interface (4.9) | All stories |
 | 14 | Python launcher arguments | `GodotExecutable` passes `--fixed-fps <n>` for training speed and `-ScholaScene` after `--`, because exported games reject scene paths on the command line (4.6) | US3, AMD |
 | 15 | Recurrent policies | Supported: `state_in/*` and `state_out/*` tensors, per-agent memory cleared on reset, sequence windows from the exporter's metadata (4.8). The policy API takes an agent index for this (4.7) | US7 |
+| 16 | Waiting for Python | Block in headless mode; in windowed mode poll with `Connector::poll_update` and pause the scene tree until a message arrives, so the window stays responsive (4.6) | US3 |
