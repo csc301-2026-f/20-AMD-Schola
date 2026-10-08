@@ -2,11 +2,6 @@ name: Godot
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/godot.yml"
-      - ".gitmodules"
-      - "Godot/**"
-      - "Proto/**"
   push:
     branches:
       - main
@@ -18,14 +13,45 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: godot-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect Godot changes
+    runs-on: ubuntu-22.04
+    outputs:
+      godot: ${{ steps.filter.outputs.godot }}
+    steps:
+      - name: Detect relevant paths
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          relevant=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            relevant=false
+            gh api --paginate \
+              "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+              --jq '.[].filename' > changed-files.txt
+            while IFS= read -r path; do
+              case "$path" in
+                .github/workflows/godot.yml|.gitmodules|Godot/*|Proto/*)
+                  relevant=true
+                  break
+                  ;;
+              esac
+            done < changed-files.txt
+          fi
+          echo "godot=$relevant" >> "$GITHUB_OUTPUT"
+
   format:
     name: Godot / format
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -44,6 +70,8 @@ jobs:
 
   build:
     name: Godot / build
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -83,7 +111,11 @@ jobs:
 
   smoke:
     name: Godot / smoke
-    needs: build
+    needs: [changes, build]
+    if: >-
+      always() &&
+      needs.changes.outputs.godot == 'true' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
