@@ -572,7 +572,7 @@ Replies: after a reset, only `p_initial_state`; after a step, `p_state`, plus `p
 
 ### 4.4 Environment nodes and space resources: `src/bindings/environment/` (US1, US5), `src/bindings/spaces/` (US2)
 
-Users build environments from nodes and override virtual methods in GDScript (godot-cpp `GDVIRTUAL`). An environment's agents are its `ScholaAgent` descendants.
+Users build environments from nodes and override virtual methods in GDScript (godot-cpp `GDVIRTUAL`). An environment's agents are its `ScholaAgent` descendants. `ScholaEnvironment` supplies lifecycle hooks, not a goal-condition or reward-rule language: game-specific behaviour stays in the user's Godot scripts and composable helper components.
 
 Ownership of `ScholaEnvironment` and `ScholaAgent` is split by audience:
 
@@ -642,7 +642,6 @@ Each node checks its own configuration in one function, `get_configuration_error
 | `ScholaEnvironment` | It contains another `ScholaEnvironment`, so agent ownership is ambiguous. |
 | `ScholaAgent` | `observation_space` or `action_space` is not set. |
 | `ScholaAgent` | A space is invalid; the message includes the reason from `Space::check_definition()`, e.g. `low > high` or `n <= 0`. |
-| `ScholaEnvironment` | The Schola [editor plugin](#editor-plugin) is not enabled, so the training host autoload is missing and training cannot start. |
 
 Space resources, edited in the Inspector:
 
@@ -672,6 +671,16 @@ class_name ScholaDictSpace extends ScholaSpace
 ```cpp
 schola::Space ScholaSpace::to_space() const; // Core space for this resource.
 ```
+
+#### Basic environment demonstration (US5)
+
+`examples/basic_environment/` is an MVP demonstration of the public node API, not a special case in `ScholaEnvironment`. Its scene configures a movement agent and uses a demo-specific script or helper component to calculate and visibly report the reward for each step:
+
+- moving backward receives a small reward;
+- moving forward receives a larger reward; and
+- remaining still receives a penalty.
+
+The demo-specific component may expose those three values as Inspector properties. They must not become exported properties of generic `ScholaEnvironment`, which remains reusable for environments with different reward functions. The demonstration also exposes `max_episode_steps`; when it is positive, the normal lifecycle reports an otherwise unfinished episode as truncated. Tests cover forward, backward, stationary, reset, and maximum-step behaviour.
 
 ### 4.5 Training host: `src/bindings/lifecycle/` (US4)
 
@@ -1048,7 +1057,7 @@ Rules:
 
 - Node icons are declared in the `[icons]` section of `schola.gdextension`, so they do not depend on the plugin being enabled.
 - Project settings are registered by the runtime extension, not by the plugin (see below), so they exist even when the plugin is disabled and in exported games.
-- If the plugin is not enabled, training cannot start. `ScholaEnvironment` reports this as a [configuration check](#configuration-checks): `The Schola plugin is not enabled, so training cannot start. Enable it in Project Settings > Plugins.` The check looks for the project setting `autoload/ScholaTrainingHost`.
+- If the plugin is not enabled, training cannot start because the `ScholaTrainingHost` autoload is absent. The training-startup path reports this only when training is requested: `The Schola plugin is not enabled, so training cannot start. Enable it in Project Settings > Plugins.` It checks for the project setting `autoload/ScholaTrainingHost`. `ScholaEnvironment` itself does not report this as a configuration error, so inference-only and exported projects remain valid without the training add-on.
 
 #### Project settings
 
