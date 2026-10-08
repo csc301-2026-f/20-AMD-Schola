@@ -13,6 +13,8 @@ namespace schola {
 // request is fully validated before mutation begins. If an operation fails
 // after any environment mutates, the coordinator closes the complete session;
 // later operations fail with CLOSED rather than continuing from partial state.
+// Output parameters remain unchanged whenever an operation returns a non-OK
+// Status.
 class EnvironmentCoordinator {
 public:
 	EnvironmentCoordinator() = default;

@@ -15,7 +15,8 @@ using StepCompletion = std::function<void(Status, StepResult)>;
 
 // Logical lifecycle boundary used by the connector. The connector calls every
 // method serially on the backend's owning thread. A step completes only after
-// its actions have crossed the required physics boundary.
+// its actions have crossed the required physics boundary. Synchronous output
+// parameters remain unchanged whenever an operation returns a non-OK Status.
 class TrainingBackend {
 public:
 	virtual ~TrainingBackend() = default;

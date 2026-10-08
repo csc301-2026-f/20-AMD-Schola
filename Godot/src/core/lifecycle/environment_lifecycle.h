@@ -13,7 +13,8 @@ namespace schola {
 // only US4 class that directly depends on the provisional US1 Environment API.
 // US1 must let this class initialize definitions, reset with settings, apply
 // actions before physics, and collect agent state after physics. Environment
-// membership and definitions remain fixed after initialize().
+// membership and definitions remain fixed after initialize(). Output parameters
+// remain unchanged whenever an operation returns a non-OK Status.
 class EnvironmentLifecycle {
 public:
 	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
