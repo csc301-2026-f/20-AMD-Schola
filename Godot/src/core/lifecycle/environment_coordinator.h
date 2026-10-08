@@ -19,8 +19,8 @@ public:
 
 	// Each lifecycle ID must equal its position in the vector. Registration is
 	// fixed after define() succeeds. Ownership transfers to the coordinator only
-	// when registration succeeds.
-	Status set_lifecycles(std::vector<std::unique_ptr<EnvironmentLifecycle>> p_lifecycles);
+	// when registration succeeds; on failure, p_lifecycles remains unchanged.
+	Status set_lifecycles(std::vector<std::unique_ptr<EnvironmentLifecycle>> &&p_lifecycles);
 
 	// Initializes every lifecycle and returns definitions in EnvironmentId order.
 	// The output is changed only when every lifecycle initializes successfully.
