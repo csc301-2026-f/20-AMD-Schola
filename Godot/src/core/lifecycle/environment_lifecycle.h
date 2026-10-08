@@ -38,8 +38,11 @@ public:
 	// active episode. The output is changed only when the reset succeeds.
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
-	// Requires ACTIVE. Validation is mutation-free, allowing a coordinator to
-	// validate a complete batch before any environment advances.
+	// Requires ACTIVE. Rejects missing or extra agent IDs, structural point
+	// mismatches, and values outside the declared action-space bounds with
+	// INVALID_ARGUMENT. Actions are never clipped or coerced. Validation is
+	// mutation-free, allowing a coordinator to validate a complete batch before
+	// any environment advances.
 	Status validate_step(const std::map<AgentId, Point> &p_actions) const;
 
 	// Requires ACTIVE. Applies actions only for agents that have not completed
