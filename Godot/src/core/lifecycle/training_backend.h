@@ -17,6 +17,9 @@ using StepCompletion = std::function<void(Status, StepResult)>;
 // method serially on the backend's owning thread. A step completes only after
 // its actions have crossed the required physics boundary. Synchronous output
 // parameters remain unchanged whenever an operation returns a non-OK Status.
+// The Godot-facing training host implements this contract around an
+// EnvironmentCoordinator; US3 depends only on this interface and may provide a
+// proxy or fake without depending on Godot lifecycle internals.
 class TrainingBackend {
 public:
 	virtual ~TrainingBackend() = default;
