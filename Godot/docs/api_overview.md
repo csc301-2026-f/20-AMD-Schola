@@ -143,7 +143,6 @@ namespace schola {
 
 using AgentId = std::string;                     // Unique within its environment; the key of protobuf agent maps.
 using EnvironmentId = int32_t;                   // Index of the environment in TrainingDefinition::environments.
-using Info = std::map<std::string, std::string>; // Free-form per-agent data, delivered to Python's `info` dict.
 
 } // namespace schola
 ```
@@ -397,8 +396,8 @@ struct ResetSettings {
 };
 
 struct InitialAgentState {
-	Point observation; // First observation of the episode.
-	Info info;
+	Point observation;                       // First observation of the episode.
+	std::map<std::string, std::string> info; // Free-form data for Python's `info` dict.
 };
 
 struct AgentState {
@@ -406,7 +405,7 @@ struct AgentState {
 	float reward = 0.0f;     // Reward for this step.
 	bool terminated = false; // The episode ended for this agent, e.g. goal reached or failure.
 	bool truncated = false;  // The episode was cut short, e.g. a time limit.
-	Info info;
+	std::map<std::string, std::string> info; // Free-form data for Python's `info` dict.
 };
 
 class Environment {
@@ -819,9 +818,6 @@ Behaviour verified with Godot 4.7.2 exports:
 
 `core/policy/policy.h` (Unreal: `IPolicy`):
 
-```cpp
-namespace schola {
-
 A policy serves a fixed number of agents. Each agent has an index from 0 to `agent_count - 1`, so a recurrent policy can keep separate memory per agent and clear it when that agent's episode ends.
 
 ```cpp
@@ -888,7 +884,8 @@ func get_last_error() -> String                    # Full diagnostic of the last
 func get_input_names() -> PackedStringArray
 func get_output_names() -> PackedStringArray
 func infer(observation: Variant, agent: int = 0) -> Variant # One inference on a GDScript value (3.5); for custom loops and tests. agent selects whose memory is used.
-func reset_memory(agent: int = -1) -> void         # Clears the memory used by infer(); -1 clears every agent.
+func reset_memory(agent: int) -> void              # Clears one agent's memory used by infer().
+func reset_all_memory() -> void                    # Clears every agent's memory used by infer().
 
 class_name ScholaInferenceStepper extends Node
 @export var policy: ScholaOnnxPolicy
