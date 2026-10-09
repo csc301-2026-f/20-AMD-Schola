@@ -34,7 +34,7 @@ struct MultiBinaryPoint {
 	std::vector<uint8_t> values;
 };
 
-// Entries are ordered and must follow the key order of the matching DictSpace.
+// Entries are ordered. A valid point has exactly the keys of its DictSpace, in the same order.
 struct DictPoint {
 	std::vector<std::pair<std::string, Point>> entries;
 	// Returns a non-owning pointer to the entry for p_key, or nullptr if the key is absent.
@@ -44,6 +44,8 @@ struct DictPoint {
 };
 
 // A value that belongs to a Space. Use Space::validate() to check that a point fits its space.
+// A Point owns all of its nested data, is safe to copy and move, and holds no references to Godot,
+// protobuf, ONNX, or caller-owned storage.
 class Point {
 public:
 	// Constructs an empty Box point.
