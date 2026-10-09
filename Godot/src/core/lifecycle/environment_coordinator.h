@@ -9,13 +9,12 @@
 
 namespace schola {
 
-// Coordinates a fixed, ordered set of lifecycle instances and owns them. Every
-// request's routing and lifecycle preconditions are checked before mutation
-// begins. Point contents are validated by Python rather than scanned by the
-// engine. If an operation fails after any environment mutates, the coordinator
-// closes the complete session; later operations fail with CLOSED rather than
-// continuing from partial state. Output parameters remain unchanged whenever
-// an operation returns a non-OK Status.
+// Coordinates a fixed, ordered set of lifecycle instances and owns them. Python
+// owns space and point validation. The coordinator performs only the checks
+// needed to route operations safely and enforce its lifecycle. If an operation
+// fails after an environment mutates, the failure is returned to the connector
+// for reporting to Python. Output parameters remain unchanged whenever an
+// operation returns a non-OK Status.
 class EnvironmentCoordinator {
 public:
 	EnvironmentCoordinator() = default;
@@ -35,14 +34,12 @@ public:
 	// May be called exactly once after define() and before reset() or begin_step().
 	Status set_autoreset_mode(AutoResetMode p_mode);
 
-	// Validates every requested ID and setting before resetting any environment.
 	// Explicit reset may interrupt an ACTIVE environment. Environments omitted
 	// from the request are unchanged.
 	Status reset(const ResetRequest &p_request, InitialState &r_initial_state);
 
-	// begin_step checks the complete batch's routing and lifecycle preconditions
-	// before applying any actions, then handles environments due for NEXT_STEP
-	// reset. It does not validate point contents. The host must cross exactly one
+	// begin_step routes actions without validating their contents, then handles
+	// environments due for NEXT_STEP reset. The host must cross exactly one
 	// physics boundary before calling finish_step. A completed environment under
 	// DISABLED mode retains its final state and is not stepped. Under NEXT_STEP it
 	// resets here instead of consuming its action map; that map may be empty and

@@ -40,12 +40,6 @@ public:
 	// owns observation-space validation.
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
-	// Requires ACTIVE. Checks the agent IDs needed to route the request without
-	// inspecting point contents; Python owns action-space validation. This check
-	// is mutation-free, allowing a coordinator to reject an incomplete or
-	// misaddressed batch before any environment advances.
-	Status validate_step(const std::map<AgentId, Point> &p_actions) const;
-
 	// Requires ACTIVE. Applies actions only for agents that have not completed
 	// and transitions to STEP_PENDING.
 	Status begin_step(const std::map<AgentId, Point> &p_actions);
