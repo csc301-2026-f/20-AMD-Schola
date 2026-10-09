@@ -36,6 +36,7 @@ public:
 
 	// returns the US1 core adapter while this node is in the scene tree
 	// (ScholaAgent is the godot wrapper, schola::Agent is the US1 core abstraction)
+	// the adapter is the same whether or not a ScholaEnvironment registers this agent for training
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
