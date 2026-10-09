@@ -19,7 +19,9 @@ class Space;
 // Continuous values with per-element bounds. A valid definition has at least one dimension, every
 // dimension is positive, and low and high each hold product(shape) entries in row-major order.
 // low[i] <= high[i] and neither bound is NaN. An unbounded side, including a bound omitted from the
-// protobuf definition, is stored as negative or positive infinity.
+// protobuf definition, is stored as negative or positive infinity. When a protobuf or Unreal shape is
+// empty or has a product of zero, the conversion stores it as {low.size()}, matching how Python and
+// Unreal Schola infer a 1-D shape from the bounds.
 struct BoxSpace {
 	std::vector<float> low;
 	std::vector<float> high;
@@ -80,7 +82,8 @@ public:
 	// missing, extra, duplicated, or out of order. The message identifies the invalid element index
 	// and its Dict key path.
 	Status validate(const Point &p_point) const;
-	// Returns a point of this space's kind and size with every value set to zero.
+	// Returns a point of this space's kind and size that passes validate(). Every value is zero, except
+	// Box elements, which are zero clamped to [low[i], high[i]].
 	Point make_point() const;
 	// Returns the flattened size, matching Unreal Schola: Box is the element count, Discrete is n
 	// (one-hot), MultiDiscrete is the sum of nvec, MultiBinary is n, and Dict is the sum of its entries.
