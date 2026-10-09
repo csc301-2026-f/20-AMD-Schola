@@ -28,7 +28,6 @@ namespace schola {
  * Gym connector receives, not an invented shape.
  */
 struct ResetSettings {
-
 	/**
 	 * A seed forces the RNG's internal state to a known value, so draws from
 	 * it are reproducible: same seed, same numbers, every run.
@@ -48,7 +47,6 @@ struct ResetSettings {
  * InitialAgentState message (Proto/State.proto).
  */
 struct InitialAgentState {
-
 	// What the agent sees the instant reset() places it back at the start.
 	Point observation;
 
@@ -62,7 +60,6 @@ struct InitialAgentState {
  * AgentState message (Proto/State.proto).
  */
 struct AgentState {
-
 	// What the agent sees after this step's action was applied.
 	Point observation;
 

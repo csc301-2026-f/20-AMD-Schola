@@ -24,7 +24,7 @@ namespace schola {
  *
  * An agent can do three things
  * - Introduce itself with define()
- * - Look around with observe() 
+ * - Look around with observe()
  * - Do something with act()
  *
  * Knows nothing about episodes, rewards, or Godot so that it can run with
@@ -36,7 +36,6 @@ namespace schola {
  */
 class Agent {
 public:
-
 	// Required so deleting through an Agent* cleans up the real derived object
 	virtual ~Agent() = default;
 
@@ -57,28 +56,28 @@ public:
 
 	/**
 	 * Observes.
-	 * 
+	 *
 	 * In: r_observation; which will be a Point that is shaped to
 	 * match observation_space (from InteractionDefinition).
-	 * 
+	 *
 	 * Does: fills r_observation in place with what the agent currently sees.
-	 * 
+	 *
 	 * Out: r_observation now holds the real values. Return is a Status
 	 * saying whether the read succeded.
-	 * 
+	 *
 	 */
 	virtual Status observe(Point &r_observation) = 0;
 
 	/**
 	 * Applies one action.
-	 * 
+	 *
 	 * In: p_action; a Point already filled in and validated against action_space.
 	 * act() is not responsible for re-checking it.
-	 * 
+	 *
 	 * Does: carries out that action on the agent.
-	 * 
+	 *
 	 * Out: just a Status saying whether it worked.
-	 * 
+	 *
 	 */
 	virtual Status act(const Point &p_action) = 0;
 };

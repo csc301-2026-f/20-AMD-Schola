@@ -31,7 +31,7 @@ public:
 	int32_t get_max_episode_steps() const;
 
 	// === US1 Additions Below ===
-	
+
 	// Step order, so the override order here makes sense:
 	//   1. ScholaAgent::_act runs for every agent still in the episode
 	//   2. Godot runs one physics frame
