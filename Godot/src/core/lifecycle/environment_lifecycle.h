@@ -35,14 +35,15 @@ public:
 
 	// Starts a new episode and transitions to ACTIVE. Reset is allowed from
 	// RESET_PENDING, ACTIVE, or COMPLETE, so an explicit request may interrupt an
-	// active episode. The output is changed only when the reset succeeds.
+	// active episode. The output is changed only when the reset succeeds. The
+	// initial observation is forwarded without an engine-side value scan; Python
+	// owns observation-space validation.
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
-	// Requires ACTIVE. Rejects missing or extra agent IDs, structural point
-	// mismatches, and values outside the declared action-space bounds with
-	// INVALID_ARGUMENT. Actions are never clipped or coerced. Validation is
-	// mutation-free, allowing a coordinator to validate a complete batch before
-	// any environment advances.
+	// Requires ACTIVE. Checks the agent IDs needed to route the request without
+	// inspecting point contents; Python owns action-space validation. This check
+	// is mutation-free, allowing a coordinator to reject an incomplete or
+	// misaddressed batch before any environment advances.
 	Status validate_step(const std::map<AgentId, Point> &p_actions) const;
 
 	// Requires ACTIVE. Applies actions only for agents that have not completed
@@ -53,7 +54,8 @@ public:
 	// Captures an owned snapshot, retaining the final state of agents that had
 	// already completed. The environment transitions to COMPLETE when every
 	// agent is terminated or truncated; otherwise it returns to ACTIVE. The
-	// output is changed only when collection succeeds.
+	// output is changed only when collection succeeds. Observations are forwarded
+	// without an engine-side value scan; Python owns observation-space validation.
 	Status finish_step(EnvironmentState &r_state);
 
 	// Releases episode-local state and transitions to CLOSED. Closing an already

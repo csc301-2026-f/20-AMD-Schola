@@ -10,11 +10,12 @@
 namespace schola {
 
 // Coordinates a fixed, ordered set of lifecycle instances and owns them. Every
-// request is fully validated before mutation begins. If an operation fails
-// after any environment mutates, the coordinator closes the complete session;
-// later operations fail with CLOSED rather than continuing from partial state.
-// Output parameters remain unchanged whenever an operation returns a non-OK
-// Status.
+// request's routing and lifecycle preconditions are checked before mutation
+// begins. Point contents are validated by Python rather than scanned by the
+// engine. If an operation fails after any environment mutates, the coordinator
+// closes the complete session; later operations fail with CLOSED rather than
+// continuing from partial state. Output parameters remain unchanged whenever
+// an operation returns a non-OK Status.
 class EnvironmentCoordinator {
 public:
 	EnvironmentCoordinator() = default;
@@ -39,12 +40,13 @@ public:
 	// from the request are unchanged.
 	Status reset(const ResetRequest &p_request, InitialState &r_initial_state);
 
-	// begin_step validates the complete batch before applying any actions and
-	// handles environments due for NEXT_STEP reset. The host must cross exactly
-	// one physics boundary before calling finish_step. A completed environment
-	// under DISABLED mode retains its final state and is not stepped. Under
-	// NEXT_STEP it resets here instead of consuming its action map; that map may
-	// be empty and is otherwise ignored. Only one step may be pending.
+	// begin_step checks the complete batch's routing and lifecycle preconditions
+	// before applying any actions, then handles environments due for NEXT_STEP
+	// reset. It does not validate point contents. The host must cross exactly one
+	// physics boundary before calling finish_step. A completed environment under
+	// DISABLED mode retains its final state and is not stepped. Under NEXT_STEP it
+	// resets here instead of consuming its action map; that map may be empty and
+	// is otherwise ignored. Only one step may be pending.
 	Status begin_step(const StepRequest &p_request);
 
 	// finish_step collects owned snapshots and performs SAME_STEP resets without
