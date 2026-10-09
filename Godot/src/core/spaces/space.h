@@ -19,9 +19,8 @@ class Space;
 // Continuous values with per-element bounds. A valid definition has at least one dimension, every
 // dimension is positive, and low and high each hold product(shape) entries in row-major order.
 // low[i] <= high[i] and neither bound is NaN. An unbounded side, including a bound omitted from the
-// protobuf definition, is stored as negative or positive infinity. When a protobuf or Unreal shape is
-// empty or has a product of zero, the conversion stores it as {low.size()}, matching how Python and
-// Unreal Schola infer a 1-D shape from the bounds.
+// protobuf definition, is stored as negative or positive infinity. An empty protobuf shape is converted
+// to {low.size()}, matching Python Schola.
 struct BoxSpace {
 	std::vector<float> low;
 	std::vector<float> high;
