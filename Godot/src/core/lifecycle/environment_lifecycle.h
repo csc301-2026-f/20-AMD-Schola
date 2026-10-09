@@ -7,6 +7,8 @@
 
 #include "core/common/status.h"
 
+#include <cstdint>
+
 namespace schola {
 
 // Enforces legal state transitions for one non-owned environment. This is the
@@ -17,7 +19,9 @@ namespace schola {
 // a non-OK Status.
 class EnvironmentLifecycle {
 public:
-	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
+	// An episode step limit of zero disables step-based truncation.
+	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment,
+			uint64_t p_episode_step_limit = 0);
 
 	EnvironmentLifecycle(const EnvironmentLifecycle &) = delete;
 	EnvironmentLifecycle &operator=(const EnvironmentLifecycle &) = delete;
@@ -33,19 +37,21 @@ public:
 	// RESET_PENDING. Initialization may succeed only once.
 	Status initialize();
 
-	// Starts a new episode and transitions to ACTIVE. Reset is allowed from
-	// RESET_PENDING, ACTIVE, or COMPLETE, so an explicit request may interrupt an
-	// active episode. The output is changed only when the reset succeeds. The
-	// initial observation is forwarded without an engine-side value scan; Python
-	// owns observation-space validation.
+	// Starts a new episode, resets the episode step count to zero, and transitions
+	// to ACTIVE. Reset is allowed from RESET_PENDING, ACTIVE, or COMPLETE, so an
+	// explicit request may interrupt an active episode. The output is changed only
+	// when the reset succeeds. The initial observation is forwarded without an
+	// engine-side value scan; Python owns observation-space validation.
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
 	// Requires ACTIVE. Steps unfinished agents and captures an owned state
-	// snapshot. Physical effects may appear in a later observation according to
-	// Godot's normal frame timing. The environment transitions to COMPLETE when
-	// every agent is terminated or truncated; otherwise it remains ACTIVE. Point
-	// contents are forwarded without an engine-side value scan; Python owns space
-	// validation. The output is changed only when the step succeeds.
+	// snapshot. Each successful step increments the episode step count. On reaching
+	// a nonzero episode step limit, every unfinished agent is reported as truncated.
+	// Physical effects may appear in a later observation according to Godot's normal
+	// frame timing. The environment transitions to COMPLETE when every agent is
+	// terminated or truncated; otherwise it remains ACTIVE. Point contents are
+	// forwarded without an engine-side value scan; Python owns space validation.
+	// The output is changed only when the step succeeds.
 	Status step(const std::map<AgentId, Point> &p_actions, EnvironmentState &r_state);
 
 	// Releases episode-local state and transitions to CLOSED. Closing an already
@@ -58,6 +64,9 @@ private:
 	LifecycleState state = LifecycleState::UNINITIALIZED;
 	EnvironmentDefinition definition;
 	EnvironmentState last_state;
+	uint64_t episode_step_limit;
+	uint64_t episode_step_count = 0;
+
 };
 
 } // namespace schola
