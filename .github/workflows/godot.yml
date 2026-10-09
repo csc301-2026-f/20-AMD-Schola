@@ -51,26 +51,19 @@ jobs:
   format:
     name: Godot / format
     needs: changes
-    if: always()
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
-      - name: Require successful change detection
-        if: needs.changes.result != 'success'
-        run: exit 1
-
       - name: Check out repository
-        if: needs.changes.outputs.godot == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Install clang-format 17
-        if: needs.changes.outputs.godot == 'true'
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r Godot/requirements-format.txt
 
       - name: Check formatting
-        if: needs.changes.outputs.godot == 'true'
         run: |
           git ls-files ':(glob)Godot/**/*.cpp' ':(glob)Godot/**/*.h' \
             | xargs clang-format --dry-run --Werror
@@ -78,23 +71,17 @@ jobs:
   build:
     name: Godot / build
     needs: changes
-    if: always()
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - name: Require successful change detection
-        if: needs.changes.result != 'success'
-        run: exit 1
-
       - name: Check out repository
-        if: needs.changes.outputs.godot == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
 
       - name: Set up Python
-        if: needs.changes.outputs.godot == 'true'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
@@ -102,25 +89,20 @@ jobs:
           cache-dependency-path: Godot/requirements.txt
 
       - name: Install build tools
-        if: needs.changes.outputs.godot == 'true'
         run: python -m pip install --disable-pip-version-check --require-hashes -r Godot/requirements.txt
 
       - name: Verify dependency pins
-        if: needs.changes.outputs.godot == 'true'
         run: python Godot/tools/verify_dependency_pins.py
 
       - name: Build debug extensions
-        if: needs.changes.outputs.godot == 'true'
         run: scons -C Godot platform=linux target=template_debug -j2
 
       - name: Build and run core unit tests
-        if: needs.changes.outputs.godot == 'true'
         run: |
           scons -C Godot unit_tests platform=linux target=template_debug -j2
           ./Godot/build/tests/schola_core_tests
 
       - name: Upload extensions
-        if: needs.changes.outputs.godot == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: godot-linux-debug
@@ -130,31 +112,25 @@ jobs:
   smoke:
     name: Godot / smoke
     needs: [changes, build]
-    if: always()
+    if: >-
+      always() &&
+      needs.changes.outputs.godot == 'true' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
-      - name: Require successful prerequisites
-        if: >-
-          needs.changes.result != 'success' ||
-          (needs.changes.outputs.godot == 'true' && needs.build.result != 'success')
-        run: exit 1
-
       - name: Check out repository
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Download extensions
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: godot-linux-debug
           path: Godot/addons
 
       - name: Download Godot 4.7.2
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         run: |
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
             --output godot.zip \
@@ -165,11 +141,9 @@ jobs:
           chmod +x Godot_v4.7.2-stable_linux.x86_64
 
       - name: Install Godot test dependencies
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         run: python Godot/tools/setup_test_dependencies.py
 
       - name: Import project resources
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         run: |
           # Godot can abort while unloading editor add-ons after a completed
           # headless import (godotengine/godot#98062). A retry reuses the
@@ -190,12 +164,52 @@ jobs:
           done
 
       - name: Load extension and example scene
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         run: ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot --quit-after 1
 
       - name: Run Godot integration tests
-        if: needs.changes.outputs.godot == 'true' && needs.build.result == 'success'
         run: |
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot \
             -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --ignoreHeadlessMode -a res://tests/integration
+
+  required:
+    name: Godot / required
+    needs: [changes, format, build, smoke]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          RELEVANT: ${{ needs.changes.outputs.godot }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FORMAT_RESULT: ${{ needs.format.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          SMOKE_RESULT: ${{ needs.smoke.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Change detection failed with result: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [ "$RELEVANT" != "true" ]; then
+            echo "No Godot-related changes; required checks are not applicable."
+            exit 0
+          fi
+
+          failed=false
+          for result in \
+            "format:$FORMAT_RESULT" \
+            "build:$BUILD_RESULT" \
+            "smoke:$SMOKE_RESULT"; do
+            name=${result%%:*}
+            status=${result#*:}
+            if [ "$status" != "success" ]; then
+              echo "$name did not succeed: $status"
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = "true" ]; then
+            exit 1
+          fi
