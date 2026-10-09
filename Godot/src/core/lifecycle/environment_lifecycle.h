@@ -11,10 +11,10 @@ namespace schola {
 
 // Enforces legal state transitions for one non-owned environment. This is the
 // only US4 class that directly depends on the provisional US1 Environment API.
-// US1 must let this class initialize definitions, reset with settings, apply
-// actions before physics, and collect agent state after physics. Environment
-// membership and definitions remain fixed after initialize(). Output parameters
-// remain unchanged whenever an operation returns a non-OK Status.
+// US1 must let this class initialize definitions, reset with settings, and step
+// the environment. Environment membership and definitions remain fixed after
+// initialize(). Output parameters remain unchanged whenever an operation returns
+// a non-OK Status.
 class EnvironmentLifecycle {
 public:
 	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
@@ -40,17 +40,13 @@ public:
 	// owns observation-space validation.
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
-	// Requires ACTIVE. Applies actions only for agents that have not completed
-	// and transitions to STEP_PENDING.
-	Status begin_step(const std::map<AgentId, Point> &p_actions);
-
-	// Requires STEP_PENDING and must be called after one physics boundary.
-	// Captures an owned snapshot, retaining the final state of agents that had
-	// already completed. The environment transitions to COMPLETE when every
-	// agent is terminated or truncated; otherwise it returns to ACTIVE. The
-	// output is changed only when collection succeeds. Observations are forwarded
-	// without an engine-side value scan; Python owns observation-space validation.
-	Status finish_step(EnvironmentState &r_state);
+	// Requires ACTIVE. Steps unfinished agents and captures an owned state
+	// snapshot. Physical effects may appear in a later observation according to
+	// Godot's normal frame timing. The environment transitions to COMPLETE when
+	// every agent is terminated or truncated; otherwise it remains ACTIVE. Point
+	// contents are forwarded without an engine-side value scan; Python owns space
+	// validation. The output is changed only when the step succeeds.
+	Status step(const std::map<AgentId, Point> &p_actions, EnvironmentState &r_state);
 
 	// Releases episode-local state and transitions to CLOSED. Closing an already
 	// closed lifecycle succeeds without further work.

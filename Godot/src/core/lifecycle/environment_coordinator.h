@@ -31,27 +31,21 @@ public:
 	// The output is changed only when every lifecycle initializes successfully.
 	Status define(TrainingDefinition &r_definition);
 
-	// May be called exactly once after define() and before reset() or begin_step().
+	// May be called exactly once after define() and before reset() or step().
 	Status set_autoreset_mode(AutoResetMode p_mode);
 
 	// Explicit reset may interrupt an ACTIVE environment. Environments omitted
 	// from the request are unchanged.
 	Status reset(const ResetRequest &p_request, InitialState &r_initial_state);
 
-	// begin_step routes actions without validating their contents, then handles
-	// environments due for NEXT_STEP reset. The host must cross exactly one
-	// physics boundary before calling finish_step. A completed environment under
-	// DISABLED mode retains its final state and is not stepped. Under NEXT_STEP it
-	// resets here instead of consuming its action map; that map may be empty and
-	// is otherwise ignored. Only one step may be pending.
-	Status begin_step(const StepRequest &p_request);
-
-	// finish_step collects owned snapshots and performs SAME_STEP resets without
-	// overwriting terminal states. SAME_STEP reset observations are returned in
-	// r_initial_state. For NEXT_STEP, an environment reset by begin_step appears
-	// only in r_state with its initial observation, zero reward, and false
-	// termination and truncation flags.
-	Status finish_step(TrainingState &r_state, InitialState &r_initial_state);
+	// Routes actions without validating their contents. A completed environment
+	// under DISABLED mode retains its final state and is not stepped. SAME_STEP
+	// preserves terminal state and returns reset observations separately. Under
+	// NEXT_STEP, a completed environment resets instead of consuming its action
+	// map and returns its initial observation with zero reward and false completion
+	// flags. Physical effects may appear in a later observation according to
+	// Godot's normal frame timing.
+	Status step(const StepRequest &p_request, StepResult &r_result);
 
 	// Closes every lifecycle and rejects future operations. Repeated calls are
 	// successful and have no additional effect.
@@ -61,7 +55,6 @@ private:
 	std::vector<std::unique_ptr<EnvironmentLifecycle>> environments;
 	AutoResetMode autoreset_mode = AutoResetMode::DISABLED;
 	bool mode_set = false;
-	bool step_pending = false;
 };
 
 } // namespace schola

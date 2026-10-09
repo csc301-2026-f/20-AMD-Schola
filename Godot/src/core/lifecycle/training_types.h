@@ -26,7 +26,6 @@ enum class LifecycleState {
 	ACTIVE,
 	COMPLETE,
 	RESET_PENDING,
-	STEP_PENDING,
 	FAULTED,
 	CLOSED,
 };
