@@ -18,11 +18,13 @@ class TrainingBackend {
 public:
 	virtual ~TrainingBackend() = default;
 
-	// Initializes the fixed training session and returns its definition.
-	virtual Status define(TrainingDefinition &r_definition) = 0;
-
-	// Called exactly once after define() and before reset() or step().
+	// Called exactly once before define(), reset(), or step(), matching
+	// StartGymConnector's position in the existing Python protocol sequence.
 	virtual Status set_autoreset_mode(AutoResetMode p_mode) = 0;
+
+	// Initializes the fixed training session after the autoreset mode is set and
+	// returns its definition.
+	virtual Status define(TrainingDefinition &r_definition) = 0;
 
 	// Performs an explicit reset synchronously on the owning thread.
 	virtual Status reset(const ResetRequest &p_request, InitialState &r_initial_state) = 0;

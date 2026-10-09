@@ -27,12 +27,14 @@ public:
 	// when registration succeeds; on failure, p_lifecycles remains unchanged.
 	Status set_lifecycles(std::vector<std::unique_ptr<EnvironmentLifecycle>> &&p_lifecycles);
 
-	// Initializes every lifecycle and returns definitions in EnvironmentId order.
-	// The output is changed only when every lifecycle initializes successfully.
-	Status define(TrainingDefinition &r_definition);
-
-	// May be called exactly once after define() and before reset() or step().
+	// May be called exactly once before define(), reset(), or step(), matching
+	// StartGymConnector's position in the existing Python protocol sequence.
 	Status set_autoreset_mode(AutoResetMode p_mode);
+
+	// Initializes every lifecycle after the autoreset mode is set and returns
+	// definitions in EnvironmentId order. The output is changed only when every
+	// lifecycle initializes successfully.
+	Status define(TrainingDefinition &r_definition);
 
 	// Explicit reset may interrupt an ACTIVE environment. Environments omitted
 	// from the request are unchanged.
