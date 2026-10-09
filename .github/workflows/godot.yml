@@ -2,11 +2,6 @@ name: Godot
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/godot.yml"
-      - ".gitmodules"
-      - "Godot/**"
-      - "Proto/**"
   push:
     branches:
       - main
@@ -18,14 +13,45 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: godot-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect Godot changes
+    runs-on: ubuntu-22.04
+    outputs:
+      godot: ${{ steps.filter.outputs.godot }}
+    steps:
+      - name: Detect relevant paths
+        id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          relevant=true
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            relevant=false
+            gh api --paginate \
+              "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+              --jq '.[].filename' > changed-files.txt
+            while IFS= read -r path; do
+              case "$path" in
+                .github/workflows/godot.yml|.gitmodules|Godot/*|Proto/*)
+                  relevant=true
+                  break
+                  ;;
+              esac
+            done < changed-files.txt
+          fi
+          echo "godot=$relevant" >> "$GITHUB_OUTPUT"
+
   format:
     name: Godot / format
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -44,6 +70,8 @@ jobs:
 
   build:
     name: Godot / build
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
@@ -83,7 +111,11 @@ jobs:
 
   smoke:
     name: Godot / smoke
-    needs: build
+    needs: [changes, build]
+    if: >-
+      always() &&
+      needs.changes.outputs.godot == 'true' &&
+      needs.build.result == 'success'
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     steps:
@@ -139,3 +171,45 @@ jobs:
           ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot \
             -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --ignoreHeadlessMode -a res://tests/integration
+
+  required:
+    name: Godot / required
+    needs: [changes, format, build, smoke]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 1
+    steps:
+      - name: Verify required jobs
+        env:
+          RELEVANT: ${{ needs.changes.outputs.godot }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FORMAT_RESULT: ${{ needs.format.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          SMOKE_RESULT: ${{ needs.smoke.result }}
+        run: |
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "Change detection failed with result: $CHANGES_RESULT"
+            exit 1
+          fi
+
+          if [ "$RELEVANT" != "true" ]; then
+            echo "No Godot-related changes; required checks are not applicable."
+            exit 0
+          fi
+
+          failed=false
+          for result in \
+            "format:$FORMAT_RESULT" \
+            "build:$BUILD_RESULT" \
+            "smoke:$SMOKE_RESULT"; do
+            name=${result%%:*}
+            status=${result#*:}
+            if [ "$status" != "success" ]; then
+              echo "$name did not succeed: $status"
+              failed=true
+            fi
+          done
+
+          if [ "$failed" = "true" ]; then
+            exit 1
+          fi
