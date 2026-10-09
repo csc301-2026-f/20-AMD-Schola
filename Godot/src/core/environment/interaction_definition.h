@@ -15,16 +15,15 @@ namespace schola {
 
 /**
  * What an agent publishes about itself, which is:
- * 
+ *
  * - What it can see
  * - What it can be told to do
  * - Whether it shares a brain with other agents
- * 
+ *
  * Space describes the shape allowed; Point (in agent.h) carries the real
  * values every step. This struct only ever holds the Space side.
  */
 struct InteractionDefinition {
-
 	// The shape observe()'s output (r_observation, a Point) must match.
 	// Fixed once in define(), never changes mid-episode.
 	Space observation_space;
