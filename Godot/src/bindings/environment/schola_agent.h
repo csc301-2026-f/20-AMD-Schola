@@ -14,7 +14,8 @@ class Agent;
 class ScholaSpace;
 
 // Godot-facing config node for one agent
-// belongs to the nearest ancestor ScholaEnvironment, else the node has a config error
+// When it has a ScholaEnvironment ancestor, that environment owns its training lifecycle
+// A standalone agent is valid for local inference in a shipped game
 class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
@@ -33,14 +34,14 @@ public:
 	godot::Ref<ScholaSpace> get_action_space() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
-	// returns the US1 core adapter while this node is owned by an environment
-	// (ScholaAgent is the godot wrapper, schola::Agent is abstraction owned by US1)
+	// returns the US1 core adapter while this node is in the scene tree
+	// (ScholaAgent is the godot wrapper, schola::Agent is the US1 core abstraction)
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
 	// warnings/errors; empty when the inspector and scene-tree configuration is valid
 	godot::PackedStringArray get_configuration_errors() const;
-	// 		-> might return: no parent environemnt, missing action space, etc.
+	// 		-> might return: missing action space, invalid space definition, etc.
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
 	//		-> lets godot display config warning icon in editor inspector
 
