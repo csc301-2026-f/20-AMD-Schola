@@ -8,7 +8,7 @@
 #include <godot_cpp/variant/string.hpp>
 
 namespace schola {
-	class Agent;
+class Agent;
 } // namespace schola
 
 class ScholaSpace;

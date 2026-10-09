@@ -9,7 +9,7 @@
 #include <cstdint>
 
 namespace schola {
-	class Environment;
+class Environment;
 } // namespace schola
 
 class ScholaAgent;
