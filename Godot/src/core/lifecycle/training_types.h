@@ -30,6 +30,14 @@ enum class LifecycleState {
 	CLOSED,
 };
 
+enum class CoordinatorState {
+	CONFIGURING,
+	READY,
+	RUNNING,
+	FAULTED,
+	CLOSED,
+};
+
 struct EnvironmentDefinition {
 	std::map<AgentId, InteractionDefinition> agents;
 };
