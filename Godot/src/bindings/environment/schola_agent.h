@@ -26,6 +26,12 @@ public:
 	void set_agent_id(const godot::String &p_agent_id);
 	godot::String get_agent_id() const;
 
+	// Agents with the same nonempty type may share a training policy
+	// empty agent_type : use this agent's resolved ID as its type
+	// nonempty type : use configured value
+	void set_agent_type(const godot::String &p_agent_type);
+	godot::String get_agent_type() const;
+
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource
 	void set_observation_space(const godot::Ref<ScholaSpace> &p_observation_space);
@@ -51,6 +57,8 @@ protected:
 
 private:
 	godot::String agent_id;
+	// optional training-policy grouping label
+	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
 };
