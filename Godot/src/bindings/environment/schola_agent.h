@@ -46,11 +46,12 @@ public:
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
-	// warnings/errors; empty when the inspector and scene-tree configuration is valid
+	// Returns every invalid Inspector configuration; empty when the configuration is valid
+	// Reports missing observation or action spaces and invalid US2 space definitions
+	// Space errors name the observation or action property and include the US2 validation reason
 	godot::PackedStringArray get_configuration_errors() const;
-	// 		-> might return: missing action space, invalid space definition, etc.
+	// Returns get_configuration_errors() so Godot displays Inspector warning icons
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
-	//		-> lets godot display config warning icon in editor inspector
 
 protected:
 	static void _bind_methods();
