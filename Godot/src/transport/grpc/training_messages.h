@@ -53,7 +53,6 @@ void to_proto(const StepResult &p_result, ::Schola::State &r_message);
  * message with p_rpc so Python's error names the call that failed.
  *
  * OK stays OK. Otherwise:
- *   INVALID_ARGUMENT, INVALID_DATA -> INVALID_ARGUMENT
  *   NOT_FOUND                      -> NOT_FOUND
  *   FAILED_PRECONDITION            -> FAILED_PRECONDITION
  *   INCOMPATIBLE                   -> FAILED_PRECONDITION
