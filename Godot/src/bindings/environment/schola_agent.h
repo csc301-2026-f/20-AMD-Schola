@@ -31,6 +31,7 @@ public:
 	// nonempty type : use configured value
 	void set_agent_type(const godot::String &p_agent_type);
 	godot::String get_agent_type() const;
+	// US1 copies this value into InteractionDefinition::agent_type
 
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource
@@ -39,6 +40,7 @@ public:
 	void set_action_space(const godot::Ref<ScholaSpace> &p_action_space);
 	godot::Ref<ScholaSpace> get_action_space() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
+	// US1 converts these resources into InteractionDefinition space definitions
 
 	// returns the US1 core adapter while this node is in the scene tree
 	// (ScholaAgent is the godot wrapper, schola::Agent is the US1 core abstraction)
