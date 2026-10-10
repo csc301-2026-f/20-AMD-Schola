@@ -70,7 +70,8 @@ struct StepResult {
 };
 
 struct ResetRequest {
-	// Contains only environments explicitly requested to reset.
+	// Optional settings keyed by environment. Explicit reset resets every
+	// environment; an omitted entry means that environment uses default settings.
 	std::map<EnvironmentId, ResetSettings> environments;
 };
 

@@ -36,8 +36,9 @@ public:
 	// lifecycle initializes successfully.
 	Status define(TrainingDefinition &r_definition);
 
-	// Explicit reset may interrupt an ACTIVE environment. Environments omitted
-	// from the request are unchanged.
+	// Explicit reset may interrupt ACTIVE environments and resets every registered
+	// environment. An omitted request entry supplies default ResetSettings,
+	// matching a Python reset request with no seed or options.
 	Status reset(const ResetRequest &p_request, InitialState &r_initial_state);
 
 	// Routes actions without validating their contents. A completed environment
