@@ -34,9 +34,10 @@ public:
 
 	// Step order, so the override order here makes sense:
 	//   1. ScholaAgent::_act runs for every agent still in the episode
-	//   2. Godot runs one physics frame
-	//   3. ScholaAgent::_observe, then _get_reward, _is_terminated, _is_truncated
-	//      and _get_info run for each of those agents
+	//   2. ScholaAgent::_observe, then _get_reward, _is_terminated, _is_truncated
+	//      and _get_info run for each of those agents, in the same call
+	//   3. Godot runs physics afterwards, so an action's effect may first appear
+	//      in the next step's observation
 
 	/**
 	 * Override in GDScript: return the scene to a start state.
@@ -57,7 +58,7 @@ public:
 	 *
 	 * In:   the agent this reward is for.
 	 *
-	 * Does: called once per agent, after physics, following _observe().
+	 * Does: called once per agent each step, following _observe().
 	 *
 	 * Out:  a reward value. No default; every environment must decide this.
 	 */

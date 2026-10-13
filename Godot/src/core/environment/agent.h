@@ -71,8 +71,10 @@ public:
 	/**
 	 * Applies one action.
 	 *
-	 * In: p_action; a Point already filled in and validated against action_space.
-	 * act() is not responsible for re-checking it.
+	 * In: p_action; a Point meant to match action_space. Python owns action
+	 * validation, and the engine re-checks only when US4's optional debug
+	 * validation is on, so a mismatched Point must return a non-OK Status
+	 * rather than be trusted.
 	 *
 	 * Does: carries out that action on the agent.
 	 *

@@ -15,7 +15,9 @@ class Agent;
 class ScholaSpace;
 
 // Godot-facing config node for one agent
-// belongs to the nearest ancestor ScholaEnvironment, else the node has a config error
+// When it has a ScholaEnvironment ancestor, that environment owns its training lifecycle
+// A standalone agent is valid for local inference in a shipped game, where the
+// training-only environment is absent
 class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
@@ -41,8 +43,9 @@ public:
 	 *
 	 * In:   nothing.
 	 *
-	 * Does: called every step, before act(). Read the world and build a
-	 *       value matching the agent's declared observation space.
+	 * Does: called every step, after _act(). Read the world and build a
+	 *       value matching the agent's declared observation space. The
+	 *       world may not yet reflect this step's action.
 	 *
 	 * Out:  a Variant, converted into a Point using that space.
 	 */
@@ -51,10 +54,10 @@ public:
 	/**
 	 * Override in GDScript: carry out one action.
 	 *
-	 * In:   a Variant action, already converted from a Point and already
-	 *       validated against the action space; no need to re-check it.
+	 * In:   a Variant action, converted from a Point. Validated against the
+	 *       action space only when debug validation is on.
 	 *
-	 * Does: called every step, after observe(). Apply the action to this
+	 * Does: called every step, before _observe(). Apply the action to this
 	 *       agent.
 	 *
 	 * Out:  nothing.
@@ -63,14 +66,15 @@ public:
 
 	// === End US1 Additions ===
 
-	// returns the US1 core adapter while this node is owned by an environment
+	// returns the US1 core adapter while this node is in the scene tree
 	// (ScholaAgent is the godot wrapper, schola::Agent is abstraction owned by US1)
+	// the adapter is the same whether or not a ScholaEnvironment registers this agent for training
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
 	// warnings/errors; empty when the inspector and scene-tree configuration is valid
 	godot::PackedStringArray get_configuration_errors() const;
-	// 		-> might return: no parent environemnt, missing action space, etc.
+	// 		-> might return: missing action space, etc. (no parent environment is not an error)
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
 	//		-> lets godot display config warning icon in editor inspector
 

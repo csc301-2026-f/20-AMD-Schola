@@ -80,10 +80,10 @@ struct AgentState {
 /**
  * A group of agents sharing one episode clock.
  *
- * Stepping is split in two because Godot owns the physics clock:
- *   apply_actions(...);        // pre-physics
- *   ...one physics frame...
- *   collect_state(...);        // post-physics
+ * One step() is one logical step, as in Unreal. Godot owns the physics
+ * clock, so an action's physical effect may only show up in a later step's
+ * observation; callers accept that lag rather than splitting the step
+ * around a physics frame.
  *
  * Agent membership and spaces are fixed after initialize(). Every method
  * returns Status and leaves its out-parameter untouched on failure.
@@ -118,30 +118,18 @@ public:
 	virtual Status reset(const ResetSettings &p_settings, std::map<AgentId, InitialAgentState> &r_states) = 0;
 
 	/**
-	 * Writes this step's actions into the world, before physics runs.
+	 * Runs one logical step.
 	 *
 	 * In:   p_actions, one Point per still-running agent. A finished agent
-	 *       is simply absent, not an error.
+	 *       is simply absent, not an error. r_states, an empty map.
 	 *
-	 * Does: writes those actions into the world. Does not advance it; no
-	 *       physics frame has run yet.
+	 * Does: applies each action, then reads back every agent that acted.
+	 *       Does not wait for a physics frame in between, so the observation
+	 *       may not yet reflect this step's action.
 	 *
-	 * Out:  nothing but a Status. The result isn't readable until after one
-	 *       physics frame, via collect_state().
+	 * Out:  r_states filled with one AgentState per agent in p_actions.
 	 */
-	virtual Status apply_actions(const std::map<AgentId, Point> &p_actions) = 0;
-
-	/**
-	 * Reads back this step's result, after physics has run.
-	 *
-	 * In:   r_states, an empty map. Call only after one physics frame has
-	 *       elapsed since apply_actions().
-	 *
-	 * Does: reads back the result of that frame for every agent that acted.
-	 *
-	 * Out:  r_states filled with one AgentState per agent.
-	 */
-	virtual Status collect_state(std::map<AgentId, AgentState> &r_states) = 0;
+	virtual Status step(const std::map<AgentId, Point> &p_actions, std::map<AgentId, AgentState> &r_states) = 0;
 
 	/**
 	 * Hands out direct agent pointers, bypassing the episode machinery.
