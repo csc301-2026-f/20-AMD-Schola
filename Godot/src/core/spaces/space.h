@@ -43,8 +43,8 @@ struct MultiBinarySpace {
 	int32_t n = 0;
 };
 
-// Named subspaces with unique keys. Entry order is part of the definition: it fixes the flattened
-// layout and the order used when exchanging values with Python.
+// Named subspaces with unique keys. Entry order is part of the definition and fixes the flattened
+// layout. Protobuf Dict maps are unordered, so the order is not carried over the wire.
 struct DictSpace {
 	std::vector<std::pair<std::string, Space>> entries;
 	// Returns a non-owning pointer to the subspace for p_key, or nullptr if the key is absent.

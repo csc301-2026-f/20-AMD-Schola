@@ -35,6 +35,8 @@ struct MultiBinaryPoint {
 };
 
 // Entries are ordered. A valid point has exactly the keys of its DictSpace, in the same order.
+// Protobuf Dict maps are unordered, so a converter must build entries by looking up each DictSpace
+// key in order rather than iterating the map.
 struct DictPoint {
 	std::vector<std::pair<std::string, Point>> entries;
 	// Returns a non-owning pointer to the entry for p_key, or nullptr if the key is absent.
