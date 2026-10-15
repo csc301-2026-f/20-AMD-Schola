@@ -1,6 +1,6 @@
 # Schola for Godot - Team 20, The Hard Workers
 
-Schola for Godot is a CSC301 project developed by our 7-person student team in partnership with AMD. The project is in active implementation: the shared native foundation and the US1-US5 API contracts are merged, while transport, lifecycle, bindings, and inference behavior remain under development.
+Schola for Godot is a CSC301 project developed by our 7-person student team in partnership with AMD. The project is in active implementation: the shared native foundation and the US1-US5 and US7 API contracts are merged, while their concrete transport, lifecycle, binding, and inference behavior remains under development.
 
 ## Partner introduction
 
@@ -32,7 +32,7 @@ To run it locally, install Godot 4.7.2 with .NET support and the .NET 8 SDK, imp
 
 ## Development requirements
 
-The engine-side implementation targets Godot 4.7 and uses native C++ GDExtensions. The shared build, dependency, testing, packaging, and module foundation is defined, and the merged user-story contracts establish the environment, space, connector, lifecycle, and Godot binding boundaries. The training integration will use gRPC and Protocol Buffers, while shipped-policy inference will use ONNX Runtime. The Python side will reuse Schola's Gymnasium, Stable-Baselines3, and RLlib integrations where practical.
+The engine-side implementation targets Godot 4.7 and uses native C++ GDExtensions. The shared build, dependency, testing, packaging, and module foundation is defined, and the merged user-story contracts establish the environment, space, connector, lifecycle, Godot binding, policy, and inference boundaries. The training integration will use gRPC and Protocol Buffers, while shipped-policy inference will use ONNX Runtime. The Python side will reuse Schola's Gymnasium, Stable-Baselines3, and RLlib integrations where practical.
 
 See the [Godot development guide](Godot/README.md) for supported tools, dependency pins, build and test commands, module boundaries, and contribution workflow.
 

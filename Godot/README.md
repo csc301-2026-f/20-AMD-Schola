@@ -16,7 +16,7 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC, Windows/MSVC, and macOS/Apple Clang |
 
-Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 is recorded only as a proposal; US7 must confirm its version and complete cross-platform acquisition plan with AMD before integration. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 is recorded only as a proposal; the US7 implementation must confirm its version and complete the cross-platform acquisition plan with AMD before integration. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
 
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 
@@ -68,9 +68,11 @@ Godot/
 │   │   ├── connector/            Engine-independent connector loop
 │   │   ├── environment/          Environment and agent contracts
 │   │   ├── spaces/               Observation/action spaces and point values
-│   │   └── lifecycle/            Step, reset, and auto-reset coordination
+│   │   ├── lifecycle/            Step, reset, and auto-reset coordination
+│   │   └── policy/               Engine-independent policy and stepping contracts
 │   ├── bindings/
 │   │   ├── environment/          Godot environment and agent nodes
+│   │   ├── inference/            Godot-facing policy and inference APIs
 │   │   └── spaces/               Inspector space resources
 │   ├── inference/                ONNX inference module
 │   ├── interop/                  Godot Variant and core value conversion
@@ -106,7 +108,7 @@ Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contrac
 
 ### `src/inference`
 
-Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. The API and implementation land independently from the training extension so exported games can exclude training dependencies.
+Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. The public policy, stepper, and Godot-facing inference APIs are merged; ONNX Runtime integration and concrete execution behavior remain implementation work. Inference remains independent from the training extension so exported games can exclude training dependencies.
 
 ### `src/interop`
 
@@ -141,7 +143,7 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US6: Export a policy to ONNX | Existing Python Schola package under `Resources/python/` |
-| US7: Run and ship an ONNX policy | `src/inference/` and `addons/schola/` |
+| US7: Run and ship an ONNX policy | `src/core/policy/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
