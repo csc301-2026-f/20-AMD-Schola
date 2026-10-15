@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/variant.hpp>
 
 namespace schola {
 class Agent;
@@ -15,7 +16,8 @@ class ScholaSpace;
 
 // Godot-facing config node for one agent
 // When it has a ScholaEnvironment ancestor, that environment owns its training lifecycle
-// A standalone agent is valid for local inference in a shipped game
+// A standalone agent is valid for local inference in a shipped game, where the
+// training-only environment is absent
 class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
@@ -40,10 +42,39 @@ public:
 	void set_action_space(const godot::Ref<ScholaSpace> &p_action_space);
 	godot::Ref<ScholaSpace> get_action_space() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
-	// US1 converts these resources into InteractionDefinition space definitions
+
+	// === US1 Additions Below ===
+
+	/**
+	 * Override in GDScript: report what this agent currently sees.
+	 *
+	 * In:   nothing.
+	 *
+	 * Does: called every step, after _act(). Read the world and build a
+	 *       value matching the agent's declared observation space. The
+	 *       world may not yet reflect this step's action.
+	 *
+	 * Out:  a Variant, converted into a Point using that space.
+	 */
+	GDVIRTUAL0R(godot::Variant, _observe)
+
+	/**
+	 * Override in GDScript: carry out one action.
+	 *
+	 * In:   a Variant action, converted from a Point. Validated against the
+	 *       action space only when debug validation is on.
+	 *
+	 * Does: called every step, before _observe(). Apply the action to this
+	 *       agent.
+	 *
+	 * Out:  nothing.
+	 */
+	GDVIRTUAL1(_act, godot::Variant)
+
+	// === End US1 Additions ===
 
 	// returns the US1 core adapter while this node is in the scene tree
-	// (ScholaAgent is the godot wrapper, schola::Agent is the US1 core abstraction)
+	// (ScholaAgent is the godot wrapper, schola::Agent is abstraction owned by US1)
 	// the adapter is the same whether or not a ScholaEnvironment registers this agent for training
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
