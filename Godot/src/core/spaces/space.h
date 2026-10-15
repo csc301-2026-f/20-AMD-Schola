@@ -43,8 +43,9 @@ struct MultiBinarySpace {
 	int32_t n = 0;
 };
 
-// Named subspaces with unique keys. Entry order is part of the definition and fixes the flattened
-// layout. Protobuf Dict maps are unordered, so the order is not carried over the wire.
+// Named subspaces with unique keys. Space(DictSpace) sorts entries by key in byte-wise std::string
+// order, which matches gymnasium's sorted() on Python str keys. That order fixes the flattened layout,
+// so it matches Python Schola regardless of declaration order or protobuf map order.
 struct DictSpace {
 	std::vector<std::pair<std::string, Space>> entries;
 	// Returns a non-owning pointer to the subspace for p_key, or nullptr if the key is absent.
@@ -62,6 +63,7 @@ public:
 	Space(DiscreteSpace p_space);
 	Space(MultiDiscreteSpace p_space);
 	Space(MultiBinarySpace p_space);
+	// Sorts p_space.entries by key. See DictSpace.
 	Space(DictSpace p_space);
 
 	SpaceKind get_kind() const;
@@ -78,7 +80,7 @@ public:
 	// filling, or discarding values. Assumes the definition already passed check_definition(). Returns
 	// INVALID_ARGUMENT for a wrong kind or size, a NaN or out-of-bounds Box value, an out-of-range
 	// Discrete or MultiDiscrete value, a MultiBinary value other than 0 or 1, or Dict keys that are
-	// missing, extra, duplicated, or out of order. The message identifies the invalid element index
+	// missing, extra, duplicated, or not sorted by key. The message identifies the invalid element index
 	// and its Dict key path.
 	Status validate(const Point &p_point) const;
 	// Returns a point of this space's kind and size that passes validate(). Every value is zero, except
@@ -89,7 +91,8 @@ public:
 	int64_t get_flattened_size() const;
 	std::string to_string() const;
 
-	// Compares kind and definition exactly, including Dict entry order.
+	// Compares kind and definition exactly. Dict entries are always sorted, so declaration order does
+	// not affect equality.
 	bool operator==(const Space &p_other) const;
 	bool operator!=(const Space &p_other) const;
 
