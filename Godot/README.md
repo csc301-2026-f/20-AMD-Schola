@@ -54,7 +54,7 @@ godot --editor --path Godot
 
 On macOS, use `platform=macos` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
 
-The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime/core code as transport support is added. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
+The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
@@ -64,11 +64,19 @@ The extension entry points are stable composition roots. Runtime bindings and in
 Godot/
 ├── src/
 │   ├── core/
+│   │   ├── common/               Shared IDs and status values
+│   │   ├── connector/            Engine-independent connector loop
 │   │   ├── environment/          Environment and agent contracts
 │   │   ├── spaces/               Observation/action spaces and point values
 │   │   └── lifecycle/            Step, reset, and auto-reset coordination
-│   ├── bindings/                 Godot nodes and Inspector bindings
-│   ├── inference/                ONNX policy implementation
+│   ├── bindings/
+│   │   ├── environment/          Godot environment and agent nodes
+│   │   └── spaces/               Inspector space resources
+│   ├── inference/                ONNX inference module
+│   ├── interop/                  Godot Variant and core value conversion
+│   ├── runtime/                  Runtime extension composition root
+│   ├── training/
+│   │   └── bindings/             Training-only Godot integration
 │   └── transport/grpc/           gRPC and Protocol Buffer integration
 ├── addons/
 │   ├── schola/                   Runtime add-on packaging
@@ -84,7 +92,7 @@ Godot/
 
 ### `src/core`
 
-Contains the engine-independent environment interfaces, space and point types, agent state, connector loop, and transport/policy abstractions. It must not reference Godot, gRPC, or ONNX libraries.
+Contains shared status and identifier values, engine-independent environment interfaces, space and point types, agent state, lifecycle coordination, and the connector loop. It must not reference Godot, gRPC, Protocol Buffer, or ONNX Runtime libraries.
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
 
@@ -94,11 +102,19 @@ Adapts the core abstractions to user-facing Godot nodes, resources, the Inspecto
 
 ### `src/transport/grpc`
 
-Implements the core transport abstraction using Schola's existing Protocol Buffer and gRPC contracts. Keeping it separate prevents networking dependencies from leaking into the core or inference-only builds.
+Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. The public adapter API is merged; dependency acquisition, generated bindings, and runtime behavior remain implementation work. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
 
 ### `src/inference`
 
-Implements the core policy abstraction using ONNX Runtime. It supports local inference without a running Python process or training connection.
+Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. The API and implementation land independently from the training extension so exported games can exclude training dependencies.
+
+### `src/interop`
+
+Converts between Godot `Variant` values and engine-independent core values. This directory is compiled into both extensions so the training extension can communicate through bound Godot methods without linking directly to runtime-extension C++ classes.
+
+### `src/runtime` and `src/training`
+
+These directories are the composition roots for the runtime and training extensions. User-story APIs live in their owned modules; the composition roots register and assemble those modules.
 
 ### Godot add-ons
 
@@ -121,15 +137,15 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | --- | --- |
 | US1: Define an environment | `src/core/environment/` |
 | US2: Declare spaces | `src/core/spaces/` |
-| US3: Connect Python training tools | `src/transport/grpc/` and `addons/schola_training/` |
-| US4: Execute the episode lifecycle | `src/core/lifecycle/` |
+| US3: Connect Python training tools | `src/core/connector/`, `src/transport/grpc/`, `src/training/bindings/`, and `addons/schola_training/` |
+| US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US6: Export a policy to ONNX | Existing Python Schola package under `Resources/python/` |
 | US7: Run and ship an ONNX policy | `src/inference/` and `addons/schola/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
-The development contract deliberately leaves user-story interfaces to their owners.
+The merged headers in each primary location define the current user-story interfaces. Changes to a cross-story contract require review from its producers and consumers.
 
 ## Format C++ code
 
