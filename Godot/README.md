@@ -94,7 +94,7 @@ Godot/
 
 ### `src/core`
 
-Contains shared status and identifier values, engine-independent environment interfaces, space and point types, agent state, lifecycle coordination, and the connector loop. It must not reference Godot, gRPC, Protocol Buffer, or ONNX Runtime libraries.
+Contains shared status and identifier values, engine-independent environment interfaces, space and point types, agent state, lifecycle coordination, the connector loop, and the policy and stepper contracts. It must not reference Godot, gRPC, Protocol Buffer, or ONNX Runtime libraries.
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
 
@@ -142,7 +142,6 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US3: Connect Python training tools | `src/core/connector/`, `src/transport/grpc/`, `src/training/bindings/`, and `addons/schola_training/` |
 | US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
-| US6: Export a policy to ONNX | Existing Python Schola package under `Resources/python/` |
 | US7: Run and ship an ONNX policy | `src/core/policy/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
