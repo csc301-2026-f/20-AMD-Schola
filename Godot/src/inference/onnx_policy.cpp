@@ -2,6 +2,8 @@
 
 #include "inference/onnx_policy.h"
 
+#include "inference/onnx_policy_state.h"
+
 #include <onnxruntime_c_api.h>
 
 #include <string>
@@ -297,8 +299,19 @@ Status OnnxPolicy::init([[maybe_unused]] const InteractionDefinition &p_definiti
 	return Status::error(StatusCode::RUNTIME_FAILURE, "OnnxPolicy::init: not implemented yet");
 }
 
-Status OnnxPolicy::create_initial_state([[maybe_unused]] std::unique_ptr<PolicyState> &r_state) const {
-	return Status::error(StatusCode::RUNTIME_FAILURE, "OnnxPolicy::create_initial_state: not implemented yet");
+Status OnnxPolicy::create_initial_state(std::unique_ptr<PolicyState> &r_state) const {
+	if (!is_ready()) {
+		return Status::error(StatusCode::FAILED_PRECONDITION, "OnnxPolicy::create_initial_state: call load_model() and init() first");
+	}
+	if (impl->states.empty()) {
+		return Policy::create_initial_state(r_state);
+	}
+	std::vector<OnnxPolicyState::BufferLayout> layouts;
+	for (const StateLayout &state : impl->states) {
+		layouts.push_back({ impl->inputs[state.input_index].name, state.has_sequence ? impl->max_state_sequence_length : 1, state.state_size });
+	}
+	r_state = std::make_unique<OnnxPolicyState>(this, layouts);
+	return Status::ok();
 }
 
 Status OnnxPolicy::think([[maybe_unused]] const Point &p_observation, [[maybe_unused]] PolicyState &p_state, [[maybe_unused]] Point &r_action) {

@@ -22,7 +22,7 @@ public:
 	virtual std::string to_string() const = 0;
 };
 
-// Unreal: UStatelessPolicyState. The state of policies with no memory, so a state is never null.
+// The state of policies with no memory, so a state is never null.
 class EmptyPolicyState final : public PolicyState {
 public:
 	void reset() override {}
