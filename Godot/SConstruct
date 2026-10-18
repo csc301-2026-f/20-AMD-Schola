@@ -107,6 +107,17 @@ Alias("unit_tests", unit_test_program)
 
 inference_test_environment = test_environment.Clone()
 inference_test_runtime = use_onnxruntime(inference_test_environment, "build/tests")
+# A generated header, because the fixture path may contain spaces that break -D flags.
+inference_test_environment.Textfile(
+    "build/tests/test_fixtures_path.h",
+    [
+        "#pragma once",
+        '#define SCHOLA_TEST_FIXTURES_DIR "{}"'.format(
+            Path("tests/inference/fixtures").resolve().as_posix()
+        ),
+    ],
+)
+inference_test_environment.Append(CPPPATH=["build/tests"])
 inference_test_sources = (
     sources_under("src/core", "tests/inference")
     + [
