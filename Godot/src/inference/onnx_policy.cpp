@@ -754,6 +754,15 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 		if (state == nullptr || state->get_owner() != this) {
 			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
 		}
+		const std::vector<OnnxPolicyState::Buffer> &buffers = state->get_buffers();
+		bool matches = buffers.size() == impl->states.size();
+		for (size_t i = 0; matches && i < buffers.size(); ++i) {
+			const StateLayout &layout = impl->states[i];
+			matches = buffers[i].state_size == layout.state_size && buffers[i].sequence_length == (layout.has_sequence ? impl->max_state_sequence_length : 1);
+		}
+		if (!matches) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state no longer matches the model; create a new state after reloading");
+		}
 	} else if (dynamic_cast<EmptyPolicyState *>(&p_state) == nullptr) {
 		return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
 	}

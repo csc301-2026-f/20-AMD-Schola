@@ -180,6 +180,17 @@ TEST_CASE("think rejects a state from another policy", "[inference]") {
 	REQUIRE(first.policy.think(observation, empty, first.action).get_code() == StatusCode::INVALID_ARGUMENT);
 }
 
+TEST_CASE("think rejects a state created before the model was reloaded", "[inference]") {
+	Fixture fixture("counter.onnx", definition(box(1), box(2)));
+	REQUIRE(load(fixture.policy, "counter_seq.onnx").is_ok());
+	REQUIRE(fixture.policy.set_max_state_sequence_length(3).is_ok());
+	REQUIRE(fixture.policy.init(definition(box(1), box(2))).is_ok());
+
+	Status status = fixture.think(Point(BoxPoint{ { 0.0f } }));
+	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("create a new state after reloading"));
+}
+
 TEST_CASE("think rejects a Discrete action outside its space", "[inference]") {
 	Fixture fixture("discrete.onnx", definition(box(4), Space(DiscreteSpace{ 2 })));
 	Status status = fixture.think(Point(BoxPoint{ { 0.0f, 0.0f, 0.0f, 9.0f } }));

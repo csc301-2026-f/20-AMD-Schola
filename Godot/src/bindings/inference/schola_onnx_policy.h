@@ -11,6 +11,7 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <cstdint>
+#include <memory>
 
 namespace schola {
 class OnnxPolicy;
@@ -20,8 +21,12 @@ class ScholaOnnxPolicy : public godot::Resource {
 	GDCLASS(ScholaOnnxPolicy, godot::Resource)
 
 public:
+	ScholaOnnxPolicy();
+	~ScholaOnnxPolicy() override;
+
 	void set_model_path(const godot::String &p_path);
 	godot::String get_model_path() const;
+	// Takes effect on the next load().
 	void set_max_state_sequence_length(int32_t p_length);
 	int32_t get_max_state_sequence_length() const;
 
@@ -40,4 +45,12 @@ public:
 
 protected:
 	static void _bind_methods();
+
+private:
+	void fail(const godot::String &p_message);
+
+	godot::String model_path;
+	int32_t max_state_sequence_length = 1;
+	godot::String last_error;
+	std::unique_ptr<schola::OnnxPolicy> policy;
 };
