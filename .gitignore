@@ -159,4 +159,5 @@ coverage_html_report/*
 /Godot/.sconsign.dblite
 /Godot/compile_commands.json
 /Godot/generated/proto/
+/Godot/thirdparty/
 /Godot/reports/
