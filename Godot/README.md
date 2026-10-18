@@ -66,6 +66,12 @@ The `schola` target contains the runtime extension. The `schola_training` target
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
+## Running a trained policy
+
+A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
+
+Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+
 ## Directory structure
 
 ```text
@@ -117,7 +123,7 @@ Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contrac
 
 ### `src/inference`
 
-Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. It is the only module that includes ONNX Runtime headers; the policy and stepper contracts it implements live in `src/core/policy/` and `src/core/stepper/`. The public policy, stepper, and Godot-facing inference APIs are merged; ONNX Runtime integration and concrete execution behavior remain implementation work. Inference remains independent from the training extension so exported games can exclude training dependencies.
+Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. It is the only module that includes ONNX Runtime headers; the policy and stepper contracts it implements live in `src/core/policy/` and `src/core/stepper/`. The Godot-facing classes live in `src/bindings/inference/` and register through `src/inference/register_types`. Inference remains independent from the training extension so exported games can exclude training dependencies.
 
 The inference API follows the policy state design of Unreal Schola. A policy holds no per-agent data. Each agent's memory, such as the hidden tensors of a recurrent model, is a `schola::PolicyState` created by `Policy::create_initial_state()` and owned by the caller, so one loaded model can serve many agents. Policies without memory use `EmptyPolicyState` (Unreal: `UStatelessPolicyState`), so a state is never null. `SimpleStepper` owns one state per entry, keeps entries in add order like an array, and allows the same agent to be added more than once with a separate state for each entry. Differences from Unreal follow the project contract and Godot conventions: core functions return `schola::Status` instead of logging, `add_agent()` reports its index through an output parameter, and the Godot-facing `ScholaInferenceStepper` takes agent nodes instead of indices and returns `Error`.
 
