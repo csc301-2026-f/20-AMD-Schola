@@ -11,15 +11,23 @@
 #include <godot_cpp/variant/typed_array.hpp>
 
 #include <cstdint>
+#include <memory>
+
+namespace schola {
+class SimpleStepper;
+} // namespace schola
 
 class ScholaAgent;
 
 // Runs observe -> infer -> act for its agents every physics frame, without Python.
-// Wraps schola::SimpleStepper. Signal inference_failed(message) is registered in _bind_methods().
+// Emits inference_failed(message) when a step fails.
 class ScholaInferenceStepper : public godot::Node {
 	GDCLASS(ScholaInferenceStepper, godot::Node)
 
 public:
+	ScholaInferenceStepper();
+	~ScholaInferenceStepper() override;
+
 	void set_policy(const godot::Ref<ScholaOnnxPolicy> &p_policy);
 	godot::Ref<ScholaOnnxPolicy> get_policy() const;
 	void set_agents(const godot::TypedArray<godot::NodePath> &p_agents); // Added in _ready().
@@ -27,9 +35,9 @@ public:
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const;
 
-	// Agents are passed as nodes; every entry of a node added more than once is affected.
+	// Every entry of an agent added more than once is affected.
 	godot::Error add_agent(ScholaAgent *p_agent);
-	int32_t remove_agent(ScholaAgent *p_agent); // Returns the number of entries removed.
+	int32_t remove_agent(ScholaAgent *p_agent);
 	void reset_state(ScholaAgent *p_agent);
 	void reset_states();
 	bool step();
@@ -41,4 +49,13 @@ public:
 
 protected:
 	static void _bind_methods();
+
+private:
+	godot::Error prepare(ScholaAgent *p_agent);
+	void report(const godot::String &p_message);
+
+	godot::Ref<ScholaOnnxPolicy> policy;
+	godot::TypedArray<godot::NodePath> agents;
+	bool enabled = true;
+	std::unique_ptr<schola::SimpleStepper> stepper;
 };

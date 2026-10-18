@@ -2,6 +2,7 @@
 
 #include "inference/register_types.h"
 
+#include "bindings/inference/schola_inference_stepper.h"
 #include "bindings/inference/schola_onnx_policy.h"
 #include "bindings/inference/schola_policy_state.h"
 
@@ -10,6 +11,7 @@
 void register_schola_inference_types() {
 	GDREGISTER_CLASS(ScholaPolicyState);
 	GDREGISTER_CLASS(ScholaOnnxPolicy);
+	GDREGISTER_CLASS(ScholaInferenceStepper);
 }
 
 void unregister_schola_inference_types() {
