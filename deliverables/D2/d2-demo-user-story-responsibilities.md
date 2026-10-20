@@ -2,17 +2,21 @@
 
 ## Purpose
 
-The D2 demo will show one small but complete reinforcement-learning workflow:
+The D2 demo will show one small but complete reinforcement-learning workflow. The
+Python client drives the conversation, matching Schola's existing `GymService`
+contract:
 
 ```text
-Godot environment
-  -> produces an observation and receives an action
-Schola plugin
-  -> validates data, coordinates steps, and communicates with a backend
-Local Python demo client
-  -> selects actions and saves a small policy artifact
-Godot environment
-  -> loads that artifact and runs the policy locally
+Python client                 Godot Schola plugin
+     |-- start(mode) ----------------->|
+     |<--------------- start result --|
+     |-- definition request ---------->|
+     |<------------------- definition -|
+     |-- update(reset) --------------->|
+     |<------------ initial state -----|
+     |-- update(step with actions) --->|
+     |<-- observation/reward/done -----|
+     |-- update(close) --------------->|
 ```
 
 The demo is intentionally small: one agent, a compact arena, a `Box` observation,
@@ -29,6 +33,8 @@ training backend.
 - A scene can supply observations, accept actions, report rewards, and finish or
   reset episodes.
 - The plugin can exchange one complete episode loop with a local Python process.
+- The temporary JSON adapter preserves the request order and roles of Schola's
+  `StartGymConnector`, `RequestTrainingDefinition`, and `UpdateState` calls.
 - The demo makes the loop visible through status and telemetry UI.
 - A small externally produced policy artifact can be loaded and used in the same
   scene, if the core transport/lifecycle path is stable.
@@ -42,19 +48,24 @@ training backend.
   Gymnasium space type.
 - A general-purpose training UI or a production-ready trainer.
 
+US3 is therefore only partially complete at D2. The demo implements the connector
+loop and a compatible local JSON/TCP adapter, but it does not satisfy the final
+gRPC/Protocol Buffer acceptance criteria or demonstrate an unmodified Schola
+Python client. This scope decision should be confirmed with AMD before the demo.
+
 ## Architectural ownership rule
 
 Reusable code belongs in `Godot/src/` and is implemented/tested as a plugin
-feature. The example scene belongs under `Godot/examples/` and uses the plugin as
-a normal Godot developer would. It must not duplicate space validation, lifecycle
+feature. The D2 scene belongs under `Godot/demos/d2_training_workflow/` and uses
+the plugin as a normal Godot developer would. It must not duplicate lifecycle
 coordination, connector logic, or policy loading.
 
 | Category | Location | Examples |
 | --- | --- | --- |
 | Persistent plugin code | `Godot/src/core/`, `Godot/src/bindings/`, `Godot/src/interop/`, `Godot/src/training/`, `Godot/src/transport/`, `Godot/src/inference/` | Space validation, Godot nodes, step coordinator, backend interface |
-| Persistent tests | `Godot/tests/` | Invalid action validation, reset behavior, connector message handling |
-| Demo-only code | `Godot/examples/<d2-demo>/` | Arena layout, goal/hazard visuals, movement mapping, HUD design |
-| Demo-support code | A clearly named demo/example Python directory | Local reference client and simple example policy |
+| Persistent tests | `Godot/tests/` | Space validation, reset behavior, connector-loop and message handling |
+| Demo-only code | `Godot/demos/d2_training_workflow/` | Arena layout, goal/hazard visuals, movement mapping, HUD design |
+| Demo-support code | A clearly named directory under the D2 demo | Local Python reference client and simple example policy |
 
 ## US1 — Core environment and agent
 
@@ -97,73 +108,97 @@ referencing the D2 scene.
 
 ### Responsibility
 
-US2 owns general definitions and validation for observations and actions.
+US2 defines observations and actions and checks that the values passed through
+them are valid.
 
-### Persistent plugin implementation
+### To build into the plugin
 
-- Correct, tested `Box` and `Discrete` space definitions.
-- `Point` values that represent data belonging to those spaces.
-- Validation for malformed spaces and invalid points/actions.
-- A stable flattening/value-ordering convention where required by a transport or
-  future policy backend.
-- APIs designed so `MultiDiscrete`, `MultiBinary`, and `Dict` can be added without
-  changing the lifecycle or Godot environment contract.
+- `Box` and `Discrete` space definitions, with tests.
+- Point values that hold data for those spaces.
+- Checks that reject malformed spaces and invalid observations or actions.
+- A fixed flattening and value order, where a transport or a future policy backend
+  needs one.
+- APIs that allow `MultiDiscrete`, `MultiBinary`, and `Dict` to be added later
+  without changing the lifecycle or the Godot environment contract.
 
-### Demo-only implementation
+### To build only for the demo
 
-- A particular `Box` shape, for example `[agent_x, agent_y, goal_dx, goal_dy]`.
-- A particular `Discrete(4)` action mapping: up, down, left, and right.
-- Display formatting for these values in the telemetry UI.
+- One `Box` observation, for example `[agent_x, agent_y, goal_dx, goal_dy]`.
+- One `Discrete(4)` action mapped to up, down, left, and right.
+- Formatting that shows these values in the telemetry UI.
 
-### Extensibility requirement
+### Keeping it general
 
-The plugin must never hard-code that `Discrete(4)` means movement or that a `Box`
-contains position values. The game developer declares the space and maps its own
-values/actions. The D2 scene is one consumer of the generic primitives.
+The plugin will never assume that `Discrete(4)` means movement or that a `Box`
+holds positions. The game developer declares each space and decides what its
+values and actions mean. The D2 scene uses the general building blocks.
 
-### D2 completion check
+### Definition of done for D2
 
-The plugin rejects an incorrectly shaped observation and an action outside the
-declared range, while accepting the values used by the demo.
+The `Space::validate()` API will reject an observation with the wrong shape and an
+action outside its declared range, and it will accept the values the demo uses.
+The D2 Python reference client validates actions before sending them. The US4
+training path continues to forward points without an engine-side value scan, as
+required by its approved contract.
 
 ## US3 — Connector and training transport
 
 ### Responsibility
 
-US3 owns the boundary between the engine-side RL loop and an external trainer or
-policy provider.
+US3 owns the Python-driven boundary between the engine-side RL loop and an
+external trainer or policy provider. Godot listens; Python connects and initiates
+each request.
 
 ### Persistent plugin implementation
 
-- A backend/connector interface independent of a specific transport.
-- A well-defined step payload containing observation, reward, terminated,
-  truncated, and episode/step information.
-- A response representation containing the requested action and useful error
-  status.
-- Connection lifecycle and error propagation that can be surfaced to Godot.
-- Tests using a fake/in-process backend so core behavior can be verified without
-  starting Python.
+- The transport-independent `Connector` interface.
+- The `ConnectorLoop` implementation, preserving this call order:
+  `StartGymConnector`, `RequestTrainingDefinition`, then repeated `UpdateState`
+  calls.
+- Handling for all `UpdateState` operations: reset, step with actions, and close.
+- `HostTrainingBackend`, which adapts the connector loop to the US4-owned
+  `ScholaTrainingHost` on the Godot main thread.
+- Registration and runtime setup of `ScholaTrainingConnector` in Godot.
+- Connection-state reporting for waiting, connected, training, closed, and error
+  states, including a Godot signal/property usable by the telemetry panel.
+- `FakeConnector` and connector-loop unit tests that do not require Python or a
+  network connection.
+- Error propagation from the backend or transport to the pending Python call.
 
 ### D2-specific or temporary implementation
 
-- One simple local transport to a Python process, chosen for reliability and
-  speed of implementation (for example newline-delimited JSON over standard I/O
-  or a localhost socket).
-- The message schema for that temporary adapter, if it differs from the planned
-  gRPC/Protocol Buffer implementation.
-- Process-launch details and command defaults for the D2 example.
+- A newline-delimited JSON connector over a localhost TCP socket. Godot listens on
+  the configured port (default `8000`) and Python connects to it.
+- JSON messages that mirror the three `GymService` calls one-to-one: `start`
+  carrying the auto-reset mode, `definition`, and `update` carrying reset, step
+  with actions, or close.
+- A Python reference client that initiates those calls, validates the action it
+  sends, and implements the simple D2 policy. Although stored with the demo, its
+  protocol behavior is part of US3's D2 responsibility.
+- Demo documentation for choosing the port and starting the Godot and Python
+  processes.
 
 ### Extensibility requirement
 
-The local adapter must implement the connector interface rather than being called
-directly from Godot scene code. This keeps gRPC/Protobuf, Gymnasium, SB3, RLlib,
-remote training, or a user-built backend viable without rewriting environments.
+The JSON adapter must implement `Connector` and preserve the real Schola call
+roles rather than being called directly from Godot scene code. Replacing it with
+`GrpcConnector` must not change the connector loop, training backend, lifecycle,
+or scene. This keeps Gymnasium, SB3, RLlib, remote training, and user-built
+backends viable without rewriting environments.
+
+Episode and step counters are not transport fields. They do not belong in
+`TrainingState`, `StepResult`, or the JSON equivalents. If Python needs them for
+diagnostics, they may be added to the existing text `info` map rather than to the
+shared protocol types.
 
 ### D2 completion check
 
-The Godot plugin can send step data to a local Python client, receive a valid
-action, and report a clear error if the client is unavailable or returns invalid
-data.
+Godot listens on the configured localhost port. The Python reference client can
+complete start, definition, reset, repeated step, and close calls in Python's
+request order. The connector loop returns each matching Godot response and reports
+connection, malformed-message, backend, and shutdown errors clearly.
+
+This completes the D2 JSON/TCP path, not the final US3 gRPC acceptance criteria.
 
 ## US4 — Episode lifecycle
 
@@ -173,10 +208,12 @@ US4 owns the reusable sequencing of an RL episode.
 
 ### Persistent plugin implementation
 
-- Reset/start behavior.
-- The generic sequence: observe -> request action -> apply action -> collect
-  reward and next observation -> report terminal/truncated state.
-- Episode and step counters.
+- Reset/start behavior when requested by Python.
+- The generic sequence: receive a reset and reply with the first observation;
+  receive actions, apply them, collect the next observation/reward/done flags,
+  and reply with the new state.
+- Episode and step counters exposed as read-only local telemetry. These counters
+  are not added to the transport types.
 - Correct reset behavior after success, failure, timeout, or backend-requested
   restart.
 - Tests for normal completion, truncation, repeated reset, and invalid backend
@@ -212,8 +249,8 @@ add to scenes, configure in the Inspector, and connect to gameplay scripts.
 - Registered `ScholaEnvironment` and `ScholaAgent` Godot classes.
 - Inspector properties for generic configuration, such as spaces, episode limits,
   and backend selection/configuration.
-- Signals/callable hooks for reset requests, actions received, episode end, and
-  connection/status changes.
+- Signals/callable hooks for reset requests, actions received, and episode end.
+- Read-only access to the US4 episode/step counters needed by the demo telemetry.
 - Variant-to-core conversion and clear Godot error reporting.
 - Documentation/example snippets explaining how a developer supplies their own
   observation, action application, reward, and terminal logic.
@@ -229,7 +266,9 @@ add to scenes, configure in the Inspector, and connect to gameplay scripts.
 
 The bindings must expose hooks rather than requiring one fixed `Player` node,
 movement system, or reward formula. The plugin should be useful to both GDScript
-and C++/GDExtension users where feasible.
+and C++/GDExtension users where feasible. Connection state is owned and exposed
+by the US3 `ScholaTrainingConnector`; the demo UI consumes that state alongside
+the US4 counters.
 
 ### D2 completion check
 
@@ -288,7 +327,10 @@ plugin logic.
 
 ### The example Python client includes
 
-- The D2 connector protocol implementation.
+- A D2 implementation of the Python side of the start, definition, and update
+  calls, connecting to Godot over localhost TCP.
+- Validation of actions before they are sent to Godot, matching US4's rule that
+  Python owns point validation.
 - A transparent policy approach: random, rule-based, or a small tabular learner.
 - Logging of episodes and reward progression.
 - Writing the D2 policy artifact if US7 scope is completed.
@@ -301,20 +343,28 @@ plugin logic.
 
 ## Integration sequence
 
-1. Finish and test US2 (`Box` and `Discrete`) and US1 contracts.
-2. Implement/test US4's single-agent episode loop.
-3. Implement US5 Godot classes and connect them to a simple scene.
-4. Implement US3's local Python adapter and demonstrate live action exchange.
-5. Add the D2 scene, telemetry UI, and reference Python client.
-6. Add US7's minimal load/run demonstration only after the training loop is
+1. Confirm with the US3/US4 owners that Python initiates calls, Godot listens on
+   localhost TCP, and Python owns action validation.
+2. Finish and test US2 (`Box` and `Discrete`) and US1 contracts.
+3. Implement/test US4's single-agent episode loop and local telemetry counters.
+4. Implement US5 Godot classes and connect them to a simple scene.
+5. Implement US3's `ConnectorLoop`, `HostTrainingBackend`, Godot registration,
+   connection-state API, `FakeConnector`, and tests.
+6. Implement the JSON/TCP `Connector` and matching Python reference client using
+   the real start, definition, and update request order.
+7. Integrate the D2 scene and telemetry UI.
+8. Add US7's minimal load/run demonstration only after the training loop is
    reliable.
-7. Package the example, document setup, record the walkthrough, and tag the
+9. Package the example, document setup, record the walkthrough, and tag the
    tested D2 release.
 
 ## Definition of done for the D2 vertical slice
 
-The team can start one Godot example, observe a configured Schola environment
-exchange live steps with Python, watch automatic success/failure resets, and
-understand each stage through the UI. The underlying reusable code remains generic
-enough for another Godot project to provide different spaces, gameplay behavior,
-reward rules, and a different training backend.
+The team can start one Godot example, connect the Python reference client to the
+Godot listener, complete the start/definition/update conversation, watch
+success/failure resets, and understand each stage through the UI. The underlying
+reusable code remains generic enough for another Godot project to provide
+different spaces, gameplay behavior, reward rules, and a different training
+backend. The D2 report explicitly records that the JSON/TCP adapter demonstrates
+the connector architecture while production gRPC/Protocol Buffer integration
+remains unfinished US3 work.

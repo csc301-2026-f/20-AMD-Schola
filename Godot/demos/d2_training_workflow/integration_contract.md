@@ -48,14 +48,53 @@ Action space: Discrete(4)
 3: move right
 ```
 
-One step reports an observation, reward, `terminated` state, `truncated` state,
-and episode/step identifiers to the backend. The backend returns one action. The
-specific local transport is a US3 implementation decision and must remain behind
-the connector interface.
+`Space::validate()` can validate these values explicitly, and the D2 Python client
+validates an action before sending it. The US4 engine-side training path forwards
+points without an additional value scan, matching the approved lifecycle
+contract.
+
+## Connector conversation
+
+Godot listens on a localhost TCP port (default `8000`) and Python connects. Python
+initiates every operation. Newline-delimited JSON mirrors the existing
+`GymService` calls:
+
+```text
+Python                         Godot
+  |-- start(autoreset_mode) ---->|
+  |<--------------- result ------|
+  |-- definition ---------------->|
+  |<--------------- definition --|
+  |-- update(reset) ------------->|
+  |<--------------- first state -|
+  |-- update(step, actions) ----->|
+  |<-- observation/reward/done ---|
+  |-- update(close) ------------->|
+```
+
+The JSON/TCP adapter implements the shared `Connector` interface. Replacing it
+with `GrpcConnector` later must not require changes to `ConnectorLoop`,
+`HostTrainingBackend`, US4 lifecycle code, or the D2 scene.
+
+Episode and step numbers are not part of `TrainingState`, `StepResult`, or the
+transport schema. The UI reads them from US4's local lifecycle/host telemetry. If
+Python needs them for diagnostics, they can be placed in the existing text `info`
+map.
 
 ## Telemetry contract
 
 The runtime panel will display connection state, control mode, episode number,
 step number, cumulative reward, latest observation, latest action, and terminal
 result. The panel is a visual consumer of plugin state; it must not perform
-lifecycle coordination or transport work.
+lifecycle coordination or transport work. Connection state comes from the US3
+training connector; episode and step counters come from US4.
+
+The US3 connection state exposed to Godot must distinguish at least waiting for
+Python, connected, training, closed, and error.
+
+## D2 limitation
+
+The JSON/TCP connector demonstrates the intended request roles and connector
+architecture, but it does not satisfy US3's final gRPC/Protocol Buffer acceptance
+criteria or run an unmodified Schola Python client. D2 reports US3 as partially
+complete until that integration is implemented.
