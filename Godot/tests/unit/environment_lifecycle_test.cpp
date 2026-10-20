@@ -99,6 +99,8 @@ TEST_CASE("environment lifecycle starts uninitialized", "[lifecycle]") {
 
 	CHECK(lifecycle.get_id() == environment_id);
 	CHECK(lifecycle.get_state() == LifecycleState::UNINITIALIZED);
+	CHECK(lifecycle.get_episode_count() == 0);
+	CHECK(lifecycle.get_episode_step_count() == 0);
 	CHECK(environment.initialize_calls == 0);
 	CHECK(environment.reset_calls == 0);
 	CHECK(environment.step_calls == 0);
@@ -227,6 +229,76 @@ TEST_CASE("reset is allowed after completion", "[lifecycle]") {
 	REQUIRE(result.is_ok());
 	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
 	CHECK(environment.reset_calls == 2);
+}
+
+// A successful reset starts exactly one episode.
+TEST_CASE("reset increments the episode count", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	initialize_lifecycle(lifecycle, environment);
+
+	InitialEnvironmentState state;
+	REQUIRE(lifecycle.reset({}, state).is_ok());
+
+	CHECK(lifecycle.get_episode_count() == 1);
+}
+
+// A successful step advances the current episode by one step.
+TEST_CASE("step increments the episode step count", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment);
+	environment.step_states = {
+		{ "agent_0", make_agent_state(1, 1.0f) },
+	};
+
+	EnvironmentState state;
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(1) } }, state).is_ok());
+
+	CHECK(lifecycle.get_episode_step_count() == 1);
+}
+
+// A reset removes step progress from the preceding episode.
+TEST_CASE("reset clears the episode step count", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment);
+	environment.step_states = {
+		{ "agent_0", make_agent_state(1, 1.0f) },
+	};
+	EnvironmentState step_state;
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(1) } }, step_state).is_ok());
+
+	InitialEnvironmentState reset_state;
+	REQUIRE(lifecycle.reset({}, reset_state).is_ok());
+
+	CHECK(lifecycle.get_episode_step_count() == 0);
+}
+
+// An unsuccessful reset does not start an episode.
+TEST_CASE("reset failure does not increment the episode count", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	initialize_lifecycle(lifecycle, environment);
+	environment.reset_status = Status::error(StatusCode::RUNTIME_FAILURE, "reset failed");
+
+	InitialEnvironmentState state;
+	CHECK_FALSE(lifecycle.reset({}, state).is_ok());
+
+	CHECK(lifecycle.get_episode_count() == 0);
+}
+
+// An unsuccessful step does not advance the current episode.
+TEST_CASE("step failure does not increment the episode step count", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment);
+	environment.step_status = Status::error(StatusCode::RUNTIME_FAILURE, "step failed");
+
+	EnvironmentState state;
+	CHECK_FALSE(lifecycle.step({ { "agent_0", make_point(1) } }, state).is_ok());
+
+	CHECK(lifecycle.get_episode_step_count() == 0);
 }
 
 // Step forwards actions and leaves an unfinished lifecycle active.
