@@ -58,6 +58,39 @@ The `schola` target contains the runtime extension. The `schola_training` target
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
+## Inspect the Schola UI
+
+The **AMD Schola** editor plugin uses GDScript and works in standard Godot without .NET. It is enabled in this project. Reopen the project after updating, or enable it in **Project → Project Settings → Plugins**.
+
+- Open the **Schola** dock beside the Inspector to see which native Schola classes are actually available. Refresh after changing the scene tree. Select a listed node to configure its existing properties in the Inspector.
+- Use **Add monitor to current scene** to insert a `CanvasLayer` and `ScholaMonitor`, with editor undo/redo support. You can also search for **ScholaMonitor** in Add Node. Its title and history limit are editable in the Inspector.
+- Use **Open interactive UI preview**, then **F6**, to inspect the runtime panel. Alternatively open `res://examples/ui_preview/main.tscn` directly. Next step, auto play/pause, new episode, terminate, and truncate operate on explicitly synthetic telemetry. This preview does not run a trainer or implement an RL environment.
+
+The runtime monitor displays episode and step counts, cumulative reward history, per-agent rewards and returns, and termination/truncation state. It does not depend on the unfinished native environment bindings. Feed it real data from your lifecycle code on the Godot main thread:
+
+```gdscript
+@onready var monitor: ScholaMonitor = $ScholaHUD/ScholaMonitor
+
+func start_display_episode() -> void:
+    monitor.begin_episode(1, PackedStringArray(["player"]), 500)
+
+func display_step(reward: float) -> void:
+    monitor.record_step({"player": reward}) # Incremental reward, once per step.
+
+func display_episode_end(truncated: bool) -> void:
+    monitor.end_episode(truncated)
+```
+
+Each `record_step` call represents one environment step. Only IDs declared at the start of that episode are accepted; invalid reward batches are rejected together. Calls after episode end are ignored until the next `begin_episode`. The monitor does not control the environment or automatically end an episode at the displayed limit. The lifecycle owner supplies the actual end event. Missing native capabilities remain labeled unavailable in the editor dock.
+
+After installing the test dependencies described above, run the UI checks with:
+
+```sh
+godot --headless --path Godot \
+  -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests/integration/ui_test.gd
+```
+
 ## Directory structure
 
 ```text
