@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[node name="TelemetryPanel" type="CanvasLayer"]
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 336.0
+offset_bottom = 232.0
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="Status" type="Label" parent="Panel/Margin"]
+text = "Schola D2 demo (skeleton)\n\nConnection: not implemented\nMode: not implemented\nEpisode: --\nStep: --\nReward: --\nObservation: --\nAction: --\nResult: --"

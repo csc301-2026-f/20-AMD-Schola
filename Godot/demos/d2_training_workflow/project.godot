@@ -1,0 +1,21 @@
+; D2 training-workflow demo skeleton.
+; This project is intentionally independent of the D1 C# prototype.
+; Plugin integration is added by the US implementation branches.
+config_version=5
+
+[application]
+
+config/name="Schola D2 Training Workflow"
+run/main_scene="res://scenes/D2TrainingWorkflow.tscn"
+
+[display]
+
+window/size/viewport_width=960
+window/size/viewport_height=540
+window/size/window_width_override=960
+window/size/window_height_override=540
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

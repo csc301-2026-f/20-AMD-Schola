@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/d2_demo_controller.gd" id="1_controller"]
+[ext_resource type="PackedScene" path="res://ui/telemetry_panel.tscn" id="2_telemetry"]
+
+[node name="D2TrainingWorkflow" type="Node2D"]
+script = ExtResource("1_controller")
+
+[node name="Arena" type="Node2D" parent="."]
+
+[node name="AgentPlaceholder" type="Marker2D" parent="Arena"]
+position = Vector2(240, 270)
+
+[node name="GoalPlaceholder" type="Marker2D" parent="Arena"]
+position = Vector2(720, 270)
+
+[node name="UI" parent="." instance=ExtResource("2_telemetry")]
