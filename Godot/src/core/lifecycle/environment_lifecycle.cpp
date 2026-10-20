@@ -23,6 +23,14 @@ LifecycleState EnvironmentLifecycle::get_state() const {
 	return state;
 }
 
+uint64_t EnvironmentLifecycle::get_episode_step_count() const {
+	return episode_step_count;
+}
+
+uint64_t EnvironmentLifecycle::get_episode_count() const {
+	return episode_num;
+}
+
 const EnvironmentDefinition &EnvironmentLifecycle::get_definition() const {
 	return definition;
 }
@@ -62,6 +70,7 @@ Status EnvironmentLifecycle::reset(const ResetSettings &p_settings, InitialEnvir
 	r_initial_state.agents = std::move(agents);
 	last_state.agents.clear();
 	episode_step_count = 0;
+	episode_num++;
 	state = LifecycleState::ACTIVE;
 	return Status::ok();
 }
