@@ -11,6 +11,7 @@
 #include "bindings/spaces/schola_multi_binary_space.h"
 #include "bindings/spaces/schola_multi_discrete_space.h"
 #include "bindings/spaces/schola_space.h"
+#include "bindings/training/schola_training_host.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
@@ -24,6 +25,7 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaMultiDiscreteSpace);
 	GDREGISTER_CLASS(ScholaMultiBinarySpace);
 	GDREGISTER_CLASS(ScholaDictSpace);
+	GDREGISTER_CLASS(ScholaTrainingHost);
 }
 
 void unregister_schola_binding_types() {
