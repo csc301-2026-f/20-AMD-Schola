@@ -34,26 +34,26 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 schola::Status ScholaTrainingHost::initialize_session() {
 	if (session_initialized) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-									 "training session is already initialized");
+				"training session is already initialized");
 	}
 
 	godot::SceneTree *tree = get_tree();
 	if (tree == nullptr) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-								     "training host is not inside a scene tree");
+				"training host is not inside a scene tree");
 	}
 
 	godot::Node *scene_root = tree->get_current_scene();
 	if (scene_root == nullptr) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-									 "scene tree has no current scene");
+				"scene tree has no current scene");
 	}
 
 	std::vector<ScholaEnvironment *> discovered_environments;
 	collect_environments(scene_root, discovered_environments);
 	if (discovered_environments.empty()) {
 		return schola::Status::error(schola::StatusCode::NOT_FOUND,
-				                     "current scene contains no ScholaEnvironment nodes");
+				"current scene contains no ScholaEnvironment nodes");
 	}
 
 	std::vector<godot::ObjectID> discovered_ids;
@@ -65,19 +65,19 @@ schola::Status ScholaTrainingHost::initialize_session() {
 		ScholaEnvironment *environment_node = discovered_environments[i];
 		if (!environment_node->get_configuration_errors().is_empty()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-					                     "a discovered ScholaEnvironment has configuration errors");
+					"a discovered ScholaEnvironment has configuration errors");
 		}
 
 		schola::Environment *environment = environment_node->get_environment();
 		if (environment == nullptr) {
 			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-					                     "a discovered ScholaEnvironment has no core environment adapter");
+					"a discovered ScholaEnvironment has no core environment adapter");
 		}
 
 		const int32_t step_limit = environment_node->get_max_episode_steps();
 		if (step_limit < 0) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-									     "a discovered ScholaEnvironment has a negative step limit");
+					"a discovered ScholaEnvironment has a negative step limit");
 		}
 
 		discovered_ids.emplace_back(environment_node->get_instance_id());
