@@ -139,13 +139,8 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		last_state.agents[agent_id] = agent_state;
 	}
 
-	bool all_agents_done = true;
-	for (auto &[agent_id, agent_state] : last_state.agents) {
-		if (!agent_state.terminated && !agent_state.truncated) {
-			all_agents_done = false;
-			break;
-		}
-	}
+	const bool all_agents_done = std::all_of(last_state.agents.begin(), last_state.agents.end(),
+			[](const auto &p_entry) { return p_entry.second.terminated || p_entry.second.truncated; });
 
 	state = all_agents_done ? LifecycleState::COMPLETE : LifecycleState::ACTIVE;
 	r_state = last_state;
