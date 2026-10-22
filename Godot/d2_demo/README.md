@@ -5,7 +5,7 @@ A 3D grid world showing the D2 workflow end to end:
 2. Godot applies the trainer's actions to the agent.
 3. The trained policy is reloaded and runs in Godot with Python closed.
 
-![demo2-image](godot-demo2.png)
+![demo2-image](screenshots/godot-demo2.png)
 
 The spaces are the real US2 resources (`ScholaBoxSpace`, `ScholaDiscreteSpace`) from the Schola GDExtension. The other stories are basic GDScript stand-ins in `addons/schola_d2`:
 
