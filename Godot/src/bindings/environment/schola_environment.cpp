@@ -2,4 +2,5 @@
 
 #include "bindings/environment/schola_environment.h"
 
-// Method definitions are intentionally omitted: this is the US5 API proposal.
+void ScholaEnvironment::_bind_methods() {
+}
