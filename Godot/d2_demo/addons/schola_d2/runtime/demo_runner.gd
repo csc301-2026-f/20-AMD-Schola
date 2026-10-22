@@ -118,7 +118,6 @@ func load_saved_policy() -> void:
 	_log("loaded saved policy: %d states, %d training episodes" % [loaded.state_count(), loaded.episodes_trained])
 
 
-# Runs the exported model through Schola's ONNX Runtime inference (US7), with no Python involved.
 func load_onnx_policy() -> void:
 	if mode in [Mode.WAITING, Mode.TRAINING, Mode.STOPPING]:
 		_log("stop training before loading a policy", true)
