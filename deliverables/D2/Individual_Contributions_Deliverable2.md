@@ -43,6 +43,8 @@
 ## Bohdan Zmeul - ONNX inference and packaging
 
 - Defined the US7 policy, policy-state, stepper, and Godot inference APIs and aligned them with AMD's upstream recurrent-state design (#2, #14, #15).
-- Implemented ONNX Runtime setup and linking, model validation, inference, recurrent state, Godot bindings, export packaging, and inference tests.
-- Integrated the production ONNX policy into the D2 demo, added Q-table-to-ONNX export and equivalence checks, and verified 30 of 30 trained-policy episodes reached the goal with Python closed (#23).
-- Drafted the D2 iteration review and individual-contribution documents for team review (#17).
+- Pinned ONNX Runtime 1.30 with a checksum-verified setup script, linked it into the runtime add-on and CI, and listed it as an add-on dependency so it ships with the extension.
+- Implemented the default `Policy` behavior, `EmptyPolicyState`, and `SimpleStepper` with one policy state per agent entry.
+- Implemented `OnnxPolicy`: loading models from bytes, checking them against the observation and action spaces, inference for all space types, and recurrent state with a sliding window.
+- Added the `ScholaOnnxPolicy` and `ScholaPolicyState` Godot bindings, and 27 inference test cases covering generated fixture models and real Schola-exported PPO models checked against Python results.
+- Integrated the ONNX policy into the D2 demo, added Q-table-to-ONNX export and equivalence checks, and verified 30 of 30 trained-policy episodes reached the goal with Python closed (#23).
