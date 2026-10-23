@@ -16,7 +16,7 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC, Windows/MSVC, and macOS/Apple Clang |
 
-Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 is recorded only as a proposal; the US7 implementation must confirm its version and complete the cross-platform acquisition plan with AMD before integration. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
 
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 
@@ -25,7 +25,14 @@ scons -C Godot unit_tests platform=linux target=template_debug -j"$(nproc)"
 ./Godot/build/tests/schola_core_tests
 ```
 
-Use the matching platform value on macOS or Windows. Godot scene and extension integration tests use pinned GdUnit4 and live under `tests/integration/`. Install and run the integration tests from the repository root:
+Use the matching platform value on macOS or Windows. ONNX Runtime tests live under `tests/inference/` and build as a separate target, so the core unit tests do not need ONNX Runtime:
+
+```sh
+scons -C Godot inference_tests platform=linux target=template_debug -j"$(nproc)"
+./Godot/build/tests/schola_inference_tests
+```
+
+Godot scene and extension integration tests use pinned GdUnit4 and live under `tests/integration/`. Install and run the integration tests from the repository root:
 
 ```sh
 python Godot/tools/setup_test_dependencies.py
@@ -48,15 +55,22 @@ git submodule update --init --recursive
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes -r Godot/requirements.txt
+python Godot/tools/setup_onnxruntime.py
 scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 godot --editor --path Godot
 ```
 
-On macOS, use `platform=macos` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+On macOS, use `platform=macos arch=arm64` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
+
+## Running a trained policy
+
+A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
+
+Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
 
 ## Directory structure
 
@@ -109,7 +123,7 @@ Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contrac
 
 ### `src/inference`
 
-Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. It is the only module that includes ONNX Runtime headers; the policy and stepper contracts it implements live in `src/core/policy/` and `src/core/stepper/`. The public policy, stepper, and Godot-facing inference APIs are merged; ONNX Runtime integration and concrete execution behavior remain implementation work. Inference remains independent from the training extension so exported games can exclude training dependencies.
+Contains ONNX Runtime policy integration for local inference without a running Python process or training connection. It is the only module that includes ONNX Runtime headers; the policy and stepper contracts it implements live in `src/core/policy/` and `src/core/stepper/`. The Godot-facing classes live in `src/bindings/inference/` and register through `src/inference/register_types`. Inference remains independent from the training extension so exported games can exclude training dependencies.
 
 The inference API follows the policy state design of Unreal Schola. A policy holds no per-agent data. Each agent's memory, such as the hidden tensors of a recurrent model, is a `schola::PolicyState` created by `Policy::create_initial_state()` and owned by the caller, so one loaded model can serve many agents. Policies without memory use `EmptyPolicyState` (Unreal: `UStatelessPolicyState`), so a state is never null. `SimpleStepper` owns one state per entry, keeps entries in add order like an array, and allows the same agent to be added more than once with a separate state for each entry. Differences from Unreal follow the project contract and Godot conventions: core functions return `schola::Status` instead of logging, `add_agent()` reports its index through an output parameter, and the Godot-facing `ScholaInferenceStepper` takes agent nodes instead of indices and returns `Error`.
 
