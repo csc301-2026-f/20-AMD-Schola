@@ -37,7 +37,7 @@ The demo combines production components with temporary integration code. Its spa
 
 ## Instructions
 
-The packaged Windows demo requires no source checkout or development tools for the inference workflow. Download and launch instructions are in [Deployed URL and access instructions](#deployed-url-and-access-instructions).
+The packaged Windows, Linux, and macOS demos require no source checkout or development tools for the inference workflow. Download and launch instructions are in [Deployed URL and access instructions](#deployed-url-and-access-instructions).
 
 Inside the demo:
 
@@ -88,7 +88,7 @@ The architecture keeps reusable core logic independent from Godot, gRPC, Protoco
 
 ## Deployment and GitHub workflow
 
-The D2 product is distributed as a versioned GitHub release with a packaged Windows demo. The production library is designed as separate runtime and training add-ons so exported games can omit training-only dependencies.
+The D2 product is distributed as a versioned GitHub release with packaged Windows x86_64, Linux x86_64, and macOS arm64 demos. The production library is designed as separate runtime and training add-ons so exported games can omit training-only dependencies.
 
 Work is divided by user story and developed on named branches. Changes enter shared branches through pull requests, where another team member reviews the code and GitHub Actions checks formatting, native builds, unit tests, and Godot integration tests. Commit messages follow Conventional Commits, using prefixes such as `feat:`, `fix:`, `docs:`, and `test:`. Cross-story API or protocol changes are discussed with their producers and consumers before merge. The team tracks ownership and progress on [Trello](https://trello.com/b/Ry0Qkx2R).
 
@@ -102,9 +102,9 @@ The project uses the [MIT License](LICENSE.txt), matching AMD Schola. It permits
 
 ## Deployed URL and access instructions
 
-The packaged demo is published with the [D2 GitHub release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2). Download the Windows ZIP asset, extract the archive, and run the included executable. The release is a fixed D2 snapshot, so later development will not change the submitted product.
+The packaged demos are published with the [D2 GitHub release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2). Download the archive for Windows x86_64, Linux x86_64, or macOS arm64; extract it if necessary; and run the included application. The release is a fixed D2 snapshot, so later development will not change the submitted product.
 
-The packaged application supports manual control, space validation, and local ONNX inference. Running a new training session requires the developer setup described in the [D2 demo guide](Godot/demo/d2/README.md) because the trainer is a local Python process.
+The packaged application includes a reference policy and supports manual control, space validation, and local ONNX inference. Running a new training session requires the developer setup described in the [D2 demo guide](Godot/demo/d2/README.md) because the trainer is a local Python process.
 
 ## Project resources
 

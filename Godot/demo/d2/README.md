@@ -20,7 +20,9 @@ US7 is real: the trained Q-table is exported to ONNX, and **Load ONNX Policy** r
 ## Requirements
 
 - Godot 4.7.2
-- Python with `gymnasium` and `numpy` (the repo's `.venv` has both), plus `onnx` and `onnxruntime` to export the policy to ONNX
+- Python with `gymnasium`, `numpy`, `onnx`, and `onnxruntime`. Install them into a virtual environment with `python -m pip install gymnasium numpy onnx onnxruntime`.
+
+Packaged builds for Windows x86_64, Linux x86_64, and macOS arm64 are attached to the [D2 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2). They include a reference ONNX policy and do not require Godot, Python, or a source checkout for manual play, validation, or inference. Starting a new training session still requires this developer setup.
 
 ## Run
 
