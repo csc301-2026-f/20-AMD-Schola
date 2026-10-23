@@ -49,7 +49,6 @@ def extract(archive_path, destination):
             archive.extractall(destination)
     else:
         with tarfile.open(archive_path) as archive:
-            # The data filter rejects unsafe paths and keeps the library symlinks.
             archive.extractall(destination, filter="data")
 
 
@@ -64,7 +63,6 @@ def install_onnxruntime(archive_path, archive):
     with tempfile.TemporaryDirectory(dir=GODOT_ROOT) as temporary_directory:
         staged_directory = Path(temporary_directory)
         extract(archive_path, staged_directory)
-        # Each archive holds one top-level directory, such as onnxruntime-win-x64-1.30.0/.
         roots = [path for path in staged_directory.iterdir() if path.is_dir()]
         if (
             len(roots) != 1

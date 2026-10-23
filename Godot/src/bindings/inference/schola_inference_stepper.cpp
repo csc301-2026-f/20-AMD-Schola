@@ -136,7 +136,6 @@ void ScholaInferenceStepper::_physics_process([[maybe_unused]] double p_delta) {
 	}
 }
 
-// Loads the policy, initializes it from the first agent, and creates the stepper on first use.
 godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 	if (p_agent == nullptr || p_agent->get_agent() == nullptr) {
 		report("ScholaInferenceStepper.add_agent: the agent must be a ScholaAgent inside the scene tree");

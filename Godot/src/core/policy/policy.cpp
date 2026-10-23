@@ -18,7 +18,6 @@ Status Policy::batched_think(const std::vector<const Point *> &p_observations, c
 				"batched_think: got " + std::to_string(count) + " observations, " + std::to_string(p_states.size()) +
 						" states, and " + std::to_string(r_actions.size()) + " actions");
 	}
-	// Checks every entry first, so bad input never leaves some states advanced.
 	for (size_t i = 0; i < count; ++i) {
 		if (p_observations[i] == nullptr || p_states[i] == nullptr || r_actions[i] == nullptr) {
 			return Status::error(StatusCode::INVALID_ARGUMENT, "batched_think: entry " + std::to_string(i) + " is null");

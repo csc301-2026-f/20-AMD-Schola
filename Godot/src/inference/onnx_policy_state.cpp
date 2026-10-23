@@ -39,7 +39,6 @@ Status OnnxPolicyState::copy_from(const PolicyState &p_other) {
 			return Status::error(StatusCode::INVALID_ARGUMENT, "OnnxPolicyState::copy_from: " + other->to_string() + " does not match " + to_string());
 		}
 	}
-	// Copies in place: model tensors point into these buffers, so they must never be reallocated.
 	for (size_t i = 0; i < buffers.size(); ++i) {
 		std::copy(other->buffers[i].values.begin(), other->buffers[i].values.end(), buffers[i].values.begin());
 	}

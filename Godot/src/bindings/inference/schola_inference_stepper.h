@@ -19,8 +19,6 @@ class SimpleStepper;
 
 class ScholaAgent;
 
-// Runs observe -> infer -> act for its agents every physics frame, without Python.
-// Emits inference_failed(message) when a step fails.
 class ScholaInferenceStepper : public godot::Node {
 	GDCLASS(ScholaInferenceStepper, godot::Node)
 
@@ -30,12 +28,11 @@ public:
 
 	void set_policy(const godot::Ref<ScholaOnnxPolicy> &p_policy);
 	godot::Ref<ScholaOnnxPolicy> get_policy() const;
-	void set_agents(const godot::TypedArray<godot::NodePath> &p_agents); // Added in _ready().
+	void set_agents(const godot::TypedArray<godot::NodePath> &p_agents);
 	godot::TypedArray<godot::NodePath> get_agents() const;
 	void set_enabled(bool p_enabled);
 	bool is_enabled() const;
 
-	// Every entry of an agent added more than once is affected.
 	godot::Error add_agent(ScholaAgent *p_agent);
 	int32_t remove_agent(ScholaAgent *p_agent);
 	void reset_state(ScholaAgent *p_agent);

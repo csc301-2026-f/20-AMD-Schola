@@ -212,7 +212,7 @@ P *find_leaf(P &p_point, const std::string &p_key) {
 struct TensorDescription {
 	std::string name;
 	ONNXTensorElementDataType element_type = ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
-	std::vector<int64_t> shape; // -1 for a dynamic dimension.
+	std::vector<int64_t> shape;
 };
 
 struct StateLayout {
@@ -440,7 +440,6 @@ struct OnnxPolicy::Impl {
 		return false;
 	}
 
-	// Model tensors are named "obs" and "action", or after the Dict keys.
 	Status bind(const Space &p_space, bool p_input) {
 		const std::string context = "init(" + model_name + "): ";
 		const char *tensor_kind = p_input ? "input" : "output";
@@ -564,7 +563,6 @@ struct OnnxPolicy::Impl {
 		return Status::ok();
 	}
 
-	// Pairs state inputs with state outputs by order.
 	Status find_states() {
 		std::vector<size_t> state_inputs;
 		std::vector<size_t> state_outputs;
@@ -600,7 +598,7 @@ struct OnnxPolicy::Impl {
 				if (input.shape[dimension] > 0) {
 					layout.state_size *= input.shape[dimension];
 				} else if (dimension == 1) {
-					layout.has_sequence = true; // A dynamic dimension right after the batch is the sequence.
+					layout.has_sequence = true;
 				} else {
 					return error(StatusCode::INCOMPATIBLE, "state input '" + input.name + "' has a dynamic dimension at index " + std::to_string(dimension) + "; only a sequence right after the batch is supported");
 				}
@@ -817,7 +815,6 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 }
 
 Status OnnxPolicy::batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) {
-	// One run per entry for now; a single batched run is a later optimization.
 	return Policy::batched_think(p_observations, p_states, r_actions);
 }
 

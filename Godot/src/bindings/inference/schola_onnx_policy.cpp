@@ -56,7 +56,6 @@ godot::Error ScholaOnnxPolicy::load() {
 	stateless_state.reset();
 	last_error = godot::String();
 
-	// FileAccess also reads res:// files packed into an exported game, which ONNX Runtime cannot open itself.
 	const godot::PackedByteArray bytes = godot::FileAccess::get_file_as_bytes(model_path);
 	if (bytes.is_empty()) {
 		const godot::Error error = godot::FileAccess::get_open_error();
