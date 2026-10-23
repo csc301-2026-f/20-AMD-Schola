@@ -23,6 +23,10 @@ public:
 	// Call Space::check_definition() to report invalid Inspector configuration
 	virtual schola::Space to_space() const = 0;
 
+	// Returns why the resource cannot form a space, such as an unassigned Dict entry
+	// p_path is the Dict key path of this resource
+	virtual godot::String get_resource_error(const godot::String &p_path) const;
+
 	// Returns an empty string when p_value belongs to this space
 	// Otherwise returns a reason why the value is invalid
 	godot::String get_validation_error(const godot::Variant &p_value) const;

@@ -7,7 +7,7 @@
 #include <godot_cpp/core/class_db.hpp>
 
 void ScholaDiscreteSpace::set_n(int32_t p_n) {
-	n = p_n;
+	n=p_n;
 	emit_changed();
 }
 

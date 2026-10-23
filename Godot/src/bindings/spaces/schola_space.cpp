@@ -18,23 +18,25 @@ godot::String to_godot_string(const std::string &p_value) {
 
 } // namespace
 
+godot::String ScholaSpace::get_resource_error(const godot::String &) const {
+	return godot::String();
+}
+
 godot::String ScholaSpace::get_validation_error(const godot::Variant &p_value) const {
-	const schola::Space space = to_space();
-	schola::Status status = space.check_definition();
-	if (!status.is_ok()) {
-		return "invalid space definition: " + to_godot_string(status.get_message());
-	}
+	const godot::String definition_error=get_definition_error();
+	if(!definition_error.is_empty())return "invalid space definition: "+definition_error;
+	const schola::Space space=to_space();
 	schola::Point point;
-	status = schola::variant_to_point(p_value, space, point);
-	if (status.is_ok()) {
-		status = space.validate(point);
-	}
-	return status.is_ok() ? godot::String() : to_godot_string(status.get_message());
+	schola::Status status=schola::variant_to_point(p_value, space, point);
+	if(status.is_ok())status=space.validate(point);
+	return status.is_ok()?godot::String():to_godot_string(status.get_message());
 }
 
 godot::String ScholaSpace::get_definition_error() const {
-	const schola::Status status = to_space().check_definition();
-	return status.is_ok() ? godot::String() : to_godot_string(status.get_message());
+	const godot::String resource_error=get_resource_error(godot::String());
+	if(!resource_error.is_empty())return resource_error;
+	const schola::Status status=to_space().check_definition();
+	return status.is_ok()?godot::String():to_godot_string(status.get_message());
 }
 
 godot::Dictionary ScholaSpace::to_dictionary() const {
@@ -42,16 +44,12 @@ godot::Dictionary ScholaSpace::to_dictionary() const {
 }
 
 int64_t ScholaSpace::get_flattened_size() const {
-	const schola::Space space = to_space();
-	return space.check_definition().is_ok() ? space.get_flattened_size() : 0;
+	return get_definition_error().is_empty()?to_space().get_flattened_size():0;
 }
 
 godot::Variant ScholaSpace::make_default_value() const {
-	const schola::Space space = to_space();
-	if (!space.check_definition().is_ok()) {
-		return godot::Variant();
-	}
-	return schola::point_to_variant(space.make_point());
+	if(!get_definition_error().is_empty())return godot::Variant();
+	return schola::point_to_variant(to_space().make_point());
 }
 
 godot::String ScholaSpace::describe() const {
