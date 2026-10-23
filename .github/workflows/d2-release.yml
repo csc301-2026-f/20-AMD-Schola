@@ -163,10 +163,15 @@ jobs:
             & $editor --headless --path Godot/demo/d2 --import
             $importExitCode = $LASTEXITCODE
           }
-          if ($importExitCode -eq 134) {
+          if ($importExitCode -in @(134, -1073741819)) {
             Write-Warning "Godot hit its first-import GDExtension race; retrying with the generated cache"
-            & $editor --headless --path Godot/demo/d2 --import
-            $importExitCode = $LASTEXITCODE
+            if ($env:RUNNER_OS -eq "Windows") {
+              $process = Start-Process -FilePath $editor -ArgumentList "--headless", "--path", "Godot/demo/d2", "--import" -Wait -PassThru -WindowStyle Hidden
+              $importExitCode = $process.ExitCode
+            } else {
+              & $editor --headless --path Godot/demo/d2 --import
+              $importExitCode = $LASTEXITCODE
+            }
           }
           if ($importExitCode -ne 0) {
             throw "Godot import failed with exit code $importExitCode"
