@@ -30,7 +30,6 @@ public:
 
 	void set_model_path(const godot::String &p_path);
 	godot::String get_model_path() const;
-	// Takes effect on the next load().
 	void set_max_state_sequence_length(int32_t p_length);
 	int32_t get_max_state_sequence_length() const;
 
@@ -41,14 +40,12 @@ public:
 	godot::PackedStringArray get_input_names() const;
 	godot::PackedStringArray get_output_names() const;
 
-	// Checks the model against these spaces; required before create_state() and infer().
 	godot::Error initialize_spaces(const godot::Ref<ScholaSpace> &p_observation_space, const godot::Ref<ScholaSpace> &p_action_space);
 	bool is_initialized() const;
 	godot::Ref<ScholaPolicyState> create_state() const;
-	// One inference on a GDScript value. p_state is advanced in place; required for recurrent models.
 	godot::Variant infer(const godot::Variant &p_observation, const godot::Ref<ScholaPolicyState> &p_state = godot::Ref<ScholaPolicyState>());
 
-	schola::OnnxPolicy *get_policy() const; // Shared by every stepper using this resource.
+	schola::OnnxPolicy *get_policy() const;
 
 protected:
 	static void _bind_methods();

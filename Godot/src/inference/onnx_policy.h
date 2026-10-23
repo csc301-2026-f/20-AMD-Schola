@@ -24,18 +24,16 @@ public:
 	const std::vector<std::string> &get_output_names() const;
 
 	Status init(const InteractionDefinition &p_definition) override;
-	// OnnxPolicyState for recurrent models, EmptyPolicyState otherwise.
 	Status create_initial_state(std::unique_ptr<PolicyState> &r_state) const override;
-	// INVALID_ARGUMENT if p_state was not created by this policy.
 	Status think(const Point &p_observation, PolicyState &p_state, Point &r_action) override;
 	Status batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) override;
-	bool is_recurrent() const override; // Model has state_in_*/state_out_* tensors.
+	bool is_recurrent() const override;
 
-	bool is_ready() const; // load_model() and init() succeeded.
+	bool is_ready() const;
 
 private:
 	struct Impl;
-	std::unique_ptr<Impl> impl; // Keeps ONNX Runtime out of this header.
+	std::unique_ptr<Impl> impl;
 };
 
 } // namespace schola

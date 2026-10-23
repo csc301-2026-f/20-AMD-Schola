@@ -14,8 +14,6 @@ class OnnxPolicy;
 
 class OnnxPolicyState final : public PolicyState {
 public:
-	// One buffer per state_in_*/state_out_* pair: sequence_length entries of state_size values, then one
-	// pending entry that state_out writes to, so a failed run never changes the state.
 	struct Buffer {
 		std::string name;
 		int64_t sequence_length = 1;
@@ -36,7 +34,6 @@ public:
 
 	void reset() override;
 	Status copy_from(const PolicyState &p_other) override;
-	// Drops the oldest entry and appends the pending one.
 	Status notify_state_update() override;
 	std::string to_string() const override;
 

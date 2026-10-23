@@ -14,7 +14,6 @@
 
 namespace schola::testing {
 
-// Counts the think() calls that advanced it, to check that each entry keeps its own state.
 class CounterState final : public PolicyState {
 public:
 	int32_t count = 0;
@@ -24,14 +23,13 @@ public:
 	std::string to_string() const override { return "CounterState(" + std::to_string(count) + ")"; }
 };
 
-// Test double for Policy: public fields script what it returns and record what it receives.
 class FakePolicy final : public Policy {
 public:
-	Point action; // Copied into r_action by every successful think().
-	bool stateful = false; // create_initial_state() returns a CounterState instead of an EmptyPolicyState.
-	std::vector<Point> observations; // Every observation received, in order.
-	std::vector<const PolicyState *> states; // State of every think() call, in order.
-	int32_t fail_at_call = -1; // Zero-based think() call that returns failure; -1 never fails.
+	Point action;
+	bool stateful = false;
+	std::vector<Point> observations;
+	std::vector<const PolicyState *> states;
+	int32_t fail_at_call = -1;
 	Status failure = Status::error(StatusCode::RUNTIME_FAILURE, "FakePolicy failure");
 
 	Status init(const InteractionDefinition &p_definition) override;

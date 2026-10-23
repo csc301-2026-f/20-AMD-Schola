@@ -100,7 +100,7 @@ TEST_CASE("batched_think stops at the first failing entry and names it", "[polic
 
 	REQUIRE(status.get_code() == StatusCode::RUNTIME_FAILURE);
 	REQUIRE_THAT(status.get_message(), ContainsSubstring("entry 1: model crashed"));
-	REQUIRE(states[0].count == 1); // Entry 0 succeeded before the failure.
-	REQUIRE(states[1].count == 0); // The failed entry keeps its state.
-	REQUIRE(policy.observations.size() == 2); // Entry 2 was never reached.
+	REQUIRE(states[0].count == 1);
+	REQUIRE(states[1].count == 0);
+	REQUIRE(policy.observations.size() == 2);
 }

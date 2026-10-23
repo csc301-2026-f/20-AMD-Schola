@@ -56,7 +56,6 @@ Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
 	if (entries.empty()) {
 		observation_space = definition.observation_space;
 		action_space = definition.action_space;
-		// Points shaped for the previous spaces must not be reused.
 		observations.clear();
 		actions.clear();
 	} else if (definition.observation_space != observation_space || definition.action_space != action_space) {
@@ -132,11 +131,9 @@ Status SimpleStepper::step() {
 	}
 	const size_t count = entries.size();
 	if (count == 0) {
-		return Status::ok(); // Nothing to step, e.g. between enemy waves.
+		return Status::ok();
 	}
 
-	// Points are created only when the agent count changes; agents and the policy fill them in place.
-	// The check matters: make_point() runs before resize() is called, even when the size is unchanged.
 	if (observations.size() != count) {
 		observations.resize(count, observation_space.make_point());
 		actions.resize(count, action_space.make_point());
@@ -160,7 +157,6 @@ Status SimpleStepper::step() {
 		return Status::error(status.get_code(), "SimpleStepper::step: " + status.get_message());
 	}
 
-	// Every agent acts even if one fails.
 	Status first_error = Status::ok();
 	for (size_t i = 0; i < count; ++i) {
 		Status act_status = entries[i].agent->act(actions[i]);

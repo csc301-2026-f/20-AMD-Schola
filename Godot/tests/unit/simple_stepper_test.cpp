@@ -107,7 +107,7 @@ TEST_CASE("the same agent can be added twice with separate states", "[stepper]")
 
 	REQUIRE(count_at(stepper, 0) == 3);
 	REQUIRE(count_at(stepper, 1) == 1);
-	REQUIRE(agent.actions.size() == 4); // 2 steps as one entry, then 1 step as two entries.
+	REQUIRE(agent.actions.size() == 4);
 }
 
 TEST_CASE("removing an entry shifts later entries with their states", "[stepper]") {
@@ -119,7 +119,7 @@ TEST_CASE("removing an entry shifts later entries with their states", "[stepper]
 	step_times(stepper, 2);
 	int32_t index = -1;
 	REQUIRE(stepper.add_agent(&second, index).is_ok());
-	step_times(stepper, 1); // first: 3, second: 1
+	step_times(stepper, 1);
 
 	REQUIRE(stepper.remove_agent_at(0).is_ok());
 
@@ -150,7 +150,6 @@ TEST_CASE("observe receives a point shaped like the current observation space", 
 	step_times(stepper, 1);
 	REQUIRE(small.received_observations.back().get_if<BoxPoint>()->values.size() == 1);
 
-	// Same agent count (1 -> 0 -> 1), but new spaces: the old 1-value point must not be reused.
 	REQUIRE(stepper.remove_agent(&small) == 1);
 	FakeAgent large = make_agent(1.0f);
 	large.definition = box_definition(3);

@@ -22,9 +22,9 @@ from onnx import TensorProto, helper, numpy_helper
 
 FIXTURES_DIRECTORY = Path(__file__).resolve().parent
 OPSET = 17
-IR_VERSION = 8  # Readable by every ONNX Runtime release since 1.10.
-BATCH = "batch_size"  # Dynamic batch dimension, as named by the exporter.
-SEQUENCE = "seq_len"  # Dynamic sequence dimension, as named by the exporter.
+IR_VERSION = 8
+BATCH = "batch_size"
+SEQUENCE = "seq_len"
 
 
 def tensor(name, element_type, shape):
@@ -49,7 +49,6 @@ def model(name, nodes, inputs, outputs, initializers=()):
 
 
 def box_scale():
-    # Box -> Box: action = 2 * obs, so tests can check values are really computed.
     return model(
         "box_scale",
         [helper.make_node("Mul", ["obs", "two"], ["action"])],
@@ -60,7 +59,6 @@ def box_scale():
 
 
 def discrete():
-    # Box -> Discrete: action = argmax(obs), int64 with one value per batch entry.
     return model(
         "discrete",
         [helper.make_node("ArgMax", ["obs"], ["action"], axis=1, keepdims=0)],
@@ -70,7 +68,6 @@ def discrete():
 
 
 def multi_discrete():
-    # MultiDiscrete -> MultiDiscrete: int64 in and out.
     return model(
         "multi_discrete",
         [helper.make_node("Identity", ["obs"], ["action"])],
@@ -80,7 +77,6 @@ def multi_discrete():
 
 
 def multi_binary():
-    # MultiBinary -> MultiBinary: int8 in, bool out, as the exporter produces.
     return model(
         "multi_binary",
         [helper.make_node("Cast", ["obs"], ["action"], to=TensorProto.BOOL)],
@@ -90,7 +86,6 @@ def multi_binary():
 
 
 def dict_obs():
-    # Dict observation {"a": Box(2), "b": Discrete} -> Box(3) = [a0, a1, b].
     return model(
         "dict_obs",
         [
@@ -108,7 +103,6 @@ def dict_obs():
 
 
 def dict_action():
-    # Box(2) -> Dict action {"jump": Discrete = argmax(obs), "move": Box(2) = obs}.
     return model(
         "dict_action",
         [
@@ -124,8 +118,6 @@ def dict_action():
 
 
 def counter():
-    # Recurrent without a sequence: action = state, new state = state + 1.
-    # Starting from a zeroed state, the action counts 0, 1, 2, ... per step.
     return model(
         "counter",
         [
@@ -145,8 +137,6 @@ def counter():
 
 
 def counter_seq():
-    # Recurrent with a sequence: state_in_h is [batch, seq, 2]. action = the newest entry,
-    # state_out_h = newest + 1 (one entry, which the policy appends to the window).
     result = model(
         "counter_seq",
         [
@@ -164,7 +154,6 @@ def counter_seq():
         ],
         [constant("last", -1, TensorProto.INT64), constant("one", 1.0)],
     )
-    # The exporter also writes this metadata on the state input; ONNX Runtime cannot read it.
     for value_info in result.graph.input:
         if value_info.name == "state_in_h":
             helper.set_metadata_props(
@@ -174,7 +163,6 @@ def counter_seq():
 
 
 def bad_unpaired_state():
-    # state_in_h without a matching state_out_h.
     return model(
         "bad_unpaired_state",
         [helper.make_node("Identity", ["state_in_h"], ["action"])],
@@ -187,7 +175,6 @@ def bad_unpaired_state():
 
 
 def bad_state_int():
-    # State tensors must be float; this one is int64.
     return model(
         "bad_state_int",
         [

@@ -13,7 +13,6 @@ namespace schola {
 class PolicyState;
 } // namespace schola
 
-// GDScript handle to one agent's policy state. Created by ScholaOnnxPolicy.create_state().
 class ScholaPolicyState : public godot::RefCounted {
 	GDCLASS(ScholaPolicyState, godot::RefCounted)
 
