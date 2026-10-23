@@ -12,6 +12,10 @@ godot::String ScholaAgent::get_agent_type() const {
 	return agent_type;
 }
 
+godot::PackedStringArray ScholaAgent::_get_configuration_warnings() const {
+	return {};
+}
+
 void ScholaAgent::_bind_methods() {
 	// expose the optional policy-sharing label in the Inspector and GDScript
 	godot::ClassDB::bind_method(godot::D_METHOD("set_agent_type", "agent_type"), &ScholaAgent::set_agent_type);
