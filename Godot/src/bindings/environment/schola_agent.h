@@ -92,8 +92,9 @@ protected:
 	static void _bind_methods();
 
 private:
+	// Stores the Inspector value; an empty ID means use this node's name
 	godot::String agent_id;
-	// optional training-policy grouping label
+	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
