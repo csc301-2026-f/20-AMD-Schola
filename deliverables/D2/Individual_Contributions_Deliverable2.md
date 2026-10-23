@@ -16,8 +16,10 @@
 > - Defined the US1 core environment and agent API (#11): `Agent`, `Environment`, and `InteractionDefinition`, plus the `ScholaAgent` and `ScholaEnvironment` interfaces.
 
 **Sanjay Ram**, Developer and Meeting Manager
-> - Defined the US3 connector and gRPC transport API (#12): the connector loop, the gRPC connector, training messages, and the training-side Godot bindings.
-> - Recorded the TA meeting 1 minutes (#3).
+> - Defined the US3 connector and gRPC transport API (#12). This includes the connector loop, gRPC connector, training messages and ScholaTrainingConnector
+>- Implemented the core logic for ConnectorLoop
+>- Created unit tests in `connector_loop_test` with fake connectors and training backend
+> - Recorded partner and TA meetings notes, specifically meeting 1. 
 
 **Vansh Sehrawat**, Developer and Partner Liaison
 > - Defined the US5 Godot environment binding API (#9): `ScholaAgent` and `ScholaEnvironment` nodes, the Inspector space resources, and the Variant conversion interface.
