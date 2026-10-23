@@ -156,17 +156,32 @@ jobs:
           }
           $output = Join-Path $PWD "${{ matrix.output }}"
           New-Item -ItemType Directory -Force (Split-Path -Parent $output) | Out-Null
-          & $editor --headless --path Godot/demo/d2 --import
-          if ($LASTEXITCODE -eq 134) {
+          if ($env:RUNNER_OS -eq "Windows") {
+            $process = Start-Process -FilePath $editor -ArgumentList "--headless", "--path", "Godot/demo/d2", "--import" -Wait -PassThru -WindowStyle Hidden
+            $importExitCode = $process.ExitCode
+          } else {
+            & $editor --headless --path Godot/demo/d2 --import
+            $importExitCode = $LASTEXITCODE
+          }
+          if ($importExitCode -eq 134) {
             Write-Warning "Godot hit its first-import GDExtension race; retrying with the generated cache"
             & $editor --headless --path Godot/demo/d2 --import
+            $importExitCode = $LASTEXITCODE
           }
-          if ($LASTEXITCODE -ne 0) {
-            throw "Godot import failed with exit code $LASTEXITCODE"
+          if ($importExitCode -ne 0) {
+            throw "Godot import failed with exit code $importExitCode"
           }
-          & $editor --headless --path Godot/demo/d2 --export-release "${{ matrix.preset }}" $output
-          if ($LASTEXITCODE -ne 0) {
-            throw "Godot export failed with exit code $LASTEXITCODE"
+          if ($env:RUNNER_OS -eq "Windows") {
+            $quotedPreset = '"${{ matrix.preset }}"'
+            $quotedOutput = '"' + $output + '"'
+            $process = Start-Process -FilePath $editor -ArgumentList "--headless", "--path", "Godot/demo/d2", "--export-release", $quotedPreset, $quotedOutput -Wait -PassThru -WindowStyle Hidden
+            $exportExitCode = $process.ExitCode
+          } else {
+            & $editor --headless --path Godot/demo/d2 --export-release "${{ matrix.preset }}" $output
+            $exportExitCode = $LASTEXITCODE
+          }
+          if ($exportExitCode -ne 0) {
+            throw "Godot export failed with exit code $exportExitCode"
           }
 
       - name: Smoke-test package
@@ -181,10 +196,14 @@ jobs:
           }
           if ($env:RUNNER_OS -ne "Windows") {
             chmod +x $executable.FullName
+            & $executable.FullName --headless --quit-after 1
+            $smokeExitCode = $LASTEXITCODE
+          } else {
+            $process = Start-Process -FilePath $executable.FullName -ArgumentList "--headless", "--quit-after", "1" -Wait -PassThru -WindowStyle Hidden
+            $smokeExitCode = $process.ExitCode
           }
-          & $executable.FullName --headless --quit-after 1
-          if ($LASTEXITCODE -ne 0) {
-            throw "Packaged demo smoke test failed with exit code $LASTEXITCODE"
+          if ($smokeExitCode -ne 0) {
+            throw "Packaged demo smoke test failed with exit code $smokeExitCode"
           }
 
       - name: Archive package
