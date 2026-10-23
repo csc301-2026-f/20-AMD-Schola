@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - D2
+      - "D2-test-*"
 
 permissions:
   contents: read
