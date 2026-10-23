@@ -26,9 +26,9 @@ The full MVP and its acceptance criteria are in the [D1 planning document](deliv
 
 ## Instructions
 
-The D1 interactive prototype is available in [`Godot/demo`](Godot/demo), and a [video walkthrough is available on YouTube](https://youtu.be/zg4K3fiQjJw). The prototype demonstrates Godot-native environment and agent nodes, configurable rewards and episode limits, reward feedback, and episode resets. It does not include a training backend or persistence.
+The D1 interactive prototype is available in [`Godot/demo/d1`](Godot/demo/d1), and a [video walkthrough is available on YouTube](https://youtu.be/zg4K3fiQjJw). The prototype demonstrates Godot-native environment and agent nodes, configurable rewards and episode limits, reward feedback, and episode resets. It does not include a training backend or persistence.
 
-To run it locally, install Godot 4.7.2 with .NET support and the .NET 8 SDK, import `Godot/demo/project.godot`, build the C# project, and run its configured main scene. The prototype uses C# only to demonstrate the D1 interface; the production add-on will use the confirmed C++ GDExtension architecture.
+To run it locally, install Godot 4.7.2 with .NET support and the .NET 8 SDK, import `Godot/demo/d1/project.godot`, build the C# project, and run its configured main scene. The prototype uses C# only to demonstrate the D1 interface; the production add-on will use the confirmed C++ GDExtension architecture.
 
 ## Development requirements
 
@@ -56,7 +56,8 @@ The project uses the [MIT License](LICENSE.txt), matching AMD Schola. This permi
 
 - [D1 planning document](deliverables/D1/planning.md)
 - [D1 architecture diagram](deliverables/D1/d1-architecture-diagram.png)
-- [Interactive Godot prototype](Godot/demo)
+- [D1 interactive Godot prototype](Godot/demo/d1)
+- [D2 training and inference demo](Godot/demo/d2)
 - [Prototype video walkthrough](https://youtu.be/zg4K3fiQjJw)
 - [Team and stakeholder records](deliverables/team/)
 - [Meeting minutes](deliverables/team/minutes/)
@@ -64,7 +65,7 @@ The project uses the [MIT License](LICENSE.txt), matching AMD Schola. This permi
 
 ## Deployed URL and access instructions
 
-The D1 prototype is available as a local Godot project under [`Godot/demo`](Godot/demo). View the [video walkthrough](https://youtu.be/zg4K3fiQjJw) or follow the instructions above to run it. The finished product will be distributed as a local Godot add-on, with Python packages installed locally for training.
+The D1 prototype is available as a local Godot project under [`Godot/demo/d1`](Godot/demo/d1). View the [video walkthrough](https://youtu.be/zg4K3fiQjJw) or follow the instructions above to run it. The finished product will be distributed as a local Godot add-on, with Python packages installed locally for training.
 
 ## D3 improvement highlight
 

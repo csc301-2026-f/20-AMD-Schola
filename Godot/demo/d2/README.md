@@ -28,10 +28,10 @@ US7 is real: the trained Q-table is exported to ONNX, and **Load ONNX Policy** r
    ```sh
    python Godot/tools/setup_onnxruntime.py
    scons -C Godot platform=windows target=template_debug
-   mkdir -p Godot/d2_demo/addons/schola/bin/windows
-   cp Godot/addons/schola/bin/windows/schola.windows.template_debug.x86_64.dll Godot/addons/schola/bin/windows/onnxruntime.dll Godot/d2_demo/addons/schola/bin/windows/
+   mkdir -p Godot/demo/d2/addons/schola/bin/windows
+   cp Godot/addons/schola/bin/windows/schola.windows.template_debug.x86_64.dll Godot/addons/schola/bin/windows/onnxruntime.dll Godot/demo/d2/addons/schola/bin/windows/
    ```
-2. Open `Godot/d2_demo/project.godot` in Godot.
+2. Open `Godot/demo/d2/project.godot` in Godot.
 3. On the `Runner` node, set `python_executable` to a Python that has gymnasium, e.g. `.venv/Scripts/python.exe`. Ensure the directories match for `python_executable`. Using `where python` helps.
 4. Press F5 or the Play button.
 
