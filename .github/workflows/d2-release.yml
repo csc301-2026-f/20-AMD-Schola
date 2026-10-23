@@ -157,6 +157,10 @@ jobs:
           $output = Join-Path $PWD "${{ matrix.output }}"
           New-Item -ItemType Directory -Force (Split-Path -Parent $output) | Out-Null
           & $editor --headless --path Godot/demo/d2 --import
+          if ($LASTEXITCODE -eq 134) {
+            Write-Warning "Godot hit its first-import GDExtension race; retrying with the generated cache"
+            & $editor --headless --path Godot/demo/d2 --import
+          }
           if ($LASTEXITCODE -ne 0) {
             throw "Godot import failed with exit code $LASTEXITCODE"
           }
