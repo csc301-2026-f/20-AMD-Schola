@@ -12,12 +12,12 @@
 
 namespace {
 
-constexpr int64_t MAX_EXPANDED_ELEMENTS=std::numeric_limits<int32_t>::max();
+constexpr int64_t MAX_EXPANDED_ELEMENTS = std::numeric_limits<int32_t>::max();
 
 } // namespace
 
 void ScholaBoxSpace::set_low(const godot::PackedFloat32Array &p_low) {
-	low=p_low;
+	low = p_low;
 	emit_changed();
 }
 
@@ -26,7 +26,7 @@ godot::PackedFloat32Array ScholaBoxSpace::get_low() const {
 }
 
 void ScholaBoxSpace::set_high(const godot::PackedFloat32Array &p_high) {
-	high=p_high;
+	high = p_high;
 	emit_changed();
 }
 
@@ -35,7 +35,7 @@ godot::PackedFloat32Array ScholaBoxSpace::get_high() const {
 }
 
 void ScholaBoxSpace::set_shape(const godot::PackedInt32Array &p_shape) {
-	shape=p_shape;
+	shape = p_shape;
 	emit_changed();
 }
 
@@ -44,7 +44,7 @@ godot::PackedInt32Array ScholaBoxSpace::get_shape() const {
 }
 
 void ScholaBoxSpace::set_dtype(int32_t p_dtype) {
-	dtype=p_dtype;
+	dtype = p_dtype;
 	emit_changed();
 }
 
@@ -54,33 +54,37 @@ int32_t ScholaBoxSpace::get_dtype() const {
 
 schola::Space ScholaBoxSpace::to_space() const {
 	schola::BoxSpace box;
-	box.dtype=static_cast<schola::DType>(dtype);
-	box.shape.assign(shape.ptr(), shape.ptr()+shape.size());
+	box.dtype = static_cast<schola::DType>(dtype);
+	box.shape.assign(shape.ptr(), shape.ptr() + shape.size());
 
-	int64_t element_count=0;
-	if(box.shape.empty()) {
-		element_count=std::max(low.size(), high.size());
-		if(element_count>0)box.shape.push_back(static_cast<int32_t>(element_count));
+	int64_t element_count = 0;
+	if (box.shape.empty()) {
+		element_count = std::max(low.size(), high.size());
+		if (element_count > 0) {
+			box.shape.push_back(static_cast<int32_t>(element_count));
+		}
 	} else {
-		element_count=1;
-		for(int32_t dimension:box.shape) {
-			element_count*=dimension>0?dimension:0;
+		element_count = 1;
+		for (int32_t dimension : box.shape) {
+			element_count *= dimension > 0 ? dimension : 0;
 			// Stop before int64 overflow; check_definition() rejects shapes this large
-			if(element_count>MAX_EXPANDED_ELEMENTS)break;
+			if (element_count > MAX_EXPANDED_ELEMENTS) {
+				break;
+			}
 		}
 	}
 
 	// An empty bound is unbounded on that side and a single bound applies to every element
 	// An oversized shape keeps the bounds as entered so check_definition() can report it
-	const auto expand=[element_count](const godot::PackedFloat32Array &p_bound, float p_unbounded, std::vector<float> &r_bound) {
-		if(element_count>MAX_EXPANDED_ELEMENTS) {
-			r_bound.assign(p_bound.ptr(), p_bound.ptr()+p_bound.size());
-		} else if(p_bound.is_empty()) {
+	const auto expand = [element_count](const godot::PackedFloat32Array &p_bound, float p_unbounded, std::vector<float> &r_bound) {
+		if (element_count > MAX_EXPANDED_ELEMENTS) {
+			r_bound.assign(p_bound.ptr(), p_bound.ptr() + p_bound.size());
+		} else if (p_bound.is_empty()) {
 			r_bound.assign(static_cast<size_t>(element_count), p_unbounded);
-		} else if(p_bound.size()==1) {
+		} else if (p_bound.size() == 1) {
 			r_bound.assign(static_cast<size_t>(element_count), p_bound[0]);
 		} else {
-			r_bound.assign(p_bound.ptr(), p_bound.ptr()+p_bound.size());
+			r_bound.assign(p_bound.ptr(), p_bound.ptr() + p_bound.size());
 		}
 	};
 	expand(low, -std::numeric_limits<float>::infinity(), box.low);

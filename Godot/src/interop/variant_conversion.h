@@ -25,4 +25,4 @@ Status variant_to_space(const godot::Variant &p_value, Space &r_space);
 // Produces the space dictionary used across the extension boundary
 godot::Variant space_to_variant(const Space &p_space);
 
-}
+} //namespace schola

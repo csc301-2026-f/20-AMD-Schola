@@ -7,7 +7,7 @@
 #include <godot_cpp/core/class_db.hpp>
 
 void ScholaMultiDiscreteSpace::set_nvec(const godot::PackedInt32Array &p_nvec) {
-	nvec=p_nvec;
+	nvec = p_nvec;
 	emit_changed();
 }
 
@@ -16,7 +16,7 @@ godot::PackedInt32Array ScholaMultiDiscreteSpace::get_nvec() const {
 }
 
 schola::Space ScholaMultiDiscreteSpace::to_space() const {
-	return schola::Space(schola::MultiDiscreteSpace{ std::vector<int32_t>(nvec.ptr(), nvec.ptr()+nvec.size()) });
+	return schola::Space(schola::MultiDiscreteSpace{ std::vector<int32_t>(nvec.ptr(), nvec.ptr() + nvec.size()) });
 }
 
 void ScholaMultiDiscreteSpace::_bind_methods() {

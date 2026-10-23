@@ -49,4 +49,4 @@ Status proto_to_interaction_definition(const ::Schola::AgentDefinition &p_messag
 void agent_state_to_proto(const AgentState &p_state, const Space &p_observation_space, ::Schola::AgentState &r_message);
 Status proto_to_agent_state(const ::Schola::AgentState &p_message, const Space &p_observation_space, AgentState &r_state);
 
-}
+} //namespace schola
