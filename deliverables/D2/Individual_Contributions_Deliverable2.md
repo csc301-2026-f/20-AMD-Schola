@@ -29,9 +29,9 @@
 
 ## Isaac Tilahun - Environment and agent API
 
-- Defined the US1 core `Agent`, `Environment`, and `InteractionDefinition` contracts and the Godot-facing `ScholaAgent` and `ScholaEnvironment` interfaces (#11).
-- Added the Godot behavior hooks for observation, action, reset, reward, termination, truncation, episode information, seeded randomness, and episode signals (#11).
-- Established the environment callback boundary consumed by lifecycle, binding, and training components.
+- Defined the US1 `Agent`, `Environment`, and `InteractionDefinition` contracts and the Godot behavior hooks for observation, action, reset, reward, and episode completion (#11).
+- Revised the contract after team and partner review to use a single logical `step()`, leave validation to Python, and support standalone inference agents.
+- Implemented a C++ reference grid-world with 19 tests for seeding, rewards, episode completion, and invalid input, including US4 lifecycle integration (#27).
 
 ## Jimmy Zhu - Spaces, points, and D2 demo foundation
 
