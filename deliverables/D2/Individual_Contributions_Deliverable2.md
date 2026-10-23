@@ -24,6 +24,7 @@
 ## Vansh Sehrawat - Godot configuration and partner liaison
 
 - Defined the US5 Godot-facing environment and agent nodes, Inspector space resources, and Variant conversion boundary (#9).
+- Implemented the native `ScholaEnvironment` and `ScholaAgent` configuration bindings and integrated them into the D2 grid-world, including Inspector configuration, agent discovery, and a headless smoke check (#26).
 - Prototyped the D2 workflow scene, telemetry layout, connector interaction model, and user-story integration boundaries in PR #18. The prototype was superseded by the final grid-world rather than merged into the release.
 - Coordinated communication with AMD and carried partner requirements and feedback into team planning.
 

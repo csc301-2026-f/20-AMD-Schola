@@ -33,7 +33,7 @@ The D2 release includes a playable 3D grid-world that demonstrates the intended 
 
 ![D2 grid-world demo](Godot/demo/d2/screenshots/godot-demo2.png)
 
-The demo combines production components with temporary integration code. Its space resources and validation use the US2 C++ implementation, and ONNX loading and inference use the US7 C++ implementation with ONNX Runtime 1.30. The Godot environment nodes, episode lifecycle, and localhost training connector are GDScript stand-ins for the unfinished US1, US3, US4, and US5 integration. The connector uses JSON over local TCP rather than the planned gRPC transport. The production US4 lifecycle is implemented and tested on the release branch but is not called by the demo scene. The US1 contract likewise has a tested C++ reference implementation that the demo does not yet use.
+The demo combines production components with temporary integration code. Its space resources and validation use the US2 C++ implementation, its environment and agent configuration use the native US5 nodes, and ONNX loading and inference use the US7 C++ implementation with ONNX Runtime 1.30. The environment behavior adapter, episode lifecycle, and localhost training connector remain GDScript stand-ins for unfinished US1, US3, and US4 integration. The connector uses JSON over local TCP rather than the planned gRPC transport. The production US4 lifecycle is implemented and tested on the release branch but is not called by the demo scene. The US1 contract likewise has a tested C++ reference implementation that the demo does not yet use.
 
 ## Instructions
 
@@ -56,7 +56,7 @@ The earlier D1 interface prototype is preserved in [`Godot/demo/d1`](Godot/demo/
 
 ### Define an environment
 
-The core API represents agents, environments, interaction definitions, and typed observation and action spaces. A C++ reference grid-world implements this API and is tested against the US4 lifecycle. Connecting the Godot environment nodes to it remains work after D2.
+The core API represents agents, environments, interaction definitions, and typed observation and action spaces. Native `ScholaEnvironment` and `ScholaAgent` nodes provide Inspector configuration, agent discovery, and GDScript behavior hooks. A C++ reference grid-world implements the core API and is tested against the US4 lifecycle; connecting the native nodes to that core contract remains work after D2.
 
 ### Execute an episode
 

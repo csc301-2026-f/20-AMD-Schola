@@ -18,7 +18,7 @@ The team built 1 small grid-world instead of several disconnected feature sample
 
 ### Cross-story dependencies were resolved too late
 
-Several implementations depended on types owned by other stories. The team merged contracts first, but concrete adapters and conversions arrived close to the demo deadline. This left insufficient time to connect every production component, so the D2 demo uses GDScript stand-ins for the Godot environment nodes and JSON over local TCP in place of the final gRPC adapter.
+Several implementations depended on types owned by other stories. The team merged contracts first, but concrete adapters and conversions arrived close to the demo deadline. This left insufficient time to connect every production component. The final D2 release uses native Godot environment and agent configuration, but retains GDScript stand-ins for the core environment adapter and episode lifecycle plus JSON over local TCP in place of the final gRPC adapter.
 
 ### The team optimized individual branches before the integrated product
 
@@ -40,6 +40,6 @@ D1 used C# to prototype the Godot interface. After confirming the production req
 
 The team prepared the D2 presentation by rehearsing 1 complete grid-world workflow and keeping the controls, connection state, reward graph, and inference status visible in the scene. During the course Demo Day on October 22, 2026, the team showed the environment configuration, training exchange, episode progression, reward improvement, policy export, and ONNX inference running in Godot after the trainer closed.
 
-The presentation used the integrated D2 prototype, not a claim that every production adapter was complete. US2 space validation and US7 ONNX inference were represented by production C++ components. The Godot-facing environment configuration, episode lifecycle, and training transport were identified as stand-ins for unfinished US1, US3, US4, and US5 integration. The production US4 lifecycle was implemented and tested separately on the release branch.
+The presentation used the integrated D2 prototype, not a claim that every production adapter was complete. At Demo Day, US2 space validation and US7 ONNX inference were represented by production C++ components, while the Godot-facing environment configuration, episode lifecycle, and training transport were identified as stand-ins. Before the final D2 release, the team replaced the environment and agent configuration with native US5 nodes. The US1 adapter, US4 host integration, and US3 gRPC transport remain incomplete; their production core components are implemented and tested separately where noted.
 
 The Demo Day presentation was accepted without a required redo. The team did not record D2-specific AMD change requests during that course presentation. Earlier AMD feedback warned against over-engineering reward configuration and asked for a small end-to-end trained example; the grid-world and its compact reward model followed that direction. The main lesson was that a polished interface helps explain the workflow, but the team must label integration boundaries clearly and prioritize replacing stand-ins in the next iteration.
