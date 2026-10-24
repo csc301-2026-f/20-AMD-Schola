@@ -13,6 +13,7 @@
 - Strengthened lifecycle validation for malformed agent responses and refactored completion checks.
 - Added optional staged C++ formatting hooks and documented their setup.
 - Coordinated team scheduling, task ownership, and D2 delivery work.
+- Wrote build.sh script to simplify setting up .venv and compiling Godot plugin
 
 ## Sanjay Ram - Connector lifecycle and meeting management
 
