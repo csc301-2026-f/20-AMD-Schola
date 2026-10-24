@@ -22,7 +22,7 @@ std::string format_list(const std::vector<T> &p_values) {
 	return stream.str();
 }
 
-} // namespace
+} //namespace
 
 Point *DictPoint::find(const std::string &p_key) {
 	for (auto &entry : entries) {
@@ -83,6 +83,7 @@ std::string Point::to_string() const {
 	if (const MultiBinaryPoint *multi_binary = get_if<MultiBinaryPoint>()) {
 		return "MultiBinary(" + format_list(multi_binary->values) + ")";
 	}
+
 	std::string result = "Dict(";
 	const DictPoint *dict = get_if<DictPoint>();
 	for (size_t i = 0; i < dict->entries.size(); ++i) {
@@ -127,4 +128,4 @@ bool Point::operator!=(const Point &p_other) const {
 	return !(*this == p_other);
 }
 
-} // namespace schola
+} //namespace schola

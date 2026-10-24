@@ -59,6 +59,16 @@ TEST_CASE("a malformed definition is rejected with the failing field", "[spaces]
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);
 		CHECK(message_contains(status, "shape[1]"));
 	}
+	SECTION("Box with an unknown dtype") {
+		const Status status = Space(BoxSpace{ { 0 }, { 1 }, { 1 }, static_cast<DType>(99) }).check_definition();
+		CHECK(status.get_code() == StatusCode::INVALID_DATA);
+		CHECK(message_contains(status, "dtype 99"));
+	}
+	SECTION("Box with more elements than a 32-bit size can index") {
+		const Status status = make_box({}, {}, { 65536, 65536 }).check_definition();
+		CHECK(status.get_code() == StatusCode::INVALID_DATA);
+		CHECK(message_contains(status, "more than 2147483647 elements"));
+	}
 	SECTION("Box bounds that do not match the shape") {
 		const Status status = make_box({ 0, 0 }, { 1, 1, 1 }, { 2 }).check_definition();
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);

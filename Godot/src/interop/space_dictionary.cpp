@@ -9,6 +9,7 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <cmath>
+#include <iterator>
 
 namespace schola {
 
@@ -46,7 +47,7 @@ godot::Array ints_to_array(const std::vector<T> &p_values) {
 	return result;
 }
 
-} // namespace
+} //namespace
 
 godot::Dictionary space_to_dictionary(const Space &p_space) {
 	godot::Dictionary result;
@@ -55,7 +56,8 @@ godot::Dictionary space_to_dictionary(const Space &p_space) {
 		result["low"] = bounds_to_array(box->low);
 		result["high"] = bounds_to_array(box->high);
 		result["shape"] = ints_to_array(box->shape);
-		result["dtype"] = DTYPE_NAMES[static_cast<int>(box->dtype)];
+		const size_t dtype = static_cast<size_t>(box->dtype);
+		result["dtype"] = dtype < std::size(DTYPE_NAMES) ? DTYPE_NAMES[dtype] : "unknown";
 	} else if (const DiscreteSpace *discrete = p_space.get_if<DiscreteSpace>()) {
 		result["type"] = "Discrete";
 		result["n"] = discrete->n;
@@ -68,7 +70,7 @@ godot::Dictionary space_to_dictionary(const Space &p_space) {
 	} else {
 		godot::Dictionary spaces;
 		for (const auto &entry : p_space.get_if<DictSpace>()->entries) {
-			spaces[godot::String(entry.first.c_str())] = space_to_dictionary(entry.second);
+			spaces[godot::String::utf8(entry.first.c_str())] = space_to_dictionary(entry.second);
 		}
 		result["type"] = "Dict";
 		result["spaces"] = spaces;
@@ -76,4 +78,4 @@ godot::Dictionary space_to_dictionary(const Space &p_space) {
 	return result;
 }
 
-} // namespace schola
+} //namespace schola

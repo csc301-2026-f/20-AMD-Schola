@@ -4,12 +4,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <set>
 #include <sstream>
 
 namespace schola {
 
 namespace {
+
+constexpr int64_t MAX_BOX_ELEMENTS = std::numeric_limits<int32_t>::max();
 
 const char *kind_name(SpaceKind p_kind) {
 	switch (p_kind) {
@@ -103,12 +106,20 @@ Status check_box(const BoxSpace &p_box, const std::string &p_path) {
 	if (p_box.shape.empty()) {
 		return invalid_data(p_path, "Box shape must have at least one dimension");
 	}
+	if (static_cast<int>(p_box.dtype) < 0 || static_cast<int>(p_box.dtype) > static_cast<int>(DType::BOOL)) {
+		return invalid_data(p_path, "Box dtype " + std::to_string(static_cast<int>(p_box.dtype)) + " is not a known DType");
+	}
 	int64_t element_count = 1;
 	for (size_t i = 0; i < p_box.shape.size(); ++i) {
 		if (p_box.shape[i] <= 0) {
 			return invalid_data(p_path, "Box shape[" + std::to_string(i) + "] is " + std::to_string(p_box.shape[i]) + " but must be positive");
 		}
 		element_count *= p_box.shape[i];
+
+		// Protobuf repeated fields and Godot packed arrays index with 32-bit integers
+		if (element_count > MAX_BOX_ELEMENTS) {
+			return invalid_data(p_path, "Box shape " + format_list(p_box.shape) + " has more than " + std::to_string(MAX_BOX_ELEMENTS) + " elements");
+		}
 	}
 	if (static_cast<int64_t>(p_box.low.size()) != element_count) {
 		return invalid_data(p_path, "Box low has " + std::to_string(p_box.low.size()) + " values but shape " + format_list(p_box.shape) + " needs " + std::to_string(element_count));
@@ -267,7 +278,7 @@ bool box_equal(const BoxSpace &p_a, const BoxSpace &p_b) {
 	return p_a.low == p_b.low && p_a.high == p_b.high && p_a.shape == p_b.shape && p_a.dtype == p_b.dtype;
 }
 
-} // namespace
+} //namespace
 
 const Space *DictSpace::find(const std::string &p_key) const {
 	for (const auto &entry : entries) {
@@ -279,24 +290,19 @@ const Space *DictSpace::find(const std::string &p_key) const {
 }
 
 Space::Space() :
-		data(BoxSpace{}) {
-}
+		data(BoxSpace{}) {}
 
 Space::Space(BoxSpace p_space) :
-		data(std::move(p_space)) {
-}
+		data(std::move(p_space)) {}
 
 Space::Space(DiscreteSpace p_space) :
-		data(p_space) {
-}
+		data(p_space) {}
 
 Space::Space(MultiDiscreteSpace p_space) :
-		data(std::move(p_space)) {
-}
+		data(std::move(p_space)) {}
 
 Space::Space(MultiBinarySpace p_space) :
-		data(p_space) {
-}
+		data(p_space) {}
 
 Space::Space(DictSpace p_space) {
 	std::stable_sort(p_space.entries.begin(), p_space.entries.end(), [](const auto &p_a, const auto &p_b) {
@@ -423,4 +429,4 @@ bool Space::operator!=(const Space &p_other) const {
 	return !(*this == p_other);
 }
 
-} // namespace schola
+} //namespace schola

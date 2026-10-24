@@ -6,8 +6,15 @@
 
 #include <godot_cpp/core/class_db.hpp>
 
+#include <algorithm>
 #include <limits>
 #include <vector>
+
+namespace {
+
+constexpr int64_t MAX_EXPANDED_ELEMENTS = std::numeric_limits<int32_t>::max();
+
+} // namespace
 
 void ScholaBoxSpace::set_low(const godot::PackedFloat32Array &p_low) {
 	low = p_low;
@@ -52,7 +59,7 @@ schola::Space ScholaBoxSpace::to_space() const {
 
 	int64_t element_count = 0;
 	if (box.shape.empty()) {
-		element_count = !low.is_empty() ? low.size() : high.size();
+		element_count = std::max(low.size(), high.size());
 		if (element_count > 0) {
 			box.shape.push_back(static_cast<int32_t>(element_count));
 		}
@@ -60,20 +67,28 @@ schola::Space ScholaBoxSpace::to_space() const {
 		element_count = 1;
 		for (int32_t dimension : box.shape) {
 			element_count *= dimension > 0 ? dimension : 0;
+			// Stop before int64 overflow; check_definition() rejects shapes this large
+			if (element_count > MAX_EXPANDED_ELEMENTS) {
+				break;
+			}
 		}
 	}
 
-	// An empty bound is unbounded on that side
-	if (low.is_empty()) {
-		box.low.assign(static_cast<size_t>(element_count), -std::numeric_limits<float>::infinity());
-	} else {
-		box.low.assign(low.ptr(), low.ptr() + low.size());
-	}
-	if (high.is_empty()) {
-		box.high.assign(static_cast<size_t>(element_count), std::numeric_limits<float>::infinity());
-	} else {
-		box.high.assign(high.ptr(), high.ptr() + high.size());
-	}
+	// An empty bound is unbounded on that side and a single bound applies to every element
+	// An oversized shape keeps the bounds as entered so check_definition() can report it
+	const auto expand = [element_count](const godot::PackedFloat32Array &p_bound, float p_unbounded, std::vector<float> &r_bound) {
+		if (element_count > MAX_EXPANDED_ELEMENTS) {
+			r_bound.assign(p_bound.ptr(), p_bound.ptr() + p_bound.size());
+		} else if (p_bound.is_empty()) {
+			r_bound.assign(static_cast<size_t>(element_count), p_unbounded);
+		} else if (p_bound.size() == 1) {
+			r_bound.assign(static_cast<size_t>(element_count), p_bound[0]);
+		} else {
+			r_bound.assign(p_bound.ptr(), p_bound.ptr() + p_bound.size());
+		}
+	};
+	expand(low, -std::numeric_limits<float>::infinity(), box.low);
+	expand(high, std::numeric_limits<float>::infinity(), box.high);
 	return schola::Space(std::move(box));
 }
 
