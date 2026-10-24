@@ -9,10 +9,13 @@
 
 ## Guneev Pannu - Environment coordination and project management
 
+(Note that due to a commit mistake) Guneev doesn't officially have credit on the commits that were merged into main. See screenshot added to PR #28
 - Implemented and tested `EnvironmentCoordinator`, including stable environment ordering, routed resets and steps, autoreset delegation, close behavior, and failure handling.
 - Strengthened lifecycle validation for malformed agent responses and refactored completion checks.
-- Added optional staged C++ formatting hooks and documented their setup.
+- Added optional staged C++ formatting hooks and documented their setup so accidental commit of code that fails CI doesn't happen
 - Coordinated team scheduling, task ownership, and D2 delivery work.
+- Wrote build.sh script to simplify setting up .venv and compiling Godot plugin
+
 
 ## Sanjay Ram - Connector lifecycle and meeting management
 
