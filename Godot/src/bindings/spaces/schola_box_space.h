@@ -15,13 +15,14 @@ class ScholaBoxSpace : public ScholaSpace {
 
 public:
 	// One lower and upper bound per Box element in row-major order
+	// An empty bound is unbounded and a single bound applies to every element
 	void set_low(const godot::PackedFloat32Array &p_low);
 	godot::PackedFloat32Array get_low() const;
 	void set_high(const godot::PackedFloat32Array &p_high);
 	godot::PackedFloat32Array get_high() const;
 
 	// Positive dimensions in row-major order
-	// An empty shape uses one dimension containing low.size()
+	// An empty shape uses one dimension of the larger of low.size() and high.size()
 	void set_shape(const godot::PackedInt32Array &p_shape);
 	godot::PackedInt32Array get_shape() const;
 
