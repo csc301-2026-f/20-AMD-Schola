@@ -35,11 +35,15 @@
 - Revised the contract after team and partner review to use a single logical `step()`, leave validation to Python, and support standalone inference agents.
 - Implemented a C++ reference grid-world with 19 tests for seeding, rewards, episode completion, and invalid input, including US4 lifecycle integration (#27).
 
-## Jimmy Zhu - Spaces, points, and D2 demo foundation
+## Jimmy Zhu - Spaces, points, QA, and D2 demo
 
-- Defined and implemented Box, Discrete, MultiDiscrete, MultiBinary, and Dict spaces and their point values, including validation, flattening, defaults, and Godot dictionary conversion (#7, #19).
-- Built the D2 grid-world project, including the playable environment, agent and environment stand-ins, tabular Q-learning trainer, editor setup, runtime controls, reward graph, status interface, and saved-policy mode (#19).
-- Added tests for the space and point behavior used by the demo.
+- Defined the US2 space and point API, revised after review to use the shared `Status` type and match Python's Dict key order, and implemented Box, Discrete, MultiDiscrete, MultiBinary, and Dict spaces and points, including validation, flattening, and defaults (#7, #19, #30).
+- Added the `ScholaBoxSpace`, `ScholaDiscreteSpace`, `ScholaMultiDiscreteSpace`, `ScholaMultiBinarySpace`, and `ScholaDictSpace` Inspector resources, strict Godot value conversion, configuration errors for invalid definitions, and the `space_to_dictionary` layout sent to Python, with `src/interop` added to the runtime build (#30).
+- Worked with Vansh (US5) to review the environment and agent bindings, and majorly planning of the US2 API and implementation they rely on for Inspector space configuration and value conversion.
+- Implemented protobuf conversion of spaces, points, interaction definitions, and agent states for US3's message conversion (#30).
+- Added Catch2 tests for spaces, points, and protobuf round trips, and GdUnit4 integration tests for the space resources (#19, #30).
+- Built the D2 grid-world demo project, including the playable environment, agent and environment stand-ins following the US1 and US5 contracts, tabular Q-learning trainer, runtime controls, reward graph, and saved-policy mode, with a summary of which parts are real and which are stand-ins (#19).
+- Wired native US2 validation into every demo observation and action, showed each space's status in the editor dock and HUD, and verified that the saved Q-table policy reached the goal in 30 of 30 episodes (#19).
 
 ## Bohdan Zmeul - ONNX inference and packaging
 
