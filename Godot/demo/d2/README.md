@@ -7,6 +7,8 @@ A 3D grid world showing the D2 workflow end to end:
 
 ![demo2-image](screenshots/godot-demo2.png)
 
+[Watch the D2 demo on YouTube](https://youtu.be/AGgiJN7cSnE).
+
 The demo uses the production US2 space resources (`ScholaBoxSpace`, `ScholaDiscreteSpace`) and native US5 `ScholaEnvironment` and `ScholaAgent` nodes from the Schola GDExtension. The US5 nodes own Inspector configuration, space validation, agent discovery, and GDScript behavior hooks. The remaining integration stand-ins live in `addons/schola_d2`:
 
 | Stand-in | For |
