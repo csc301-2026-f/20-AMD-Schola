@@ -10,15 +10,15 @@ US4 is complete when a fixed set of configured Godot environments can be discove
 
 Complete on `main`:
 
-- Engine-independent environment lifecycle.
-- Multiple-environment coordinator.
-- Disabled, same-step, and next-step autoreset behavior.
-- Lifecycle validation, failure handling, counters, and core unit coverage.
+- [x] Engine-independent environment lifecycle.
+- [x] Multiple-environment coordinator.
+- [x] Disabled, same-step, and next-step autoreset behavior.
+- [x] Lifecycle validation, failure handling, counters, and core unit coverage.
 
 Present on this branch:
 
-- Initial `ScholaTrainingHost` scene-discovery and lifecycle-construction scaffold.
-- Runtime-extension registration for `ScholaTrainingHost`, alongside the US5 environment nodes it adapts.
+- [x] Initial `ScholaTrainingHost` scene-discovery and lifecycle-construction scaffold.
+- [x] Runtime-extension registration for `ScholaTrainingHost`, alongside the US5 environment nodes it adapts.
 
 ## Ownership boundaries
 
@@ -54,72 +54,74 @@ Alex's October 23 review established these constraints for the remaining US4 wor
 
 ### 1. Define the host boundary
 
-- Keep `EnvironmentCoordinator` and all lifecycle state owned by `ScholaTrainingHost`.
-- Keep `ScholaTrainingHost` in the runtime extension so it can use the US5 `ScholaEnvironment` C++ API without crossing a shared-library ABI boundary.
-- Define the smallest callable host surface required by US3's existing `TrainingBackend` contract:
-  - set autoreset mode;
-  - define the fixed environment set;
-  - reset;
-  - step;
-  - close.
-- Keep scene-tree access and user callbacks on the Godot main thread.
-- Do not add transport or connector behavior to the host.
-- Bind the host operations through Godot so US3's training extension can call them through `godot::Object` and Variant-compatible values without linking to runtime C++ types.
+- [x] Keep `EnvironmentCoordinator` and all lifecycle state owned by `ScholaTrainingHost`.
+- [x] Keep `ScholaTrainingHost` in the runtime extension so it can use the US5 `ScholaEnvironment` C++ API without crossing a shared-library ABI boundary.
+- [x] Define the smallest callable host surface required by US3's existing `TrainingBackend` contract:
+  - [x] set autoreset mode;
+  - [x] define the fixed environment set;
+  - [x] reset;
+  - [x] step;
+  - [x] close.
+- [ ] Keep scene-tree access and user callbacks on the Godot main thread.
+- [x] Do not add transport or connector behavior to the host.
+- [ ] Bind the host operations through Godot so US3's training extension can call them through `godot::Object` and Variant-compatible values without linking to runtime C++ types.
 
 Deliverable: a runtime-owned lifecycle host with a Godot ABI boundary for the training extension.
 
 ### 2. Complete session discovery
 
-- Discover top-level trainable environment nodes in deterministic scene-tree order.
-- Reuse US5 configuration diagnostics rather than duplicating its validation rules.
-- Reject an empty environment set and any invalid environment configuration with an actionable status.
-- Assign contiguous `EnvironmentId` values based on discovery order.
-- Create one `EnvironmentLifecycle` per discovered US1 environment adapter.
-- Store Godot `ObjectID` values only for non-owning identity checks; Godot retains node ownership.
-- Publish the new environment list only after every candidate validates successfully.
-- Reject repeated initialization for the same active session.
+- [ ] Discover top-level trainable environment nodes in deterministic scene-tree order.
+- [x] Reuse US5 configuration diagnostics rather than duplicating its validation rules.
+- [ ] Reject an empty environment set and any invalid environment configuration with an actionable status.
+- [x] Assign contiguous `EnvironmentId` values based on discovery order.
+- [x] Create one `EnvironmentLifecycle` per discovered US1 environment adapter.
+- [x] Store Godot `ObjectID` values only for non-owning identity checks; Godot retains node ownership.
+- [x] Publish the new environment list only after every candidate validates successfully.
+- [x] Reject repeated initialization for the same active session.
 
 Deliverable: atomic initialization of a fixed, ordered coordinator session.
 
 ### 3. Implement host operations
 
-- Route autoreset configuration to `EnvironmentCoordinator::set_autoreset_mode`.
-- Route definition, reset, step, and close operations to the coordinator.
-- Preserve output arguments when an operation fails.
-- Reject operations before initialization and after close with `FAILED_PRECONDITION`.
-- Treat a missing, freed, or failed environment node as a session failure; close the coordinator and return the original failure without attempting mid-session remapping.
-- Make close idempotent and safe after partial initialization.
+- [x] Route autoreset configuration to `EnvironmentCoordinator::set_autoreset_mode`.
+- [x] Route definition, reset, step, and close operations to the coordinator.
+- [x] Cache the successful training definition for the fixed session and clear it on close.
+- [x] Preserve output arguments when an operation fails.
+- [ ] Reject operations before initialization and after close with `FAILED_PRECONDITION`.
+- [ ] Treat a missing, freed, or failed environment node as a session failure; close the coordinator and return the original failure without attempting mid-session remapping.
+- [x] Make close idempotent and safe after partial initialization.
 
 Deliverable: complete US4 behavior behind the existing `TrainingBackend` operation set.
 
 ### 4. Add the Godot-facing adapter
 
-- Bind only the methods needed by US3's `HostTrainingBackend`.
-- Translate US4 statuses into Godot-facing results without creating a second error channel.
-- Use the shared interop layer for existing value conversions; do not add US4-specific replacements for US2 or US3 conversion logic.
-- Require `HostTrainingBackend` to call a generic `godot::Object`; do not expose `ScholaTrainingHost`, coordinator, environment, or other runtime C++ pointers across the extension boundary.
-- Keep connector creation, network configuration, and protocol scheduling outside `ScholaTrainingHost`.
+- [ ] Bind only the methods needed by US3's `HostTrainingBackend`.
+- [ ] Translate US4 statuses into Godot-facing results without creating a second error channel.
+- [ ] Use the shared interop layer for existing value conversions; do not add US4-specific replacements for US2 or US3 conversion logic.
+- [x] Decode step actions against each cached agent action space without changing the session mapping.
+- [x] Require `HostTrainingBackend` to call a generic `godot::Object`; do not expose `ScholaTrainingHost`, coordinator, environment, or other runtime C++ pointers across the extension boundary.
+- [x] Keep connector creation, network configuration, and protocol scheduling outside `ScholaTrainingHost`.
 
 Deliverable: a host surface that US3 can call without linking to US4 implementation details.
 
 ### 5. Handle scene lifecycle and shutdown
 
-- Close the coordinator when the host leaves the scene tree.
-- Prevent new work once shutdown begins.
-- Ensure no worker thread reads or mutates Godot objects through the host.
-- Return the first actionable shutdown failure while still attempting required cleanup.
-- Expose enough close status for US3 to attempt its protocol notification without implementing that notification in US4.
+- [ ] Close the coordinator when the host leaves the scene tree.
+- [ ] Prevent new work once shutdown begins.
+- [ ] Ensure no worker thread reads or mutates Godot objects through the host.
+- [ ] Return the first actionable shutdown failure while still attempting required cleanup.
+- [ ] Expose enough close status for US3 to attempt its protocol notification without implementing that notification in US4.
 
 Deliverable: deterministic cleanup after normal close, partial startup, or scene removal.
 
 ### 6. Add US4-focused verification
 
-- Cover discovery order and stable environment IDs.
-- Cover empty, invalid, nested, and freed environment-node cases using the public US5 behavior.
-- Cover duplicate initialization and operations before initialization.
-- Cover define, reset, step, all autoreset modes, and idempotent close through the host boundary.
-- Cover multiple episodes and multiple environments without state or counter leakage.
-- Cover partial initialization failure without publishing a half-built session.
+- [ ] Cover discovery order and stable environment IDs.
+- [ ] Cover empty, invalid, nested, and freed environment-node cases using the public US5 behavior.
+- [ ] Cover duplicate initialization and operations before initialization.
+- [ ] Cover define, reset, step, all autoreset modes, and idempotent close through the host boundary.
+- [ ] Cover multiple episodes and multiple environments without state or counter leakage.
+- [ ] Cover partial initialization failure without publishing a half-built session.
 
 Do not duplicate US1 environment tests, US3 connector tests, US5 Inspector tests, or the existing engine-independent lifecycle suite.
 
@@ -127,10 +129,10 @@ Deliverable: integration evidence for the remaining D1 US4 acceptance criterion.
 
 ## Completion criteria
 
-- `ScholaTrainingHost` lives with the runtime environment bindings, while US3 reaches it only through Godot-bound methods and Variant-compatible values.
-- One fixed environment mapping is used for the duration of a session.
-- Every lifecycle operation is available through the host boundary and delegates to the existing coordinator.
-- All Godot object access occurs on the main thread.
-- Startup and shutdown are safe after partial failure.
-- US3 can use the host through its existing backend abstraction without US4 implementing transport behavior.
-- Focused host integration coverage demonstrates multiple episodes without deadlock or state leakage.
+- [ ] `ScholaTrainingHost` lives with the runtime environment bindings, while US3 reaches it only through Godot-bound methods and Variant-compatible values.
+- [x] One fixed environment mapping is used for the duration of a session.
+- [ ] Every lifecycle operation is available through the host boundary and delegates to the existing coordinator.
+- [ ] All Godot object access occurs on the main thread.
+- [ ] Startup and shutdown are safe after partial failure.
+- [ ] US3 can use the host through its existing backend abstraction without US4 implementing transport behavior.
+- [ ] Focused host integration coverage demonstrates multiple episodes without deadlock or state leakage.
