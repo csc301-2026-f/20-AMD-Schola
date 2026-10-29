@@ -9,6 +9,7 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -205,9 +206,11 @@ godot::Dictionary encode_result(const schola::Status &status,
 } // namespace
 
 schola::Status ScholaTrainingHost::initialize_session_core() {
-	if (session_initialized) {
-		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-				"training session is already initialized");
+	if (session_state != SessionState::CONFIGURING) {
+		const char *message = session_state == SessionState::ACTIVE ?
+				"training session is already initialized" :
+				"training session is shutting down or closed";
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, message);
 	}
 
 	godot::SceneTree *tree = get_tree();
@@ -266,8 +269,32 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 	}
 
 	environment_ids = std::move(discovered_ids);
-	session_initialized = true;
+	session_state = SessionState::ACTIVE;
 	return schola::Status::ok();
+}
+
+schola::Status ScholaTrainingHost::require_active_session() const {
+	if (session_state == SessionState::ACTIVE) {
+		return schola::Status::ok();
+	}
+
+	const char *message = session_state == SessionState::CONFIGURING ?
+			"training session is not initialized" :
+			"training session is shutting down or closed";
+	return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, message);
+}
+
+schola::Status ScholaTrainingHost::shutdown_core() {
+	if (session_state == SessionState::CLOSED || session_state == SessionState::SHUTTING_DOWN) {
+		return schola::Status::ok();
+	}
+
+	session_state = SessionState::SHUTTING_DOWN;
+	schola::Status status = coordinator.close();
+	training_definition.reset();
+	environment_ids.clear();
+	session_state = SessionState::CLOSED;
+	return status;
 }
 
 godot::Dictionary ScholaTrainingHost::initialize_session() {
@@ -275,11 +302,21 @@ godot::Dictionary ScholaTrainingHost::initialize_session() {
 }
 
 godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
+	schola::Status active = require_active_session();
+	if (!active.is_ok()) {
+		return encode_result(active);
+	}
+
 	return encode_result(coordinator.set_autoreset_mode(
 			static_cast<schola::AutoResetMode>(p_mode)));
 }
 
 godot::Dictionary ScholaTrainingHost::define() {
+	schola::Status active = require_active_session();
+	if (!active.is_ok()) {
+		return encode_result(active);
+	}
+
 	schola::TrainingDefinition definition;
 	schola::Status status = coordinator.define(definition);
 	if (!status.is_ok()) {
@@ -291,12 +328,22 @@ godot::Dictionary ScholaTrainingHost::define() {
 }
 
 godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) {
+	schola::Status active = require_active_session();
+	if (!active.is_ok()) {
+		return encode_result(active);
+	}
+
 	schola::InitialState state;
 	schola::Status status = coordinator.reset(decode_reset_request(p_request), state);
 	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
 }
 
 godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
+	schola::Status active = require_active_session();
+	if (!active.is_ok()) {
+		return encode_result(active);
+	}
+
 	if (!training_definition.has_value()) {
 		return encode_result(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"training session is not defined"));
@@ -314,9 +361,15 @@ godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 }
 
 godot::Dictionary ScholaTrainingHost::close() {
-	schola::Status status = coordinator.close();
-	training_definition.reset();
-	return encode_result(status);
+	return encode_result(shutdown_core());
+}
+
+void ScholaTrainingHost::_exit_tree() {
+	schola::Status status = shutdown_core();
+	if (!status.is_ok()) {
+		godot::UtilityFunctions::push_error(
+				godot::String("ScholaTrainingHost shutdown failed: ") + status.get_message().c_str());
+	}
 }
 
 void ScholaTrainingHost::_bind_methods() {

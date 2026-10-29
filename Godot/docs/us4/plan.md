@@ -106,11 +106,11 @@ Deliverable: a host surface that US3 can call without linking to US4 implementat
 
 ### 5. Handle scene lifecycle and shutdown
 
-- [ ] Close the coordinator when the host leaves the scene tree.
-- [ ] Prevent new work once shutdown begins.
+- [x] Close the coordinator when the host leaves the scene tree.
+- [x] Prevent new work once shutdown begins.
 - [ ] Ensure no worker thread reads or mutates Godot objects through the host.
-- [ ] Return the first actionable shutdown failure while still attempting required cleanup.
-- [ ] Expose enough close status for US3 to attempt its protocol notification without implementing that notification in US4.
+- [x] Return the first actionable shutdown failure while still attempting required cleanup.
+- [x] Expose enough close status for US3 to attempt its protocol notification without implementing that notification in US4.
 
 Deliverable: deterministic cleanup after normal close, partial startup, or scene removal.
 

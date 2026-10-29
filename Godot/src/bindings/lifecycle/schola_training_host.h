@@ -25,15 +25,25 @@ public:
 	godot::Dictionary reset(const godot::Dictionary &p_request);
 	godot::Dictionary step(const godot::Dictionary &p_request);
 	godot::Dictionary close();
+	void _exit_tree() override;
 
 protected:
 	static void _bind_methods();
 
 private:
+	enum class SessionState {
+		CONFIGURING,
+		ACTIVE,
+		SHUTTING_DOWN,
+		CLOSED,
+	};
+
 	schola::Status initialize_session_core();
+	schola::Status require_active_session() const;
+	schola::Status shutdown_core();
 
 	std::vector<godot::ObjectID> environment_ids;
 	schola::EnvironmentCoordinator coordinator;
 	std::optional<schola::TrainingDefinition> training_definition;
-	bool session_initialized = false;
+	SessionState session_state = SessionState::CONFIGURING;
 };
