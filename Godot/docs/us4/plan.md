@@ -18,7 +18,7 @@ Complete on `main`:
 Present on this branch:
 
 - Initial `ScholaTrainingHost` scene-discovery and lifecycle-construction scaffold.
-- Training-extension registration for `ScholaTrainingHost`.
+- Runtime-extension registration for `ScholaTrainingHost`, alongside the US5 environment nodes it adapts.
 
 ## Ownership boundaries
 
@@ -55,6 +55,7 @@ Alex's October 23 review established these constraints for the remaining US4 wor
 ### 1. Define the host boundary
 
 - Keep `EnvironmentCoordinator` and all lifecycle state owned by `ScholaTrainingHost`.
+- Keep `ScholaTrainingHost` in the runtime extension so it can use the US5 `ScholaEnvironment` C++ API without crossing a shared-library ABI boundary.
 - Define the smallest callable host surface required by US3's existing `TrainingBackend` contract:
   - set autoreset mode;
   - define the fixed environment set;
@@ -63,9 +64,9 @@ Alex's October 23 review established these constraints for the remaining US4 wor
   - close.
 - Keep scene-tree access and user callbacks on the Godot main thread.
 - Do not add transport or connector behavior to the host.
-- Resolve access to US1/US5 environment nodes without introducing direct C++ calls across separately built extensions. If the existing public bindings are insufficient, document the minimal required contract change and obtain the relevant owner review before implementation.
+- Bind the host operations through Godot so US3's training extension can call them through `godot::Object` and Variant-compatible values without linking to runtime C++ types.
 
-Deliverable: a reviewed host-boundary decision that preserves the runtime/training extension split.
+Deliverable: a runtime-owned lifecycle host with a Godot ABI boundary for the training extension.
 
 ### 2. Complete session discovery
 
@@ -96,6 +97,7 @@ Deliverable: complete US4 behavior behind the existing `TrainingBackend` operati
 - Bind only the methods needed by US3's `HostTrainingBackend`.
 - Translate US4 statuses into Godot-facing results without creating a second error channel.
 - Use the shared interop layer for existing value conversions; do not add US4-specific replacements for US2 or US3 conversion logic.
+- Require `HostTrainingBackend` to call a generic `godot::Object`; do not expose `ScholaTrainingHost`, coordinator, environment, or other runtime C++ pointers across the extension boundary.
 - Keep connector creation, network configuration, and protocol scheduling outside `ScholaTrainingHost`.
 
 Deliverable: a host surface that US3 can call without linking to US4 implementation details.
@@ -125,7 +127,7 @@ Deliverable: integration evidence for the remaining D1 US4 acceptance criterion.
 
 ## Completion criteria
 
-- `ScholaTrainingHost` respects the runtime/training extension boundary.
+- `ScholaTrainingHost` lives with the runtime environment bindings, while US3 reaches it only through Godot-bound methods and Variant-compatible values.
 - One fixed environment mapping is used for the duration of a session.
 - Every lifecycle operation is available through the host boundary and delegates to the existing coordinator.
 - All Godot object access occurs on the main thread.
