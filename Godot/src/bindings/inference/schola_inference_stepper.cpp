@@ -3,9 +3,9 @@
 #include "bindings/inference/schola_inference_stepper.h"
 
 #include "bindings/environment/schola_agent.h"
-#include "bindings/inference/godot_status.h"
 #include "core/stepper/simple_stepper.h"
 #include "inference/onnx_policy.h"
+#include "interop/godot_status.h"
 
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>

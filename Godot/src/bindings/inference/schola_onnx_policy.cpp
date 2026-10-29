@@ -3,11 +3,11 @@
 #include "bindings/inference/schola_onnx_policy.h"
 
 #include "bindings/environment/schola_agent.h"
-#include "bindings/inference/godot_status.h"
 #include "core/environment/agent.h"
 #include "core/environment/interaction_definition.h"
 #include "core/policy/policy_state.h"
 #include "inference/onnx_policy.h"
+#include "interop/godot_status.h"
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/file_access.hpp>
