@@ -4,7 +4,7 @@
 
 - **Date:** Oct 9, 2026
 - **Time:** 11:00 a.m.–12:00 p.m.
-- **Meeting type:** Partner Meeting 3
+- **Location:** Microsoft Teams
 - **Minutes prepared by:** Sanjay Ram / Shahyar Anfaz
 - **Minutes source:** Shared Granola notes
 
@@ -60,10 +60,10 @@
 
 ## Action items
 
-| Owner | Action | Status at meeting end |
-| --- | --- | --- |
-| AMD partner | Merge the recurrent and multi-agent API and share the frozen commit. | Open |
-| All team members | Continue defining and implementing APIs from the current repository baseline. | In progress |
-| ONNX user-story owner | Finalize the setup-script approach and preserve extension points for recurrent and multi-agent models. | Open |
-| Isaac | Revise strict observation validation to follow Godot conventions and the performance rationale discussed. | Open |
-| Team | Use the frozen upstream commit before finalizing multi-agent portions of the APIs. | Open |
+| Owner                 | Action                                                                                                    | Status at meeting end |
+|-----------------------|-----------------------------------------------------------------------------------------------------------|-----------------------|
+| AMD partner           | Merge the recurrent and multi-agent API and share the frozen commit.                                      | Open                  |
+| All team members      | Continue defining and implementing APIs from the current repository baseline.                             | In progress           |
+| ONNX user-story owner | Finalize the setup-script approach and preserve extension points for recurrent and multi-agent models.    | Open                  |
+| Isaac                 | Revise strict observation validation to follow Godot conventions and the performance rationale discussed. | Open                  |
+| Team                  | Use the frozen upstream commit before finalizing multi-agent portions of the APIs.                        | Open                  |

@@ -4,7 +4,7 @@
 
 - **Date:** Oct 13, 2026
 - **Time:** 8:00 p.m.–8:30 p.m.
-- **Meeting type:** Deliverable 2 progress meeting
+- **Location:** Zoom
 - **Minutes prepared by:** Sanjay Ram / Shahyar Anfaz
 - **Minutes source:** Shared Granola notes
 
@@ -61,11 +61,11 @@
 
 ## Action items
 
-| Owner | Action | Status at meeting end |
-| --- | --- | --- |
-| Team | Complete and merge API pull requests into `main`. | In progress |
-| Team | Freeze `main` after the Deliverable 2 merge until grading is complete. | Open |
-| Team | Build a rudimentary, installable Godot plugin with traceable behavior. | Open |
-| Each team member | Update their individual-contribution Markdown file with concrete impact. | Open |
-| Team | Prepare the Demo Day 2 presentation using the submitted Friday baseline. | Open |
-| Pritesh | Confirm the appropriate designation for describing the AMD-sponsored project. | Open |
+| Owner            | Action                                                                        | Status at meeting end |
+|------------------|-------------------------------------------------------------------------------|-----------------------|
+| Team             | Complete and merge API pull requests into `main`.                             | In progress           |
+| Team             | Freeze `main` after the Deliverable 2 merge until grading is complete.        | Open                  |
+| Team             | Build a rudimentary, installable Godot plugin with traceable behavior.        | Open                  |
+| Each team member | Update their individual-contribution Markdown file with concrete impact.      | Open                  |
+| Team             | Prepare the Demo Day 2 presentation using the submitted Friday baseline.      | Open                  |
+| Pritesh          | Confirm the appropriate designation for describing the AMD-sponsored project. | Open                  |
