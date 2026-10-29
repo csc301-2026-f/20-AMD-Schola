@@ -16,7 +16,7 @@ class ScholaTrainingHost : public godot::Node {
 	GDCLASS(ScholaTrainingHost, godot::Node)
 
 public:
-	// Discovers and validates the current scene's training environments. Their
+	// Discovers and validates the current scene's trainable environments. Their
 	// depth-first scene-tree order remains fixed for this session.
 	schola::Status initialize_session();
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
-#include "bindings/training/schola_training_host.h"
+#include "training/bindings/schola_training_host.h"
 
 #include "bindings/environment/schola_environment.h"
 

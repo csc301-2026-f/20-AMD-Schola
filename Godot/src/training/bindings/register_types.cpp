@@ -2,12 +2,14 @@
 
 #include "training/bindings/register_types.h"
 
+#include "training/bindings/schola_training_host.h"
 #include "training/schola_training_probe.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
 void register_schola_training_binding_types() {
 	GDREGISTER_CLASS(ScholaTrainingProbe);
+	GDREGISTER_CLASS(ScholaTrainingHost);
 }
 
 void unregister_schola_training_binding_types() {
