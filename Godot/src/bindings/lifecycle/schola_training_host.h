@@ -7,7 +7,9 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/core/object_id.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -17,21 +19,19 @@ class ScholaTrainingHost : public godot::Node {
 	GDCLASS(ScholaTrainingHost, godot::Node)
 
 public:
-	// Discovers and validates the current scene's trainable environments. Their
-	// depth-first scene-tree order remains fixed for this session.
-	schola::Status initialize_session();
-
-	// Call environment coordinator
-	schola::Status set_autoreset_mode(schola::AutoResetMode p_mode);
-	schola::Status define(schola::TrainingDefinition &r_definition);
-	schola::Status reset(const schola::ResetRequest &p_request, schola::InitialState &r_initial_state);
-	schola::Status step(const schola::StepRequest &p_request, schola::StepResult &r_result);
-	schola::Status close();
+	godot::Dictionary initialize_session();
+	godot::Dictionary set_autoreset_mode(int64_t p_mode);
+	godot::Dictionary define();
+	godot::Dictionary reset(const godot::Dictionary &p_request);
+	godot::Dictionary step(const godot::Dictionary &p_request);
+	godot::Dictionary close();
 
 protected:
 	static void _bind_methods();
 
 private:
+	schola::Status initialize_session_core();
+
 	std::vector<godot::ObjectID> environment_ids;
 	schola::EnvironmentCoordinator coordinator;
 	std::optional<schola::TrainingDefinition> training_definition;

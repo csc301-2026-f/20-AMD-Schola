@@ -7,6 +7,7 @@
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 
 #include <cstdint>
@@ -38,16 +39,6 @@ godot::Dictionary encode_status(const schola::Status &status) {
 	return dict;
 }
 
-schola::Status decode_status(const godot::Dictionary &dict) {
-	auto code = static_cast<schola::StatusCode>(static_cast<int>(dict["code"]));
-	std::string message = godot::String(dict["message"]).utf8().get_data();
-
-	if (code == schola::StatusCode::OK) {
-		return schola::Status::ok();
-	}
-	return schola::Status::error(code, message);
-}
-
 godot::Dictionary encode_training_definition(const schola::TrainingDefinition &defn) {
 	godot::Array environments;
 	for (auto &environment : defn.environments) {
@@ -67,24 +58,6 @@ godot::Dictionary encode_training_definition(const schola::TrainingDefinition &d
 
 	godot::Dictionary result;
 	result["environments"] = environments;
-	return result;
-}
-
-godot::Dictionary encode_step_request(const schola::StepRequest &request) {
-	godot::Array arr;
-
-	for (auto &environment_actions : request.actions) {
-		godot::Dictionary dict;
-		for (auto &[agent_id, point] : environment_actions) {
-			godot::String converted_id = godot::String::utf8(agent_id.c_str());
-			godot::Variant converted_point = schola::point_to_variant(point);
-			dict[converted_id] = converted_point;
-		}
-		arr.append(dict);
-	}
-
-	godot::Dictionary result;
-	result["actions"] = arr;
 	return result;
 }
 
@@ -148,29 +121,6 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 	return schola::Status::ok();
 }
 
-godot::Dictionary encode_reset_request(const schola::ResetRequest &request) {
-	godot::Dictionary dict;
-
-	for (auto &[env_id, reset_settings] : request.environments) {
-		godot::Dictionary entry;
-
-		if (reset_settings.seed.has_value()) {
-			entry["seed"] = reset_settings.seed.value();
-		}
-
-		godot::Dictionary options;
-		for (auto &[k, v] : reset_settings.options) {
-			auto key = godot::String::utf8(k.c_str());
-			auto value = godot::String::utf8(v.c_str());
-			options[key] = value;
-		}
-		entry["options"] = options;
-
-		dict[env_id] = entry;
-	}
-	return dict;
-}
-
 schola::ResetRequest decode_reset_request(const godot::Dictionary &dict) {
 	schola::ResetRequest request;
 
@@ -199,9 +149,62 @@ schola::ResetRequest decode_reset_request(const godot::Dictionary &dict) {
 	return request;
 }
 
+godot::Dictionary encode_info(const std::map<std::string, std::string> &info) {
+	godot::Dictionary result;
+	for (auto &[key, value] : info) {
+		result[godot::String::utf8(key.c_str())] = godot::String::utf8(value.c_str());
+	}
+	return result;
+}
+
+godot::Dictionary encode_initial_state(const schola::InitialState &state) {
+	godot::Dictionary environments;
+	for (auto &[environment_id, environment] : state.environments) {
+		godot::Dictionary agents;
+		for (auto &[agent_id, agent] : environment.agents) {
+			godot::Dictionary encoded_agent;
+			encoded_agent["observation"] = schola::point_to_variant(agent.observation);
+			encoded_agent["info"] = encode_info(agent.info);
+			agents[godot::String::utf8(agent_id.c_str())] = encoded_agent;
+		}
+		environments[environment_id] = agents;
+	}
+	return environments;
+}
+
+godot::Dictionary encode_step_result(const schola::StepResult &result) {
+	godot::Array environments;
+	for (auto &environment : result.state.environments) {
+		godot::Dictionary agents;
+		for (auto &[agent_id, agent] : environment.agents) {
+			godot::Dictionary encoded_agent;
+			encoded_agent["observation"] = schola::point_to_variant(agent.observation);
+			encoded_agent["reward"] = agent.reward;
+			encoded_agent["terminated"] = agent.terminated;
+			encoded_agent["truncated"] = agent.truncated;
+			encoded_agent["info"] = encode_info(agent.info);
+			agents[godot::String::utf8(agent_id.c_str())] = encoded_agent;
+		}
+		environments.append(agents);
+	}
+
+	godot::Dictionary encoded;
+	encoded["state"] = environments;
+	encoded["initial_state"] = encode_initial_state(result.initial_state);
+	return encoded;
+}
+
+godot::Dictionary encode_result(const schola::Status &status,
+		const godot::Variant &value = godot::Variant()) {
+	godot::Dictionary result;
+	result["status"] = encode_status(status);
+	result["value"] = value;
+	return result;
+}
+
 } // namespace
 
-schola::Status ScholaTrainingHost::initialize_session() {
+schola::Status ScholaTrainingHost::initialize_session_core() {
 	if (session_initialized) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"training session is already initialized");
@@ -267,37 +270,60 @@ schola::Status ScholaTrainingHost::initialize_session() {
 	return schola::Status::ok();
 }
 
-schola::Status ScholaTrainingHost::set_autoreset_mode(schola::AutoResetMode p_mode) {
-	return coordinator.set_autoreset_mode(p_mode);
+godot::Dictionary ScholaTrainingHost::initialize_session() {
+	return encode_result(initialize_session_core());
 }
 
-schola::Status ScholaTrainingHost::define(schola::TrainingDefinition &r_definition) {
+godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
+	return encode_result(coordinator.set_autoreset_mode(
+			static_cast<schola::AutoResetMode>(p_mode)));
+}
+
+godot::Dictionary ScholaTrainingHost::define() {
 	schola::TrainingDefinition definition;
 	schola::Status status = coordinator.define(definition);
 	if (!status.is_ok()) {
-		return status;
+		return encode_result(status);
 	}
 
 	training_definition = definition;
-	r_definition = std::move(definition);
-	return schola::Status::ok();
+	return encode_result(status, encode_training_definition(definition));
 }
 
-schola::Status ScholaTrainingHost::reset(const schola::ResetRequest &p_request,
-	schola::InitialState &r_initial_state) {
-	return coordinator.reset(p_request, r_initial_state);
+godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) {
+	schola::InitialState state;
+	schola::Status status = coordinator.reset(decode_reset_request(p_request), state);
+	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
 }
 
-schola::Status ScholaTrainingHost::step(const schola::StepRequest &p_request,
-	schola::StepResult &r_result) {
-	return coordinator.step(p_request, r_result);
+godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
+	if (!training_definition.has_value()) {
+		return encode_result(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"training session is not defined"));
+	}
+
+	schola::StepRequest request;
+	schola::Status status = decode_step_request(p_request, *training_definition, request);
+	if (!status.is_ok()) {
+		return encode_result(status);
+	}
+
+	schola::StepResult result;
+	status = coordinator.step(request, result);
+	return status.is_ok() ? encode_result(status, encode_step_result(result)) : encode_result(status);
 }
 
-schola::Status ScholaTrainingHost::close() {
+godot::Dictionary ScholaTrainingHost::close() {
 	schola::Status status = coordinator.close();
 	training_definition.reset();
-	return status;
+	return encode_result(status);
 }
 
 void ScholaTrainingHost::_bind_methods() {
+	godot::ClassDB::bind_method(godot::D_METHOD("initialize_session"), &ScholaTrainingHost::initialize_session);
+	godot::ClassDB::bind_method(godot::D_METHOD("set_autoreset_mode", "mode"), &ScholaTrainingHost::set_autoreset_mode);
+	godot::ClassDB::bind_method(godot::D_METHOD("define"), &ScholaTrainingHost::define);
+	godot::ClassDB::bind_method(godot::D_METHOD("reset", "request"), &ScholaTrainingHost::reset);
+	godot::ClassDB::bind_method(godot::D_METHOD("step", "request"), &ScholaTrainingHost::step);
+	godot::ClassDB::bind_method(godot::D_METHOD("close"), &ScholaTrainingHost::close);
 }
