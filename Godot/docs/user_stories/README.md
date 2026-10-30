@@ -12,5 +12,7 @@ This directory is the canonical home for the project's approved MVP user stories
 | [US7](US7.md) | Run and ship an ONNX policy | Bohdan | In progress |
 | [US8](US8.md) | Compose agents from reusable sensors and actuators | Unassigned | Proposed |
 | [US9](US9.md) | Test an environment without Python | Unassigned | Proposed |
+| [US10](US10.md) | Stack recent observations | Unassigned | Proposed |
+| [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Proposed |
 
 US6 is not part of the approved MVP story set.
