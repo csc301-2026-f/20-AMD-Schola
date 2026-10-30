@@ -62,7 +62,7 @@ Alex's October 23 review established these constraints for the remaining US4 wor
   - [x] reset;
   - [x] step;
   - [x] close.
-- [ ] Keep scene-tree access and user callbacks on the Godot main thread.
+- [x] Keep scene-tree access and user callbacks on the Godot main thread.
 - [x] Do not add transport or connector behavior to the host.
 - [x] Bind the host operations through Godot so US3's training extension can call them through `godot::Object` and Variant-compatible values without linking to runtime C++ types.
 
@@ -108,7 +108,7 @@ Deliverable: a host surface that US3 can call without linking to US4 implementat
 
 - [x] Close the coordinator when the host leaves the scene tree.
 - [x] Prevent new work once shutdown begins.
-- [ ] Ensure no worker thread reads or mutates Godot objects through the host.
+- [x] Ensure no worker thread reads or mutates Godot objects through the host.
 - [x] Return the first actionable shutdown failure while still attempting required cleanup.
 - [x] Expose enough close status for US3 to attempt its protocol notification without implementing that notification in US4.
 
@@ -132,7 +132,7 @@ Deliverable: integration evidence for the remaining D1 US4 acceptance criterion.
 - [x] `ScholaTrainingHost` lives with the runtime environment bindings, while US3 reaches it only through Godot-bound methods and Variant-compatible values.
 - [x] One fixed environment mapping is used for the duration of a session.
 - [x] Every lifecycle operation is available through the host boundary and delegates to the existing coordinator.
-- [ ] All Godot object access occurs on the main thread.
+- [x] All Godot object access occurs on the main thread.
 - [ ] Startup and shutdown are safe after partial failure.
 - [ ] US3 can use the host through its existing backend abstraction without US4 implementing transport behavior.
 - [ ] Focused host integration coverage demonstrates multiple episodes without deadlock or state leakage.

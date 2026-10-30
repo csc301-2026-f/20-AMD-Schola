@@ -7,6 +7,7 @@
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/thread.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -284,6 +285,16 @@ schola::Status ScholaTrainingHost::require_active_session() const {
 	return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, message);
 }
 
+schola::Status ScholaTrainingHost::require_main_thread() {
+	if (godot::Thread::is_main_thread()) {
+		return schola::Status::ok();
+	}
+
+	return schola::Status::error(
+			schola::StatusCode::FAILED_PRECONDITION,
+			"ScholaTrainingHost operations must run on the Godot main thread");
+}
+
 schola::Status ScholaTrainingHost::shutdown_core() {
 	if (session_state == SessionState::CLOSED || session_state == SessionState::SHUTTING_DOWN) {
 		return schola::Status::ok();
@@ -298,10 +309,20 @@ schola::Status ScholaTrainingHost::shutdown_core() {
 }
 
 godot::Dictionary ScholaTrainingHost::initialize_session() {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	return encode_result(initialize_session_core());
 }
 
 godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
 		return encode_result(active);
@@ -312,6 +333,11 @@ godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
 }
 
 godot::Dictionary ScholaTrainingHost::define() {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
 		return encode_result(active);
@@ -328,6 +354,11 @@ godot::Dictionary ScholaTrainingHost::define() {
 }
 
 godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
 		return encode_result(active);
@@ -339,6 +370,11 @@ godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) 
 }
 
 godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
 		return encode_result(active);
@@ -361,6 +397,11 @@ godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 }
 
 godot::Dictionary ScholaTrainingHost::close() {
+	schola::Status thread_status = require_main_thread();
+	if (!thread_status.is_ok()) {
+		return encode_result(thread_status);
+	}
+
 	return encode_result(shutdown_core());
 }
 

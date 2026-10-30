@@ -40,6 +40,7 @@ private:
 
 	schola::Status initialize_session_core();
 	schola::Status require_active_session() const;
+	static schola::Status require_main_thread();
 	schola::Status shutdown_core();
 
 	std::vector<godot::ObjectID> environment_ids;
