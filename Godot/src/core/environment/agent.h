@@ -20,9 +20,9 @@
 namespace schola {
 
 /**
- * An actor in the game (NPC, Car, etc.)
+ * A trainable character in the game, such as an NPC or a car.
  *
- * An agent can do three things
+ * An agent can do three things:
  * - Introduce itself with define()
  * - Look around with observe()
  * - Do something with act()
@@ -30,9 +30,12 @@ namespace schola {
  * Knows nothing about episodes, rewards, or Godot so that it can run with
  * training code stripped out, and be tested without the engine at all.
  *
- * This is a pure interface with no implementation here, every method below
- * is left for a real class to fill in (the Godot-facing adapter behind
- * ScholaAgent, or a test fake). You cannot create a bare Agent.
+ * Every method returns a Status and leaves its out-parameter untouched on
+ * failure.
+ *
+ * This is a pure interface: every method below is left for a real class to
+ * fill in (the Godot-facing adapter behind ScholaAgent, or a test fake). You
+ * cannot create a bare Agent.
  */
 class Agent {
 public:
@@ -45,41 +48,39 @@ public:
 	 * In:   r_definition, an empty InteractionDefinition.
 	 *
 	 * Does: fills in what this agent can see and what it can be told to do.
-	 *       Called once, before any observe() or act(). No implementation
-	 *       here; a real class (the Godot-facing adapter behind ScholaAgent,
-	 *       or a test fake) must provide one.
+	 *       Called once, before any observe() or act().
 	 *
 	 * Out:  r_definition filled with this agent's observation_space,
-	 *       action_space, and agent_type.
+	 *       action_space, and agent_type. The agent does not know its own
+	 *       ID; the environment assigns IDs, as map keys.
 	 */
 	virtual Status define(InteractionDefinition &r_definition) = 0;
 
 	/**
-	 * Observes.
+	 * Reads what the agent currently sees.
 	 *
-	 * In: r_observation; which will be a Point that is shaped to
-	 * match observation_space (from InteractionDefinition).
+	 * In:   r_observation, a Point shaped to match observation_space (from
+	 *       InteractionDefinition).
 	 *
 	 * Does: fills r_observation in place with what the agent currently sees.
 	 *
-	 * Out: r_observation now holds the real values. Return is a Status
-	 * saying whether the read succeded.
-	 *
+	 * Out:  r_observation holds the real values. The Status says whether the
+	 *       read succeeded; r_observation is untouched on failure.
 	 */
 	virtual Status observe(Point &r_observation) = 0;
 
 	/**
 	 * Applies one action.
 	 *
-	 * In: p_action; a Point meant to match action_space. Python owns action
-	 * validation, and the engine re-checks only when US4's optional debug
-	 * validation is on, so a mismatched Point must return a non-OK Status
-	 * rather than be trusted.
+	 * In:   p_action, a Point meant to match action_space. Python owns action
+	 *       validation, and the engine re-checks only when US4's optional
+	 *       debug validation is on, so act() must not trust the Point. A
+	 *       mismatched Point returns a non-OK Status.
 	 *
-	 * Does: carries out that action on the agent.
+	 * Does: carries out that action on the agent. A rejected action leaves
+	 *       the agent unchanged.
 	 *
-	 * Out: just a Status saying whether it worked.
-	 *
+	 * Out:  a Status saying whether the action was applied.
 	 */
 	virtual Status act(const Point &p_action) = 0;
 };

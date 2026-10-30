@@ -38,8 +38,8 @@ struct InteractionDefinition {
 	 * Agent "dumb_agent2" has agent_type "dumb"
 	 * Agent "smart_agent1" has agent_type "smart"
 	 *
-	 * Empty means "stands alone" -- its agent ID is used instead.
-	 * Essentially: agents sharing a type can share one trained policy.
+	 * Empty means the agent stands alone, and its agent ID is used instead.
+	 * Agents sharing a type can share one trained policy.
 	 */
 	std::string agent_type;
 };

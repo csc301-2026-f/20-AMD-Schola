@@ -87,6 +87,16 @@ struct AgentState {
  *
  * Agent membership and spaces are fixed after initialize(). Every method
  * returns Status and leaves its out-parameter untouched on failure.
+ *
+ * Agents are identified by AgentId, which is a map key rather than a field
+ * of any struct; the environment assigns the IDs.
+ *
+ * An agent that has finished its episode is simply absent from step()'s
+ * actions. That is not an error, and it gets no entry in the result either.
+ *
+ * terminated and truncated are separate outcomes. An environment reports
+ * what happened in the game; the step limit is enforced by the lifecycle
+ * (US4), which sets truncated, not by the environment.
  */
 class Environment {
 public:
@@ -97,8 +107,9 @@ public:
 	 *
 	 * In:   r_agents, an empty map.
 	 *
-	 * Does: declares every agent and its spaces. Called once, before the
-	 *       first reset.
+	 * Does: asks each agent to define() itself and checks the result. Called
+	 *       once, before the first reset. Calling it again fails, because
+	 *       agents and spaces are fixed after the first call.
 	 *
 	 * Out:  r_agents filled with one InteractionDefinition per agent. This
 	 *       is how Python first discovers what agents exist.
@@ -127,7 +138,8 @@ public:
 	 *       Does not wait for a physics frame in between, so the observation
 	 *       may not yet reflect this step's action.
 	 *
-	 * Out:  r_states filled with one AgentState per agent in p_actions.
+	 * Out:  r_states filled with one AgentState per agent in p_actions, and
+	 *       none for agents that were absent. Untouched on failure.
 	 */
 	virtual Status step(const std::map<AgentId, Point> &p_actions, std::map<AgentId, AgentState> &r_states) = 0;
 
