@@ -86,10 +86,10 @@ The runtime loads ONNX models, validates model inputs and outputs, maintains per
 - [`Godot/demo/d2`](Godot/demo/d2) contains the D2 training and inference demonstration.
 - [`Godot/demo/d1`](Godot/demo/d1) preserves the earlier C# interface prototype.
 - [`Godot/tests`](Godot/tests) contains core, inference, and Godot integration tests.
-- [`deliverables/stories`](deliverables/stories) contains the current user stories, ownership, acceptance criteria, and progress.
-- [`deliverables`](deliverables) also contains course planning, reviews, contribution records, and meeting minutes.
+- [`Godot/docs/user_stories`](Godot/docs/user_stories) contains the current user stories, ownership, acceptance criteria, and progress.
+- [`deliverables`](deliverables) contains course planning, reviews, contribution records, and meeting minutes.
 
-See the [Godot development guide](Godot/README.md) for the supported toolchain, dependency pins, build commands, test commands, module boundaries, and packaging design. The original MVP is preserved in the [D1 planning document](deliverables/D1/planning.md); current stories and progress are tracked in [`deliverables/stories`](deliverables/stories/README.md).
+See the [Godot development guide](Godot/README.md) for the supported toolchain, dependency pins, build commands, test commands, module boundaries, and packaging design. The original MVP is preserved in the [D1 planning document](deliverables/D1/planning.md); current stories and progress are tracked in [`Godot/docs/user_stories`](Godot/docs/user_stories/README.md).
 
 ## Development requirements
 
