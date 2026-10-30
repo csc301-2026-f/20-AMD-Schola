@@ -28,7 +28,14 @@ public:
 	// empty agent_id : use the godot node name
 	// nonempty id : use configured value
 	void set_agent_id(const godot::String &p_agent_id);
+	// Returns the configured Inspector value, including an empty fallback setting.
 	godot::String get_agent_id() const;
+	/**
+	 * Returns the explicit ID, or this node's current name when the ID is empty.
+	 * Uses neither the scene path nor an object ID, so replicated environments can
+	 * retain matching agent IDs. Callers must check uniqueness within each environment.
+	 */
+	godot::String get_resolved_agent_id() const;
 
 	// Agents with the same nonempty type may share a training policy
 	// empty agent_type : use this agent's resolved ID as its type

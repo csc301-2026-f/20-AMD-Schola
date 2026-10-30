@@ -31,6 +31,10 @@ void ScholaAgent::_bind_methods() {
 		"set_agent_id",
 		"get_agent_id"
 	);
+	godot::ClassDB::bind_method(
+		godot::D_METHOD("get_resolved_agent_id"),
+		&ScholaAgent::get_resolved_agent_id
+	);
 
 	godot::ClassDB::bind_method(
 		godot::D_METHOD("set_agent_type", "agent_type"),
@@ -53,4 +57,8 @@ void ScholaAgent::set_agent_id(const godot::String &p_agent_id) {
 
 godot::String ScholaAgent::get_agent_id() const {
 	return agent_id;
+}
+
+godot::String ScholaAgent::get_resolved_agent_id() const {
+	return agent_id.is_empty() ? godot::String(get_name()) : agent_id;
 }
