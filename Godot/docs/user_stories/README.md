@@ -1,6 +1,6 @@
 # User stories
 
-This directory is the canonical home for the project's approved MVP user stories and their current implementation progress.
+This directory is the canonical home for the project's approved MVP stories, proposed follow-up stories, and current implementation progress.
 
 | Story | Title | Owner(s) | Status |
 |---|---|---|---|
@@ -14,5 +14,9 @@ This directory is the canonical home for the project's approved MVP user stories
 | [US9](US9.md) | Test an environment without Python | Unassigned | Proposed |
 | [US10](US10.md) | Stack recent observations | Unassigned | Proposed |
 | [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Proposed |
+| [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Proposed |
+| [US13](US13.md) | Train and deploy through a production example | Unassigned | Proposed |
 
 US6 is not part of the approved MVP story set.
+
+See [Remaining work and future opportunities](remaining.md) for integration tasks and Unreal Schola capabilities that are not represented as active user stories.
