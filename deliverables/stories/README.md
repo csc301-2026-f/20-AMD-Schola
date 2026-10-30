@@ -10,5 +10,7 @@ This directory is the canonical home for the project's approved MVP user stories
 | [US4](US4.md) | Execute the episode lifecycle | Shahyar | Implemented; end-to-end testing blocked by US1 |
 | [US5](US5.md) | Configure Schola through Godot-native tools | Vansh | In progress |
 | [US7](US7.md) | Run and ship an ONNX policy | Bohdan | In progress |
+| [US8](US8.md) | Compose agents from reusable sensors and actuators | Unassigned | Proposed |
+| [US9](US9.md) | Test an environment without Python | Unassigned | Proposed |
 
 US6 is not part of the approved MVP story set.
