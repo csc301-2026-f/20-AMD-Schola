@@ -2,9 +2,12 @@
 
 #include "bindings/environment/schola_agent.h"
 
+#include "bindings/environment/godot_agent_adapter.h"
 #include "bindings/spaces/schola_space.h"
 
 #include <godot_cpp/core/class_db.hpp>
+
+#include <memory>
 
 void ScholaAgent::set_agent_id(const godot::String &p_agent_id) {
 	agent_id = p_agent_id;
@@ -39,6 +42,22 @@ void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space
 
 godot::Ref<ScholaSpace> ScholaAgent::get_action_space() const {
 	return action_space;
+}
+
+schola::Agent *ScholaAgent::get_agent() {
+	// Create the adapter the first time someone asks for it. It keeps a
+	// pointer back to this node, which is safe because this node owns it
+	// and deletes it when the node itself is destroyed.
+	if (!agent_adapter) {
+		agent_adapter = std::make_unique<GodotAgentAdapter>(this);
+	}
+	return agent_adapter.get();
+}
+
+const schola::Agent *ScholaAgent::get_agent() const {
+	// Same adapter as above. const_cast lets this read-only version reuse it
+	// instead of duplicating the creation logic.
+	return const_cast<ScholaAgent *>(this)->get_agent();
 }
 
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
