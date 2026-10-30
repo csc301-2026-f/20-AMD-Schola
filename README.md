@@ -13,6 +13,14 @@ AMD maintains the open-source Schola reinforcement-learning toolkit and is the p
 
 AMD Schola currently connects Unreal Engine environments to Python reinforcement-learning frameworks. This project brings the same workflow to Godot: developers define environments and agents with engine-native APIs, train them through Schola's Python tooling, export trained policies to ONNX, and run those policies inside Godot without shipping Python. The port avoids requiring each Godot developer to build custom training transport, episode coordination, and inference infrastructure.
 
+## Guiding principles
+
+- **Shared semantics, engine-native interfaces:** Godot and Unreal should expose the same Schola capabilities, but each integration should present them through the conventions of its engine rather than copying the other engine's class structure.
+- **Follow Godot composition patterns:** Use nodes for scene-owned behavior, lifecycle, transforms, and per-frame processing; use resources for reusable serialized configuration and data; use signals for events and asynchronous completion; and use Inspector configuration warnings for invalid scene setup.
+- **Preserve cross-engine maintainability:** Prefer capabilities that already exist in Schola or can reasonably be represented in both Godot and Unreal. A Godot-specific form, such as a child node, is acceptable; Godot-only training semantics require a clear user benefit and partner approval.
+- **Keep the portable core engine-independent:** Reinforcement-learning contracts, lifecycle rules, and validation belong in reusable core code. Godot bindings translate those contracts into Godot types and workflows without introducing engine dependencies into the core.
+- **Add the smallest useful abstraction:** Do not introduce generalized frameworks, custom editor tooling, or performance complexity before a concrete workflow requires them. Complete and validate the end-to-end training and inference paths first.
+
 ## Key features
 
 - **Godot-native environment definition:** Configure environments and agents through Godot nodes and the Inspector.
@@ -78,9 +86,10 @@ The runtime loads ONNX models, validates model inputs and outputs, maintains per
 - [`Godot/demo/d2`](Godot/demo/d2) contains the D2 training and inference demonstration.
 - [`Godot/demo/d1`](Godot/demo/d1) preserves the earlier C# interface prototype.
 - [`Godot/tests`](Godot/tests) contains core, inference, and Godot integration tests.
+- [`Godot/docs/user_stories`](Godot/docs/user_stories) contains the current user stories, ownership, acceptance criteria, and progress.
 - [`deliverables`](deliverables) contains course planning, reviews, contribution records, and meeting minutes.
 
-See the [Godot development guide](Godot/README.md) for the supported toolchain, dependency pins, build commands, test commands, module boundaries, and packaging design. The full MVP and acceptance criteria are recorded in the [D1 planning document](deliverables/D1/planning.md).
+See the [Godot development guide](Godot/README.md) for the supported toolchain, dependency pins, build commands, test commands, module boundaries, and packaging design. The original MVP is preserved in the [D1 planning document](deliverables/D1/planning.md); current stories and progress are tracked in [`Godot/docs/user_stories`](Godot/docs/user_stories/README.md).
 
 ## Development requirements
 
