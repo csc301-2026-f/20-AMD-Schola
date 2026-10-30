@@ -10,12 +10,14 @@
 
 namespace schola {
 
+/** Controls when completed environments are reset during step processing. */
 enum class AutoResetMode {
 	SAME_STEP,
 	NEXT_STEP,
 	DISABLED,
 };
 
+/** State of one EnvironmentLifecycle. */
 enum class LifecycleState {
 	UNINITIALIZED,
 	ACTIVE,
@@ -25,6 +27,7 @@ enum class LifecycleState {
 	CLOSED,
 };
 
+/** State of an EnvironmentCoordinator and its complete environment set. */
 enum class CoordinatorState {
 	CONFIGURING,
 	READY,

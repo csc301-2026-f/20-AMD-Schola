@@ -15,16 +15,37 @@
 
 class ScholaEnvironment;
 
+/**
+ * Godot-facing owner of one fixed training session.
+ *
+ * The host discovers ScholaEnvironment descendants in scene-tree order and
+ * assigns contiguous environment IDs for the lifetime of the session. It owns
+ * the EnvironmentCoordinator but not the Godot environment nodes. All public
+ * operations must run on Godot's main thread. A missing environment or a
+ * coordinator failure closes the entire session rather than remapping IDs or
+ * publishing partial output.
+ *
+ * Bound methods return a Dictionary with `status` and `value` entries. The
+ * status contains integer `code` and String `message` fields; `value` is
+ * null on failure.
+ */
 class ScholaTrainingHost : public godot::Node {
 	GDCLASS(ScholaTrainingHost, godot::Node)
 
 public:
+	/** Discovers and validates the session's fixed environment set. */
 	godot::Dictionary initialize_session();
+	/** Sets the AutoResetMode before define() initializes the environments. */
 	godot::Dictionary set_autoreset_mode(int64_t p_mode);
+	/** Initializes the environments and returns their ordered definitions. */
 	godot::Dictionary define();
+	/** Resets every environment using optional settings keyed by environment ID. */
 	godot::Dictionary reset(const godot::Dictionary &p_request);
+	/** Steps every environment using one agent-action dictionary per environment. */
 	godot::Dictionary step(const godot::Dictionary &p_request);
+	/** Idempotently closes the coordinator and training session. */
 	godot::Dictionary close();
+	/** Closes the session when the host leaves the scene tree. */
 	void _exit_tree() override;
 
 protected:
