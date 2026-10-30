@@ -20,11 +20,9 @@ bool same_agent_ids(const Left &p_left, const Right &p_right) {
 
 EnvironmentLifecycle::EnvironmentLifecycle(
 		EnvironmentId p_id,
-		Environment &p_environment,
-		uint64_t p_episode_step_limit) :
+		Environment &p_environment) :
 		id(p_id),
-		environment(p_environment),
-		episode_step_limit(p_episode_step_limit) {
+		environment(p_environment) {
 }
 
 EnvironmentId EnvironmentLifecycle::get_id() const {
@@ -127,14 +125,6 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 	}
 
 	episode_step_count++;
-	if (episode_step_limit != 0 && episode_step_count >= episode_step_limit) {
-		for (auto &[agent_id, agent_state] : step_states) {
-			if (!agent_state.terminated && !agent_state.truncated) {
-				agent_state.truncated = true;
-			}
-		}
-	}
-
 	for (const auto &[agent_id, agent_state] : step_states) {
 		last_state.agents[agent_id] = agent_state;
 	}

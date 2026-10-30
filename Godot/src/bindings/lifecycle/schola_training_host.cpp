@@ -273,18 +273,10 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 							" has no core environment adapter; ensure it is inside the active scene tree");
 		}
 
-		int32_t step_limit = environment_node->get_max_episode_steps();
-		if (step_limit < 0) {
-			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-					"ScholaEnvironment " + describe_node(environment_node) +
-							" has a negative max_episode_steps value");
-		}
-
 		discovered_ids.emplace_back(environment_node->get_instance_id());
 		lifecycles.push_back(std::make_unique<schola::EnvironmentLifecycle>(
 				static_cast<schola::EnvironmentId>(i),
-				*environment,
-				static_cast<uint64_t>(step_limit)));
+				*environment));
 	}
 
 	schola::Status result = coordinator.set_lifecycles(std::move(lifecycles));
