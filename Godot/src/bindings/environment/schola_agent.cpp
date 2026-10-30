@@ -12,6 +12,10 @@ godot::String ScholaAgent::get_agent_type() const {
 	return agent_type;
 }
 
+godot::String ScholaAgent::get_resolved_agent_type() const {
+	return agent_type.is_empty() ? get_resolved_agent_id() : agent_type;
+}
+
 godot::PackedStringArray ScholaAgent::_get_configuration_warnings() const {
 	return {};
 }
@@ -47,6 +51,10 @@ void ScholaAgent::_bind_methods() {
 	ADD_PROPERTY(
 		godot::PropertyInfo(godot::Variant::STRING, "agent_type"),
 		"set_agent_type", "get_agent_type"
+	);
+	godot::ClassDB::bind_method(
+		godot::D_METHOD("get_resolved_agent_type"),
+		&ScholaAgent::get_resolved_agent_type
 	);
 }
 

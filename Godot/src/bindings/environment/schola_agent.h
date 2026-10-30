@@ -41,8 +41,11 @@ public:
 	// empty agent_type : use this agent's resolved ID as its type
 	// nonempty type : use configured value
 	void set_agent_type(const godot::String &p_agent_type);
+	// Returns the configured Inspector value, including an empty fallback setting
 	godot::String get_agent_type() const;
-	// US1 copies this value into InteractionDefinition::agent_type
+	/** Returns the explicit type, or the resolved agent ID when the type is empty */
+	godot::String get_resolved_agent_type() const;
+	// US1 should copy the resolved type into InteractionDefinition::agent_type.
 
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource

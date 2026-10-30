@@ -60,6 +60,32 @@ The extension entry points are stable composition roots. Runtime bindings and in
 
 ## Inspect the Schola UI
 
+### Agent identity
+
+`ScholaAgent.agent_id` stores the configured Inspector value. Leave it empty to
+use the agent node's name, or set it explicitly for an ID that stays the same when
+the node is renamed. `get_resolved_agent_id()` returns that effective ID without
+changing the saved property. Native adapters should use this method when registering
+an agent; `get_agent_id()` returns the configured value and may be empty.
+
+Use the same agent IDs when replicating an environment. Resolution uses the local
+node name rather than a full scene path, UUID, or instance ID, so copying an entire
+environment preserves its child agents' IDs when their names are unchanged.
+Resolved IDs must be unique within each environment; matching IDs across separate
+environments are intentional. Godot's sibling naming rules do not prevent equal
+names in different descendant branches, so this resolver alone does not validate
+environment-wide uniqueness. An empty fallback follows subsequent node renames;
+use an explicit ID when that is undesirable.
+
+`ScholaAgent.agent_type` is an optional policy-sharing label. Its configured value
+is preserved by `get_agent_type()`. Use `get_resolved_agent_type()` for the effective
+type: an explicit type takes precedence; an empty type falls back to the resolved
+agent ID, which itself falls back to the node name. Resolution does not change the
+saved properties. The US1 adapter should use the resolved type when populating
+`InteractionDefinition::agent_type`; this resolver does not implement policy sharing.
+
+### Editor and runtime monitor
+
 The **AMD Schola** editor plugin uses GDScript and works in standard Godot without .NET. It is enabled in this project. Reopen the project after updating, or enable it in **Project → Project Settings → Plugins**.
 
 - Open the **Schola** dock beside the Inspector to see which native Schola classes are actually available. Refresh after changing the scene tree. Select a listed node to configure its existing properties in the Inspector.

@@ -110,3 +110,46 @@ func test_agent_id_fallback_remains_empty_after_scene_round_trip() -> void:
 	assert_str(restored.get("agent_id")).is_empty()
 	restored.name = "Scout"
 	assert_str(restored.call("get_resolved_agent_id")).is_equal("Scout")
+
+
+func test_empty_agent_type_tracks_resolved_agent_id() -> void:
+	var agent := auto_free(ClassDB.instantiate("ScholaAgent") as Node)
+	agent.name = "Player"
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("Player")
+
+	agent.name = "Scout"
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("Scout")
+	agent.set("agent_id", "player_1")
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("player_1")
+	agent.set("agent_id", "")
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("Scout")
+	assert_str(agent.get("agent_type")).is_empty()
+
+
+func test_explicit_agent_type_takes_precedence_and_can_be_cleared() -> void:
+	var agent := auto_free(ClassDB.instantiate("ScholaAgent") as Node)
+	agent.name = "Player"
+	agent.set("agent_type", "shared_policy")
+	agent.set("agent_id", "player_1")
+	agent.name = "Scout"
+
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("shared_policy")
+	assert_str(agent.get("agent_type")).is_equal("shared_policy")
+	assert_str(agent.call("get_resolved_agent_id")).is_equal("player_1")
+
+	agent.set("agent_type", "")
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("player_1")
+
+
+func test_agent_type_fallback_remains_empty_after_scene_round_trip() -> void:
+	var agent := auto_free(ClassDB.instantiate("ScholaAgent") as Node)
+	agent.name = "Player"
+	# Resolving the default must not store it as an explicit policy-sharing label.
+	assert_str(agent.call("get_resolved_agent_type")).is_equal("Player")
+	var scene := PackedScene.new()
+	assert_int(scene.pack(agent)).is_equal(OK)
+	var restored := auto_free(scene.instantiate())
+
+	assert_str(restored.get("agent_type")).is_empty()
+	restored.set("agent_id", "player_2")
+	assert_str(restored.call("get_resolved_agent_type")).is_equal("player_2")
