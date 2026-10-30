@@ -19,6 +19,25 @@
 
 namespace {
 
+std::string to_std_string(const godot::String &p_string) {
+	return p_string.utf8().get_data();
+}
+
+std::string describe_node(const godot::Node *p_node) {
+	return "'" + to_std_string(godot::String(p_node->get_path())) + "'";
+}
+
+std::string join_configuration_errors(const godot::PackedStringArray &p_errors) {
+	std::string message;
+	for (int64_t index = 0; index < p_errors.size(); ++index) {
+		if (!message.empty()) {
+			message += "; ";
+		}
+		message += to_std_string(p_errors[index]);
+	}
+	return message;
+}
+
 void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> &r_environments) {
 	if (p_node == nullptr) {
 		return;
@@ -97,7 +116,7 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 						"step request agent IDs must be strings");
 			}
 
-			schola::AgentId agent_id = godot::String(agent_id_value).utf8().get_data();
+			schola::AgentId agent_id = to_std_string(godot::String(agent_id_value));
 			auto agent_definition = environment_definition.agents.find(agent_id);
 			if (agent_definition == environment_definition.agents.end()) {
 				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
@@ -140,8 +159,8 @@ schola::ResetRequest decode_reset_request(const godot::Dictionary &dict) {
 		if (entry.has("options")) {
 			godot::Dictionary options = entry["options"];
 			for (int j = 0; j < options.keys().size(); j++) {
-				std::string key = godot::String(options.keys()[j]).utf8().get_data();
-				std::string value = godot::String(options.values()[j]).utf8().get_data();
+				std::string key = to_std_string(godot::String(options.keys()[j]));
+				std::string value = to_std_string(godot::String(options.values()[j]));
 				settings.options[key] = value;
 			}
 		}
@@ -196,8 +215,7 @@ godot::Dictionary encode_step_result(const schola::StepResult &result) {
 	return encoded;
 }
 
-godot::Dictionary encode_result(const schola::Status &status,
-		const godot::Variant &value = godot::Variant()) {
+godot::Dictionary encode_result(const schola::Status &status, const godot::Variant &value = godot::Variant()) {
 	godot::Dictionary result;
 	result["status"] = encode_status(status);
 	result["value"] = value;
@@ -230,7 +248,8 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 	collect_environments(scene_root, discovered_environments);
 	if (discovered_environments.empty()) {
 		return schola::Status::error(schola::StatusCode::NOT_FOUND,
-				"current scene contains no ScholaEnvironment nodes");
+				"current scene " + describe_node(scene_root) +
+						" contains no ScholaEnvironment nodes; add at least one trainable environment to the scene");
 	}
 
 	std::vector<godot::ObjectID> discovered_ids;
@@ -240,21 +259,25 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 
 	for (size_t i = 0; i < discovered_environments.size(); ++i) {
 		ScholaEnvironment *environment_node = discovered_environments[i];
-		if (!environment_node->get_configuration_errors().is_empty()) {
+		const godot::PackedStringArray configuration_errors = environment_node->get_configuration_errors();
+		if (!configuration_errors.is_empty()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-					"a discovered ScholaEnvironment has configuration errors");
+					"ScholaEnvironment " + describe_node(environment_node) +
+							" has invalid configuration: " + join_configuration_errors(configuration_errors));
 		}
 
 		schola::Environment *environment = environment_node->get_environment();
 		if (environment == nullptr) {
 			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-					"a discovered ScholaEnvironment has no core environment adapter");
+					"ScholaEnvironment " + describe_node(environment_node) +
+							" has no core environment adapter; ensure it is inside the active scene tree");
 		}
 
 		int32_t step_limit = environment_node->get_max_episode_steps();
 		if (step_limit < 0) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-					"a discovered ScholaEnvironment has a negative step limit");
+					"ScholaEnvironment " + describe_node(environment_node) +
+							" has a negative max_episode_steps value");
 		}
 
 		discovered_ids.emplace_back(environment_node->get_instance_id());
@@ -295,6 +318,35 @@ schola::Status ScholaTrainingHost::require_main_thread() {
 			"ScholaTrainingHost operations must run on the Godot main thread");
 }
 
+schola::Status ScholaTrainingHost::validate_environment_nodes() const {
+	for (size_t index = 0; index < environment_ids.size(); ++index) {
+		godot::Object *object = godot::ObjectDB::get_instance(environment_ids[index]);
+		if (object == nullptr) {
+			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+					"ScholaEnvironment for environment " + std::to_string(index) +
+							" was freed during the active training session");
+		}
+		if (godot::Object::cast_to<ScholaEnvironment>(object) == nullptr) {
+			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+					"object for environment " + std::to_string(index) +
+							" is no longer a ScholaEnvironment");
+		}
+	}
+	return schola::Status::ok();
+}
+
+schola::Status ScholaTrainingHost::fail_session(const schola::Status &p_failure) {
+	(void)shutdown_core();
+	return p_failure;
+}
+
+schola::Status ScholaTrainingHost::handle_coordinator_result(const schola::Status &p_status) {
+	if (!p_status.is_ok() && coordinator.get_state() == schola::CoordinatorState::FAULTED) {
+		return fail_session(p_status);
+	}
+	return p_status;
+}
+
 schola::Status ScholaTrainingHost::shutdown_core() {
 	if (session_state == SessionState::CLOSED || session_state == SessionState::SHUTTING_DOWN) {
 		return schola::Status::ok();
@@ -328,6 +380,11 @@ godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
 		return encode_result(active);
 	}
 
+	schola::Status nodes = validate_environment_nodes();
+	if (!nodes.is_ok()) {
+		return encode_result(fail_session(nodes));
+	}
+
 	return encode_result(coordinator.set_autoreset_mode(
 			static_cast<schola::AutoResetMode>(p_mode)));
 }
@@ -343,8 +400,13 @@ godot::Dictionary ScholaTrainingHost::define() {
 		return encode_result(active);
 	}
 
+	schola::Status nodes = validate_environment_nodes();
+	if (!nodes.is_ok()) {
+		return encode_result(fail_session(nodes));
+	}
+
 	schola::TrainingDefinition definition;
-	schola::Status status = coordinator.define(definition);
+	schola::Status status = handle_coordinator_result(coordinator.define(definition));
 	if (!status.is_ok()) {
 		return encode_result(status);
 	}
@@ -364,8 +426,13 @@ godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) 
 		return encode_result(active);
 	}
 
+	schola::Status nodes = validate_environment_nodes();
+	if (!nodes.is_ok()) {
+		return encode_result(fail_session(nodes));
+	}
+
 	schola::InitialState state;
-	schola::Status status = coordinator.reset(decode_reset_request(p_request), state);
+	schola::Status status = handle_coordinator_result(coordinator.reset(decode_reset_request(p_request), state));
 	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
 }
 
@@ -380,6 +447,11 @@ godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 		return encode_result(active);
 	}
 
+	schola::Status nodes = validate_environment_nodes();
+	if (!nodes.is_ok()) {
+		return encode_result(fail_session(nodes));
+	}
+
 	if (!training_definition.has_value()) {
 		return encode_result(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"training session is not defined"));
@@ -392,7 +464,7 @@ godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 	}
 
 	schola::StepResult result;
-	status = coordinator.step(request, result);
+	status = handle_coordinator_result(coordinator.step(request, result));
 	return status.is_ok() ? encode_result(status, encode_step_result(result)) : encode_result(status);
 }
 

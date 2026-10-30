@@ -72,7 +72,7 @@ Deliverable: a runtime-owned lifecycle host with a Godot ABI boundary for the tr
 
 - [x] Discover top-level trainable environment nodes in deterministic scene-tree order.
 - [x] Reuse US5 configuration diagnostics rather than duplicating its validation rules.
-- [ ] Reject an empty environment set and any invalid environment configuration with an actionable status.
+- [x] Reject an empty environment set and any invalid environment configuration with an actionable status.
 - [x] Assign contiguous `EnvironmentId` values based on discovery order.
 - [x] Create one `EnvironmentLifecycle` per discovered US1 environment adapter.
 - [x] Store Godot `ObjectID` values only for non-owning identity checks; Godot retains node ownership.
@@ -88,7 +88,7 @@ Deliverable: atomic initialization of a fixed, ordered coordinator session.
 - [x] Cache the successful training definition for the fixed session and clear it on close.
 - [x] Preserve output arguments when an operation fails.
 - [x] Reject operations before initialization and after close with `FAILED_PRECONDITION`.
-- [ ] Treat a missing, freed, or failed environment node as a session failure; close the coordinator and return the original failure without attempting mid-session remapping.
+- [x] Treat a missing, freed, or failed environment node as a session failure; close the coordinator and return the original failure without attempting mid-session remapping.
 - [x] Make close idempotent and safe after partial initialization.
 
 Deliverable: complete US4 behavior behind the existing `TrainingBackend` operation set.
