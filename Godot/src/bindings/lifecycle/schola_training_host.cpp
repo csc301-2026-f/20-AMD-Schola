@@ -83,8 +83,7 @@ godot::Dictionary encode_training_definition(const schola::TrainingDefinition &d
 }
 
 schola::Status decode_step_request(const godot::Dictionary &dict,
-	schola::TrainingDefinition &definition, schola::StepRequest &r_request) {
-
+		schola::TrainingDefinition &definition, schola::StepRequest &r_request) {
 	if (!dict.has("actions") || dict["actions"].get_type() != godot::Variant::ARRAY) {
 		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
 				"step request actions must be an array");
@@ -226,9 +225,7 @@ godot::Dictionary encode_result(const schola::Status &status, const godot::Varia
 
 schola::Status ScholaTrainingHost::initialize_session_core() {
 	if (session_state != SessionState::CONFIGURING) {
-		const char *message = session_state == SessionState::ACTIVE ?
-				"training session is already initialized" :
-				"training session is shutting down or closed";
+		const char *message = session_state == SessionState::ACTIVE ? "training session is already initialized" : "training session is shutting down or closed";
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, message);
 	}
 
@@ -294,9 +291,7 @@ schola::Status ScholaTrainingHost::require_active_session() const {
 		return schola::Status::ok();
 	}
 
-	const char *message = session_state == SessionState::CONFIGURING ?
-			"training session is not initialized" :
-			"training session is shutting down or closed";
+	const char *message = session_state == SessionState::CONFIGURING ? "training session is not initialized" : "training session is shutting down or closed";
 	return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, message);
 }
 
