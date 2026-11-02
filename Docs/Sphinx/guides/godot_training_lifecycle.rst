@@ -47,10 +47,10 @@ and ``truncated`` when an external condition ends an otherwise unfinished
 episode. The lifecycle becomes complete only after every agent is terminated or
 truncated.
 
-US4 does not impose a maximum episode length. An environment that needs a time
-limit must count its own steps and report ``truncated`` when the limit is
-reached. The lifecycle keeps an episode step counter for coordination and
-diagnostics, but the counter never changes completion flags.
+The lifecycle host does not impose a maximum episode length. An environment
+that needs a time limit must count its own steps and report ``truncated`` when
+the limit is reached. The lifecycle keeps an episode step counter for
+coordination and diagnostics, but the counter never changes completion flags.
 
 Autoreset modes
 ---------------
@@ -74,21 +74,13 @@ an explicit reset are not reused for later automatic resets.
 Failure and shutdown behavior
 -----------------------------
 
-The session is atomic: failure in any environment or coordinator operation
-faults and closes the complete session. Schola does not continue with a smaller
-environment set because doing so would change the IDs observed by Python.
-``close()`` is idempotent and is safe after normal work, partial startup, or a
-previous failure.
+The session is atomic. A failure after an environment may have mutated faults
+and closes the complete session. Validation failures detected before environment
+execution return an error without publishing output. Schola does not continue
+with a smaller environment set because doing so would change the IDs observed
+by Python. ``close()`` is idempotent and is safe after normal work, partial
+startup, or a previous failure.
 
 All scene-tree access and environment callbacks run on Godot's main thread.
 Transport, gRPC scheduling, and graceful failure notification to Python belong
 to the training connector rather than the lifecycle host.
-
-Development status
-------------------
-
-The host and engine-independent lifecycle implementation are complete. Running
-the host integration suite requires the Godot environment adapter supplied by
-US1, including ``ScholaEnvironment::get_environment()``. Until that adapter is
-available, the host sources compile but the runtime extension and end-to-end
-host tests cannot be linked and executed.

@@ -16,7 +16,8 @@
 class ScholaEnvironment;
 
 /**
- * Godot-facing owner of one fixed training session.
+ * @class ScholaTrainingHost
+ * @brief Godot-facing owner of one fixed training session.
  *
  * The host discovers ScholaEnvironment descendants in scene-tree order and
  * assigns contiguous environment IDs for the lifetime of the session. It owns
@@ -33,19 +34,40 @@ class ScholaTrainingHost : public godot::Node {
 	GDCLASS(ScholaTrainingHost, godot::Node)
 
 public:
-	/** Discovers and validates the session's fixed environment set. */
+	/**
+	 * @brief Discovers and validates the session's fixed environment set.
+	 * @return A Godot result dictionary containing status and a null value.
+	 */
 	godot::Dictionary initialize_session();
-	/** Sets the AutoResetMode before define() initializes the environments. */
+	/**
+	 * @brief Sets the AutoResetMode before define() initializes the environments.
+	 * @param[in] p_mode Integer representation of the requested AutoResetMode.
+	 * @return A Godot result dictionary containing status and a null value.
+	 */
 	godot::Dictionary set_autoreset_mode(int64_t p_mode);
-	/** Initializes the environments and returns their ordered definitions. */
+	/**
+	 * @brief Initializes the environments and returns their ordered definitions.
+	 * @return A Godot result dictionary containing status and the training definition on success.
+	 */
 	godot::Dictionary define();
-	/** Resets every environment using optional settings keyed by environment ID. */
+	/**
+	 * @brief Resets every environment using optional settings keyed by environment ID.
+	 * @param[in] p_request Reset settings keyed by environment ID.
+	 * @return A Godot result dictionary containing status and initial states on success.
+	 */
 	godot::Dictionary reset(const godot::Dictionary &p_request);
-	/** Steps every environment using one agent-action dictionary per environment. */
+	/**
+	 * @brief Steps every environment using one agent-action dictionary per environment.
+	 * @param[in] p_request Ordered environment action dictionaries.
+	 * @return A Godot result dictionary containing status and the step result on success.
+	 */
 	godot::Dictionary step(const godot::Dictionary &p_request);
-	/** Idempotently closes the coordinator and training session. */
+	/**
+	 * @brief Idempotently closes the coordinator and training session.
+	 * @return A Godot result dictionary containing status and a null value.
+	 */
 	godot::Dictionary close();
-	/** Closes the session when the host leaves the scene tree. */
+	/** @brief Closes the session when the host leaves the scene tree. */
 	void _exit_tree() override;
 
 protected:
