@@ -16,7 +16,7 @@ ScholaInferenceStepper::~ScholaInferenceStepper() = default;
 
 void ScholaInferenceStepper::set_policy(const godot::Ref<ScholaOnnxPolicy> &p_policy) {
 	policy = p_policy;
-	stepper.reset();
+	(void)drop_stale_stepper("ScholaInferenceStepper.policy");
 	update_configuration_warnings();
 }
 
@@ -42,6 +42,7 @@ bool ScholaInferenceStepper::is_enabled() const {
 }
 
 godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
+	(void)drop_stale_stepper("ScholaInferenceStepper.add_agent");
 	godot::Error error = prepare(p_agent);
 	if (error != godot::OK) {
 		return error;
@@ -79,8 +80,9 @@ void ScholaInferenceStepper::reset_states() {
 }
 
 godot::Error ScholaInferenceStepper::step() {
-	if (stepper == nullptr) {
-		return godot::OK;
+	godot::Error error = drop_stale_stepper("ScholaInferenceStepper.step");
+	if (error != godot::OK || stepper == nullptr) {
+		return error;
 	}
 	schola::Status status = stepper->step();
 	if (!status.is_ok()) {
@@ -155,8 +157,19 @@ godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 			stepper.reset();
 			return report("ScholaInferenceStepper.add_agent", status);
 		}
+		stepper_policy = policy->get_policy();
 	}
 	return godot::OK;
+}
+
+godot::Error ScholaInferenceStepper::drop_stale_stepper(const godot::String &p_context) {
+	const schola::OnnxPolicy *current = policy.is_valid() ? policy->get_policy() : nullptr;
+	if (stepper == nullptr || current == stepper_policy) {
+		return godot::OK;
+	}
+	stepper.reset();
+	stepper_policy = nullptr;
+	return report(p_context + godot::String(": the policy was changed or reloaded, so its agents were removed; add them again"), godot::ERR_UNCONFIGURED);
 }
 
 godot::Error ScholaInferenceStepper::report(const godot::String &p_message, godot::Error p_error) {

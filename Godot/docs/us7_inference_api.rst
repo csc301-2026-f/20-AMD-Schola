@@ -262,6 +262,8 @@ Errors never stop the game:
   after the call.
 - :cpp:class:`ScholaInferenceStepper` runs on its own, so it also emits
   ``inference_failed(message)``. If one agent's ``_act()`` fails, the other agents still act.
+- If the stepper's policy is replaced or reloaded, the stepper removes its agents and reports an
+  error; add the agents again.
 - The Inspector shows a warning on a :cpp:class:`ScholaInferenceStepper` without a policy, with an
   empty ``model_path``, or with an agent path that is not a :cpp:class:`ScholaAgent`.
 

@@ -144,6 +144,41 @@ func test_stepper_keeps_a_state_per_agent() -> void:
 	assert_int(first.actions.size()).is_equal(4)
 
 
+func test_stepper_reports_a_reloaded_policy() -> void:
+	var messages: Array = []
+	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	assert_int(stepper.policy.load()).is_equal(OK)
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_str(messages[0]).contains("reloaded")
+	assert_int(agent.actions.size()).is_equal(0)
+
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(1)
+
+
+func test_stepper_reports_a_changed_policy() -> void:
+	var messages: Array = []
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	assert_int(stepper.add_agent(_agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0])))).is_equal(OK)
+
+	stepper.policy = _policy("box_scale.onnx")
+	assert_int(messages.size()).is_equal(1)
+	assert_str(messages[0]).starts_with("ScholaInferenceStepper.policy: ")
+
+
+
 func test_stepper_reports_errors_through_its_signal() -> void:
 	var messages: Array = []
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
