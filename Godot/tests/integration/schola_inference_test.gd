@@ -178,6 +178,20 @@ func test_stepper_reports_a_changed_policy() -> void:
 	assert_str(messages[0]).starts_with("ScholaInferenceStepper.policy: ")
 
 
+func test_stepper_forgets_a_freed_agent() -> void:
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	var kept := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var freed := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	assert_int(stepper.add_agent(kept)).is_equal(OK)
+	assert_int(stepper.add_agent(freed)).is_equal(OK)
+
+	freed.free()
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(kept.actions.size()).is_equal(1)
+
 
 func test_stepper_reports_errors_through_its_signal() -> void:
 	var messages: Array = []

@@ -9,6 +9,7 @@
 
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/callable_method_pointer.hpp>
 
 ScholaInferenceStepper::ScholaInferenceStepper() = default;
 
@@ -52,11 +53,22 @@ godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
 	if (!status.is_ok()) {
 		return report("ScholaInferenceStepper.add_agent", status);
 	}
+	const godot::Callable on_exiting = callable_mp(this, &ScholaInferenceStepper::on_agent_exiting).bind(p_agent);
+	if (!p_agent->is_connected("tree_exiting", on_exiting)) {
+		p_agent->connect("tree_exiting", on_exiting);
+	}
 	return godot::OK;
 }
 
 int32_t ScholaInferenceStepper::remove_agent(ScholaAgent *p_agent) {
-	if (stepper == nullptr || p_agent == nullptr) {
+	if (p_agent == nullptr) {
+		return 0;
+	}
+	const godot::Callable on_exiting = callable_mp(this, &ScholaInferenceStepper::on_agent_exiting).bind(p_agent);
+	if (p_agent->is_connected("tree_exiting", on_exiting)) {
+		p_agent->disconnect("tree_exiting", on_exiting);
+	}
+	if (stepper == nullptr) {
 		return 0;
 	}
 	return stepper->remove_agent(p_agent->get_agent());
@@ -170,6 +182,10 @@ godot::Error ScholaInferenceStepper::drop_stale_stepper(const godot::String &p_c
 	stepper.reset();
 	stepper_policy = nullptr;
 	return report(p_context + godot::String(": the policy was changed or reloaded, so its agents were removed; add them again"), godot::ERR_UNCONFIGURED);
+}
+
+void ScholaInferenceStepper::on_agent_exiting(godot::Object *p_agent) {
+	(void)remove_agent(godot::Object::cast_to<ScholaAgent>(p_agent));
 }
 
 godot::Error ScholaInferenceStepper::report(const godot::String &p_message, godot::Error p_error) {
