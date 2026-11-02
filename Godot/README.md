@@ -84,6 +84,13 @@ agent ID, which itself falls back to the node name. Resolution does not change t
 saved properties. The US1 adapter should use the resolved type when populating
 `InteractionDefinition::agent_type`; this resolver does not implement policy sharing.
 
+### Episode endings
+
+Schola does not impose a built-in episode step limit. The environment supplies
+termination and truncation results. Implement any desired time or step limit in
+your environment's `_is_truncated` hook. The hook is declared in the current native
+API, but its runtime binding and execution are not implemented on this branch yet.
+
 ### Editor and runtime monitor
 
 The **AMD Schola** editor plugin uses GDScript and works in standard Godot without .NET. It is enabled in this project. Reopen the project after updating, or enable it in **Project → Project Settings → Plugins**.

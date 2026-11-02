@@ -24,9 +24,7 @@ namespace schola {
 // legal.
 class EnvironmentLifecycle {
 public:
-	// An episode step limit of zero disables step-based truncation.
-	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment,
-			uint64_t p_episode_step_limit = 0);
+	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
 
 	EnvironmentLifecycle(const EnvironmentLifecycle &) = delete;
 	EnvironmentLifecycle &operator=(const EnvironmentLifecycle &) = delete;
@@ -52,9 +50,9 @@ public:
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
 	// Requires ACTIVE. Steps unfinished agents and captures an owned state
-	// snapshot. Each successful step increments the episode step count. On reaching
-	// a nonzero episode step limit, agents that are neither terminated nor truncated
-	// are reported as truncated. Physical effects may appear in a later observation
+	// snapshot. Each successful step increments the episode step count. Termination
+	// and truncation are supplied by the environment; the lifecycle imposes no step
+	// limit. Physical effects may appear in a later observation
 	// according to Godot's normal frame timing. The environment transitions to
 	// COMPLETE when every agent is terminated or truncated; otherwise it remains
 	// ACTIVE. Point contents are forwarded without an engine-side value scan; Python
@@ -73,7 +71,6 @@ private:
 	LifecycleState state = LifecycleState::UNINITIALIZED;
 	EnvironmentDefinition definition;
 	EnvironmentState last_state;
-	const uint64_t episode_step_limit;
 	uint64_t episode_step_count = 0;
 };
 

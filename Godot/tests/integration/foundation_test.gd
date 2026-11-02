@@ -36,19 +36,22 @@ func test_us5_agent_type_property_round_trips() -> void:
 
 func test_us5_core_configuration_properties_round_trip() -> void:
 	# confirms Inspector/GDScript property bindings preserve configured values
-	var environment := auto_free(ClassDB.instantiate("ScholaEnvironment") as Node)
 	var agent := auto_free(ClassDB.instantiate("ScholaAgent") as Node)
 
-	environment.set("max_episode_steps", 250)
 	agent.set("agent_id", "player_1")
 	agent.set("agent_type", "player")
 
-	assert_int(environment.get("max_episode_steps")).is_equal(250)
 	assert_str(agent.get("agent_id")).is_equal("player_1")
 	assert_str(agent.get("agent_type")).is_equal("player")
 
-	environment.set("max_episode_steps", -1)
-	assert_int(environment.get("max_episode_steps")).is_equal(-1)
+
+func test_environment_has_no_builtin_episode_step_limit() -> void:
+	var environment := auto_free(ClassDB.instantiate("ScholaEnvironment") as Node)
+
+	assert_bool(environment.has_method("set_max_episode_steps")).is_false()
+	assert_bool(environment.has_method("get_max_episode_steps")).is_false()
+	for property in environment.get_property_list():
+		assert_str(str(property.name)).is_not_equal("max_episode_steps")
 
 
 func test_agent_id_falls_back_to_current_node_name() -> void:

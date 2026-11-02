@@ -26,12 +26,6 @@ class ScholaEnvironment : public godot::Node {
 	GDCLASS(ScholaEnvironment, godot::Node)
 
 public:
-	// 0: no step limit
-	// positive: us4 truncates unfinished episode when it reaches this many steps
-	// negative: config error
-	void set_max_episode_steps(int32_t p_max_episode_steps);
-	int32_t get_max_episode_steps() const;
-
 	// === US1 Additions Below ===
 
 	// Step order, so the override order here makes sense:
@@ -83,8 +77,8 @@ public:
 	 *
 	 * In:   the agent in question.
 	 *
-	 * Does: called once per agent, same timing as _get_reward. A configured
-	 *       step limit applies on top of whatever this returns.
+	 * Does: called once per agent, same timing as _get_reward. Implement any
+	 *       episode step limit here; Schola does not impose one automatically.
 	 *
 	 * Out:  true if the episode was cut off externally for this agent.
 	 *       Defaults to false if left unoverridden.
@@ -132,8 +126,6 @@ protected:
 	static void _bind_methods();
 
 private:
-	int32_t max_episode_steps = 0;
-
 	// === US1 Addition Below ===
 
 	// signals, registered in _bind_methods:
