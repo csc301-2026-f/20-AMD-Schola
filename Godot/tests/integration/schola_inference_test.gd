@@ -68,6 +68,30 @@ func test_infer_needs_a_state_for_a_model_with_memory() -> void:
 	assert_str(policy.get_last_error()).contains("create_state()")
 
 
+func test_last_error_is_cleared_by_the_next_call() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.load()).is_equal(OK)
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+
+	assert_that(policy.infer(PackedFloat32Array([1.0]))).is_null()
+	assert_str(policy.get_last_error()).starts_with("ScholaOnnxPolicy.infer: ")
+	assert_that(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0]))).is_not_null()
+	assert_str(policy.get_last_error()).is_empty()
+
+
+func test_copy_from_reports_a_state_of_another_size() -> void:
+	var short_policy := _policy("counter.onnx")
+	var long_policy := _policy("counter_seq.onnx")
+	long_policy.max_state_sequence_length = 3
+	for policy in [short_policy, long_policy]:
+		assert_int(policy.load()).is_equal(OK)
+		assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
+	var state := short_policy.create_state()
+
+	assert_int(state.copy_from(long_policy.create_state())).is_equal(ERR_INVALID_PARAMETER)
+	assert_str(state.get_last_error()).starts_with("ScholaPolicyState.copy_from: ")
+
+
 func test_stepper_drives_its_agents_every_step() -> void:
 	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())

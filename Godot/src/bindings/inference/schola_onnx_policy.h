@@ -42,7 +42,7 @@ public:
 
 	godot::Error initialize(ScholaAgent *p_agent);
 	bool is_initialized() const;
-	godot::Ref<ScholaPolicyState> create_state() const;
+	godot::Ref<ScholaPolicyState> create_state();
 	godot::Variant infer(const godot::Variant &p_observation, const godot::Ref<ScholaPolicyState> &p_state = godot::Ref<ScholaPolicyState>());
 
 	schola::OnnxPolicy *get_policy() const;
@@ -51,8 +51,6 @@ protected:
 	static void _bind_methods();
 
 private:
-	void fail(const godot::String &p_message);
-
 	godot::String model_path;
 	int32_t max_state_sequence_length = 1;
 	godot::String last_error;

@@ -6,6 +6,7 @@
 
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <string>
 
@@ -33,4 +34,16 @@ inline godot::Error to_godot_error(const schola::Status &p_status) {
 
 inline godot::String to_godot_string(const std::string &p_text) {
 	return godot::String::utf8(p_text.c_str());
+}
+
+inline godot::Error report_failure(const godot::String &p_message, godot::Error p_error, godot::String *r_last_error = nullptr) {
+	if (r_last_error != nullptr) {
+		*r_last_error = p_message;
+	}
+	godot::UtilityFunctions::push_error(p_message);
+	return p_error;
+}
+
+inline godot::Error report_failure(const godot::String &p_context, const schola::Status &p_status, godot::String *r_last_error = nullptr) {
+	return report_failure(p_context + godot::String(": ") + to_godot_string(p_status.get_message()), to_godot_error(p_status), r_last_error);
 }
