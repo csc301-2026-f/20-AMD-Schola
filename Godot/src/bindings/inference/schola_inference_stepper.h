@@ -15,6 +15,7 @@
 
 namespace schola {
 class SimpleStepper;
+class Status;
 } // namespace schola
 
 class ScholaAgent;
@@ -37,7 +38,7 @@ public:
 	int32_t remove_agent(ScholaAgent *p_agent);
 	void reset_state(ScholaAgent *p_agent);
 	void reset_states();
-	bool step();
+	godot::Error step();
 
 	godot::PackedStringArray get_configuration_errors() const;
 	godot::PackedStringArray _get_configuration_warnings() const override;
@@ -49,7 +50,8 @@ protected:
 
 private:
 	godot::Error prepare(ScholaAgent *p_agent);
-	void report(const godot::String &p_message);
+	godot::Error report(const godot::String &p_message, godot::Error p_error);
+	godot::Error report(const godot::String &p_context, const schola::Status &p_status);
 
 	godot::Ref<ScholaOnnxPolicy> policy;
 	godot::TypedArray<godot::NodePath> agents;

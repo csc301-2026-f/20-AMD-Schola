@@ -9,7 +9,6 @@
 
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
 
 ScholaInferenceStepper::ScholaInferenceStepper() = default;
 
@@ -50,8 +49,7 @@ godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
 	int32_t index = -1;
 	schola::Status status = stepper->add_agent(p_agent->get_agent(), index);
 	if (!status.is_ok()) {
-		report(to_godot_string(status.get_message()));
-		return to_godot_error(status);
+		return report("ScholaInferenceStepper.add_agent", status);
 	}
 	return godot::OK;
 }
@@ -80,16 +78,15 @@ void ScholaInferenceStepper::reset_states() {
 	}
 }
 
-bool ScholaInferenceStepper::step() {
+godot::Error ScholaInferenceStepper::step() {
 	if (stepper == nullptr) {
-		return true;
+		return godot::OK;
 	}
 	schola::Status status = stepper->step();
 	if (!status.is_ok()) {
-		report(to_godot_string(status.get_message()));
-		return false;
+		return report("ScholaInferenceStepper.step", status);
 	}
-	return true;
+	return godot::OK;
 }
 
 godot::PackedStringArray ScholaInferenceStepper::get_configuration_errors() const {
@@ -123,7 +120,7 @@ void ScholaInferenceStepper::_ready() {
 		const godot::NodePath path = agents[i];
 		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(get_node_or_null(path));
 		if (agent == nullptr) {
-			report("ScholaInferenceStepper: '" + godot::String(path) + "' is not a ScholaAgent");
+			(void)report("ScholaInferenceStepper.agents: '" + godot::String(path) + "' is not a ScholaAgent", godot::ERR_INVALID_PARAMETER);
 			continue;
 		}
 		(void)add_agent(agent);
@@ -138,19 +135,17 @@ void ScholaInferenceStepper::_physics_process([[maybe_unused]] double p_delta) {
 
 godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 	if (p_agent == nullptr || p_agent->get_agent() == nullptr) {
-		report("ScholaInferenceStepper.add_agent: the agent must be a ScholaAgent inside the scene tree");
-		return godot::ERR_INVALID_PARAMETER;
+		return report("ScholaInferenceStepper.add_agent: the agent must be a ScholaAgent inside the scene tree", godot::ERR_INVALID_PARAMETER);
 	}
 	if (policy.is_null()) {
-		report("ScholaInferenceStepper: set a ScholaOnnxPolicy in the policy property");
-		return godot::ERR_UNCONFIGURED;
+		return report("ScholaInferenceStepper.add_agent: set a ScholaOnnxPolicy in the policy property", godot::ERR_UNCONFIGURED);
 	}
 	godot::Error error = policy->is_loaded() ? godot::OK : policy->load();
 	if (error == godot::OK && !policy->is_initialized()) {
 		error = policy->initialize(p_agent);
 	}
 	if (error != godot::OK) {
-		report("ScholaInferenceStepper: " + policy->get_last_error());
+		emit_signal("inference_failed", policy->get_last_error());
 		return error;
 	}
 	if (stepper == nullptr) {
@@ -158,16 +153,20 @@ godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 		schola::Status status = stepper->init({}, policy->get_policy());
 		if (!status.is_ok()) {
 			stepper.reset();
-			report(to_godot_string(status.get_message()));
-			return to_godot_error(status);
+			return report("ScholaInferenceStepper.add_agent", status);
 		}
 	}
 	return godot::OK;
 }
 
-void ScholaInferenceStepper::report(const godot::String &p_message) {
-	godot::UtilityFunctions::push_error(p_message);
+godot::Error ScholaInferenceStepper::report(const godot::String &p_message, godot::Error p_error) {
+	report_failure(p_message, p_error);
 	emit_signal("inference_failed", p_message);
+	return p_error;
+}
+
+godot::Error ScholaInferenceStepper::report(const godot::String &p_context, const schola::Status &p_status) {
+	return report(p_context + godot::String(": ") + to_godot_string(p_status.get_message()), to_godot_error(p_status));
 }
 
 void ScholaInferenceStepper::_bind_methods() {

@@ -253,10 +253,15 @@ Errors
 
 Errors never stop the game:
 
-- :cpp:class:`ScholaOnnxPolicy` methods return a Godot ``Error`` and print the reason with
-  ``push_error()``. ``get_last_error()`` returns the latest message.
-- :cpp:class:`ScholaInferenceStepper` prints the reason and emits ``inference_failed(message)``. If
-  one agent's ``_act()`` fails, the other agents still act.
+- Methods that can fail return a Godot ``Error``. ``infer()`` and ``create_state()`` return
+  ``null`` instead.
+- Every failure is printed with ``push_error()``, prefixed with the class and method, such as
+  ``ScholaOnnxPolicy.load: cannot read 'res://enemy.onnx'``.
+- :cpp:class:`ScholaOnnxPolicy` and :cpp:class:`ScholaPolicyState` keep the message of the last
+  failed call in ``get_last_error()``. Each call that can fail clears it first, so read it right
+  after the call.
+- :cpp:class:`ScholaInferenceStepper` runs on its own, so it also emits
+  ``inference_failed(message)``. If one agent's ``_act()`` fails, the other agents still act.
 - The Inspector shows a warning on a :cpp:class:`ScholaInferenceStepper` without a policy, with an
   empty ``model_path``, or with an agent path that is not a :cpp:class:`ScholaAgent`.
 
