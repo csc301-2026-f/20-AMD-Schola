@@ -177,8 +177,9 @@ number of each, and every state tensor must be float. Models without these tenso
 ``is_recurrent()`` returns false.
 
 Each agent's state starts at zero. Every successful inference reads the agent's state, and the model
-writes the new state into a separate pending entry that is committed only after the whole step
-succeeds. A failed step leaves the state unchanged.
+writes the new state into a separate pending entry that is committed only after that inference
+succeeds. A failed inference leaves that agent's state unchanged, but if a stepper fails partway
+through a step, the agents before the failing one keep their new state.
 
 If a state input has a dynamic sequence dimension right after the batch dimension, the state keeps
 a history of ``max_state_sequence_length`` entries. Each step drops the oldest entry and appends the
@@ -190,8 +191,9 @@ Call ``reset_state(agent)`` or ``reset_states()`` on the stepper, or ``reset()``
 
 .. note::
 
-    After ``load()`` replaces the model, states created for the previous model are rejected. Create
-    new states with ``create_state()``.
+    After ``load()``, states created for the previous model are still accepted if the new model's
+    state tensors have the same sizes, and rejected otherwise. Create new states with
+    ``create_state()`` after every reload.
 
 
 Policy State Lifecycle
