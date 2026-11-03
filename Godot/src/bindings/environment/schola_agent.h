@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "core/environment/agent.h"
+
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
@@ -10,9 +12,7 @@
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-namespace schola {
-class Agent;
-} // namespace schola
+#include <memory>
 
 class ScholaSpace;
 
@@ -108,4 +108,5 @@ private:
 	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
+	std::unique_ptr<schola::Agent> agent_adapter;
 };

@@ -88,8 +88,60 @@ saved properties. The US1 adapter should use the resolved type when populating
 
 Schola does not impose a built-in episode step limit. The environment supplies
 termination and truncation results. Implement any desired time or step limit in
-your environment's `_is_truncated` hook. The hook is declared in the current native
-API, but its runtime binding and execution are not implemented on this branch yet.
+your environment's `_get_step_result(agent)` hook by returning `truncated: true`.
+
+The native adapter calls `_act` for all acting agents, then `_observe` and
+`_get_step_result` for each agent in scene-tree order. The result hook returns a
+Dictionary with these fields:
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `reward` | Finite int or float within float32 range | Required |
+| `terminated` | bool: natural episode ending | `false` |
+| `truncated` | bool: user-defined external cutoff | `false` |
+| `info` | Dictionary of String/StringName keys and values | `{}` |
+
+Both flags may be true. Unknown fields, incorrect types, missing rewards, and
+nonfinite or overflowing rewards produce an error naming the agent. Values are
+not silently coerced. A missing hook is detected before any action runs. An
+invalid returned result is detected after actions have run, so the caller must
+end the training session; no partial result batch is published.
+
+```gdscript
+extends ScholaEnvironment
+
+@export var episode_length: int = 200 # A setting owned by this environment.
+
+func _reset_episode(_seed: Variant, _options: Dictionary) -> void:
+    # Restore your gameplay state here. The adapter resets its step counter.
+    pass
+
+func _get_step_result(agent: ScholaAgent) -> Dictionary:
+    return {
+        "reward": calculate_reward(agent), # Your gameplay reward function.
+        "terminated": reached_goal(agent), # Your gameplay ending condition.
+        "truncated": get_episode_step() + 1 >= episode_length,
+    }
+```
+
+`get_episode_step()` counts completed successful steps; add one when deciding
+whether the current step reaches your limit. Reset remains a separate optional
+`_reset_episode(seed, options)` hook: it returns no step result and awards no reward.
+Initial reset observations have empty `info`. The old `_get_reward`,
+`_is_terminated`, `_is_truncated`, and `_get_info` hooks are replaced by
+`_get_step_result`; they are no longer called.
+
+To exercise the C++ adapter through GdUnit4, build with the test-only driver enabled:
+
+```sh
+scons -C Godot platform=windows target=template_debug integration_tests=yes
+godot --headless --path Godot --import
+godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd
+```
+
+Use the platform appropriate to your machine. Normal builds omit the driver;
+the adapter suite is skipped when it is unavailable.
 
 ### Editor and runtime monitor
 

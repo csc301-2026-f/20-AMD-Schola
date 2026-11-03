@@ -15,112 +15,136 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <cstdint>
+#include <memory>
 
 namespace schola {
 class Environment;
 } // namespace schola
 
-// Godot-facing config node for one trainable environment.
-// Gameplay behaviour and lifecycle execution are supplied by US1/US4
+class GodotEnvironmentAdapter;
+
+/**
+ * Godot-facing config node for one trainable environment.
+ *
+ * Gameplay behaviour comes from the GDScript hooks below (US1), and the
+ * training lifecycle drives it through get_environment() (US4). The
+ * ScholaAgent nodes below this node are its agents.
+ *
+ * Each step runs in this order:
+ *   1. ScholaAgent::_act runs for every agent still in the episode.
+ *   2. ScholaAgent::_observe, then _get_step_result run for each of those
+ *      agents, in the same call.
+ *   3. Godot runs physics afterwards, so an action's effect may first appear
+ *      in the next step's observation.
+ *
+ * Signals, registered in _bind_methods():
+ * - episode_started: after _reset_episode, once observations are readable.
+ * - episode_ended: once every agent has terminated or truncated.
+ */
 class ScholaEnvironment : public godot::Node {
 	GDCLASS(ScholaEnvironment, godot::Node)
 
 public:
-	// === US1 Additions Below ===
+	/** Creates the node and its RNG, so get_rng() is never null. */
+	ScholaEnvironment();
 
-	// Step order, so the override order here makes sense:
-	//   1. ScholaAgent::_act runs for every agent still in the episode
-	//   2. ScholaAgent::_observe, then _get_reward, _is_terminated, _is_truncated
-	//      and _get_info run for each of those agents, in the same call
-	//   3. Godot runs physics afterwards, so an action's effect may first appear
-	//      in the next step's observation
+	/** Defined in the .cpp, where GodotEnvironmentAdapter is a complete type. */
+	~ScholaEnvironment() override;
+
+	// === US1 Additions Below ===
 
 	/**
 	 * Override in GDScript: return the scene to a start state.
 	 *
-	 * In:   p_seed, an int when a seed was supplied and null otherwise;
-	 *       p_options, free-form reset settings as a Dictionary.
+	 * Called once per reset. When seed is an int, seed get_rng() with it and
+	 * draw all episode randomness from there; that is what makes a run
+	 * reproducible. Optional: leaving it out resets nothing.
 	 *
-	 * Does: called once per reset. When p_seed is an int, seed get_rng()
-	 *       with it and draw all episode randomness from there; that is
-	 *       what makes a run reproducible.
-	 *
-	 * Out:  nothing.
+	 * @param seed An int when a seed was supplied, and null otherwise.
+	 * @param options Free-form reset settings as a Dictionary.
 	 */
 	GDVIRTUAL2(_reset_episode, godot::Variant, godot::Dictionary)
 
 	/**
-	 * Override in GDScript: reward for the step that just finished.
+	 * Override in GDScript: return this agent's result after _observe().
 	 *
-	 * In:   the agent this reward is for.
+	 * Required hook, called once per acting agent per step. Returns a Dictionary:
+	 * - reward: required finite int or float representable as a core float.
+	 * - terminated: bool, default false; a natural episode ending.
+	 * - truncated: bool, default false; a user-defined external cutoff.
+	 * - info: Dictionary of String/StringName keys and values, default empty.
+	 * Unknown fields and invalid types are errors. Both flags may be true.
+	 * Implement any desired step limit by returning truncated = true. During this
+	 * hook, get_episode_step() counts completed steps, so the current step is +1.
+	 * Reset stays separate and does not invoke this hook or award a reward.
 	 *
-	 * Does: called once per agent each step, following _observe().
-	 *
-	 * Out:  a reward value. No default; every environment must decide this.
+	 * @param agent The agent whose observation was just collected.
+	 * @return A result Dictionary. Variant return allows validation of wrong types
+	 *         without Godot silently coercing the result to a Dictionary.
 	 */
-	GDVIRTUAL1R(double, _get_reward, ScholaAgent *)
+	GDVIRTUAL1R(godot::Variant, _get_step_result, ScholaAgent *)
 
 	/**
-	 * Override in GDScript: did this agent reach a real end state?
-	 *
-	 * In:   the agent in question.
-	 *
-	 * Does: called once per agent, same timing as _get_reward.
-	 *
-	 * Out:  true if the episode ended on its own terms for this agent.
-	 *       Defaults to false if left unoverridden.
+	 * @return Steps completed since the last reset. During a step's hooks,
+	 *         the current step is not counted yet. 0 before the first reset.
 	 */
-	GDVIRTUAL1R(bool, _is_terminated, ScholaAgent *)
-
-	/**
-	 * Override in GDScript: was this agent cut off early?
-	 *
-	 * In:   the agent in question.
-	 *
-	 * Does: called once per agent, same timing as _get_reward. Implement any
-	 *       episode step limit here; Schola does not impose one automatically.
-	 *
-	 * Out:  true if the episode was cut off externally for this agent.
-	 *       Defaults to false if left unoverridden.
-	 */
-	GDVIRTUAL1R(bool, _is_truncated, ScholaAgent *)
-
-	/**
-	 * Override in GDScript: optional extra data passed through to Python.
-	 *
-	 * In:   the agent in question.
-	 *
-	 * Does: called once per agent, same timing as _get_reward.
-	 *
-	 * Out:  a Dictionary of String keys and String values.
-	 */
-	GDVIRTUAL1R(godot::Dictionary, _get_info, ScholaAgent *)
-
-	// Steps completed since the last reset.
 	int64_t get_episode_step() const;
 
-	// This environment's random source. Use it for every episode-level
-	// random choice; anything drawn from elsewhere ignores the seed and
-	// makes runs unreproducible.
+	/**
+	 * This environment's random source.
+	 *
+	 * Use it for every episode-level random choice; anything drawn from
+	 * elsewhere ignores the seed and makes runs unreproducible.
+	 *
+	 * @return The same RandomNumberGenerator on every call; never null.
+	 */
 	godot::Ref<godot::RandomNumberGenerator> get_rng() const;
 
 	// === End US1 Additions ===
 
-	// returns the ScholaAgent descendants under this environment (scene-tree order)
-	// descendant ScholaEnvironment nodes are config errors because they make ownership ambiguous
-	// 		-> separate environment nodes in a scene are valid, nested are not
+	/**
+	 * Finds this environment's agents.
+	 *
+	 * Separate environment nodes in one scene are valid. A nested
+	 * ScholaEnvironment is not searched, so its agents are never counted
+	 * twice.
+	 *
+	 * @return The ScholaAgent descendants of this node, in scene-tree order.
+	 */
 	godot::TypedArray<ScholaAgent> get_agents() const;
 
-	// returns the US1 core adapter while this node is in the scene tree
-	// (ScholaEnvironment is the godot wrapper, schola::Environment is abstraction owned by US1)
+	/**
+	 * The US1 core adapter for this node.
+	 *
+	 * ScholaEnvironment is the Godot wrapper; schola::Environment is the
+	 * engine-independent abstraction owned by US1. The adapter is created on
+	 * the first call and owned by this node.
+	 *
+	 * @return A non-owning pointer that stays valid for as long as this node
+	 *         exists, or null while the node is outside the scene tree.
+	 */
 	schola::Environment *get_environment();
+
+	/** Read-only version of get_environment(); returns the same adapter. */
 	const schola::Environment *get_environment() const;
 
-	// warnings/errors; empty when the inspector and scene-tree configuration is valid
+	/**
+	 * Checks the Inspector and scene-tree configuration.
+	 *
+	 * Reports a missing ScholaAgent and every
+	 * agent's own configuration errors, prefixed with its agent ID. Duplicate
+	 * agent IDs are reported by the adapter's initialize() instead.
+	 *
+	 * @return One message per problem; empty when the configuration is valid.
+	 */
 	godot::PackedStringArray get_configuration_errors() const;
-	// 		-> might return: no agents, dupe agent IDs, nested environment, etc
-	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
-	//		-> lets godot display config warning icon in editor inspector
+
+	/**
+	 * Godot hook that shows a warning icon on the node in the editor.
+	 *
+	 * @return The same messages as get_configuration_errors().
+	 */
+	godot::PackedStringArray _get_configuration_warnings() const override;
 
 protected:
 	static void _bind_methods();
@@ -128,9 +152,11 @@ protected:
 private:
 	// === US1 Addition Below ===
 
-	// signals, registered in _bind_methods:
-	// episode_started: after _reset_episode, once observations are readable.
-	// episode_ended: once every agent has terminated or truncated.
+	// Created with the node so get_rng() is never null.
+	godot::Ref<godot::RandomNumberGenerator> rng;
+
+	// The adapter behind get_environment(), created on the first call.
+	std::unique_ptr<GodotEnvironmentAdapter> environment_adapter;
 
 	// === End US1 Addition ===
 };
