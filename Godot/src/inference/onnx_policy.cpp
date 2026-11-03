@@ -274,14 +274,33 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 	return true;
 }
 
+Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p_values) {
+	for (size_t i = 0; i < p_values.size(); ++i) {
+		if (p_values[i] < 0 || p_values[i] >= p_binding.bounds[i]) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, p_binding.label("observation") + " value " + std::to_string(p_values[i]) + " is outside [0, " + std::to_string(p_binding.bounds[i]) + ")");
+		}
+	}
+	return Status::ok();
+}
+
 Status write_observation(Binding &r_binding, const Point &p_point) {
 	bool written = false;
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX) {
 		written = write_values(r_binding, box->values);
 	} else if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>(); discrete && r_binding.kind == SpaceKind::DISCRETE) {
+		Status status = check_observation(r_binding, { discrete->value });
+		if (!status.is_ok()) {
+			return status;
+		}
 		store(r_binding.element_type, r_binding.buffer, 0, discrete->value);
 		written = true;
 	} else if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>(); multi_discrete && r_binding.kind == SpaceKind::MULTI_DISCRETE) {
+		if (multi_discrete->values.size() == r_binding.bounds.size()) {
+			Status status = check_observation(r_binding, multi_discrete->values);
+			if (!status.is_ok()) {
+				return status;
+			}
+		}
 		written = write_values(r_binding, multi_discrete->values);
 	} else if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>(); multi_binary && r_binding.kind == SpaceKind::MULTI_BINARY) {
 		written = write_values(r_binding, multi_binary->values);

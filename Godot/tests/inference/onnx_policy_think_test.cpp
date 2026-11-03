@@ -196,6 +196,24 @@ TEST_CASE("think rejects a Discrete action outside its space", "[inference]") {
 	REQUIRE_THAT(status.get_message(), ContainsSubstring("returned 3 for action, outside [0, 2)"));
 }
 
+TEST_CASE("think rejects a Discrete observation outside its space", "[inference]") {
+	SECTION("Discrete") {
+		Space observation(DictSpace{ { { "b", Space(DiscreteSpace{ 5 }) }, { "a", box(2) } } });
+		Fixture fixture("dict_obs.onnx", definition(observation, box(3)));
+		DictPoint point{ { { "a", Point(BoxPoint{ { 1.0f, 2.0f } }) }, { "b", Point(DiscretePoint{ 5 }) } } };
+		Status status = fixture.think(Point(point));
+		REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+		REQUIRE_THAT(status.get_message(), ContainsSubstring("observation 'b' value 5 is outside [0, 5)"));
+	}
+	SECTION("MultiDiscrete") {
+		Space space(MultiDiscreteSpace{ { 4, 4 } });
+		Fixture fixture("multi_discrete.onnx", definition(space, space));
+		Status status = fixture.think(Point(MultiDiscretePoint{ { 3, 4 } }));
+		REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+		REQUIRE_THAT(status.get_message(), ContainsSubstring("observation value 4 is outside [0, 4)"));
+	}
+}
+
 TEST_CASE("batched_think advances every entry's own state", "[inference]") {
 	Fixture fixture("counter.onnx", definition(box(1), box(2)));
 	std::unique_ptr<PolicyState> second;
