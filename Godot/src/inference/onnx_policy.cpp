@@ -737,7 +737,7 @@ Status OnnxPolicy::create_initial_state(std::unique_ptr<PolicyState> &r_state) c
 	for (const StateLayout &state : impl->states) {
 		layouts.push_back({ impl->inputs[state.input_index].name, state.has_sequence ? impl->max_state_sequence_length : 1, state.state_size });
 	}
-	r_state = std::make_unique<OnnxPolicyState>(this, layouts);
+	r_state = std::make_unique<OnnxPolicyState>(layouts);
 	return Status::ok();
 }
 
@@ -749,7 +749,7 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 	OnnxPolicyState *state = nullptr;
 	if (is_recurrent()) {
 		state = dynamic_cast<OnnxPolicyState *>(&p_state);
-		if (state == nullptr || state->get_owner() != this) {
+		if (state == nullptr) {
 			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
 		}
 		const std::vector<OnnxPolicyState::Buffer> &buffers = state->get_buffers();

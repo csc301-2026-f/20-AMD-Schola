@@ -167,14 +167,12 @@ TEST_CASE("think slides a state sequence of the configured length", "[inference]
 	REQUIRE(fixture.policy.set_max_state_sequence_length(5).get_code() == StatusCode::FAILED_PRECONDITION);
 }
 
-TEST_CASE("think rejects a state from another policy", "[inference]") {
+TEST_CASE("think accepts any state that fits the model", "[inference]") {
 	Fixture first("counter.onnx", definition(box(1), box(2)));
 	Fixture second("counter.onnx", definition(box(1), box(2)));
 	const Point observation(BoxPoint{ { 0.0f } });
 
-	Status status = first.policy.think(observation, *second.state, first.action);
-	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
-	REQUIRE_THAT(status.get_message(), ContainsSubstring("not created by this policy"));
+	REQUIRE(first.policy.think(observation, *second.state, first.action).is_ok());
 
 	EmptyPolicyState empty;
 	REQUIRE(first.policy.think(observation, empty, first.action).get_code() == StatusCode::INVALID_ARGUMENT);

@@ -10,8 +10,6 @@
 
 namespace schola {
 
-class OnnxPolicy;
-
 class OnnxPolicyState final : public PolicyState {
 public:
 	struct Buffer {
@@ -30,19 +28,17 @@ public:
 		int64_t state_size = 0;
 	};
 
-	OnnxPolicyState(const OnnxPolicy *p_owner, const std::vector<BufferLayout> &p_layouts);
+	explicit OnnxPolicyState(const std::vector<BufferLayout> &p_layouts);
 
 	void reset() override;
 	Status copy_from(const PolicyState &p_other) override;
 	Status notify_state_update() override;
 	std::string to_string() const override;
 
-	const OnnxPolicy *get_owner() const;
 	std::vector<Buffer> &get_buffers();
 	const std::vector<Buffer> &get_buffers() const;
 
 private:
-	const OnnxPolicy *owner = nullptr;
 	std::vector<Buffer> buffers;
 };
 

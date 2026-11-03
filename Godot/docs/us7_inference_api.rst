@@ -268,8 +268,7 @@ Errors never stop the game:
   ``inference_failed(message)``. If one agent's ``_act()`` fails, the other agents still act.
 - If the stepper's ``policy`` is replaced, the stepper removes its agents and reports an error; add
   the agents again. If the policy is reloaded with ``load()``, every step fails until each agent is
-  removed and added again, as in Unreal Schola. An agent that leaves the scene tree is removed
-  automatically.
+  removed and added again. An agent that leaves the scene tree is removed automatically.
 - The Inspector shows a warning on a :cpp:class:`ScholaInferenceStepper` without a policy, with an
   empty ``model_path``, or with an agent path that is not a :cpp:class:`ScholaAgent`.
 
@@ -283,7 +282,7 @@ Errors never stop the game:
     * - ``ERR_INVALID_DATA``
       - The file is not a valid model, or the model does not fit the agent's spaces
     * - ``ERR_INVALID_PARAMETER``
-      - A value does not match its space, or a state belongs to another policy
+      - A value does not match its space, or a state does not fit the model
     * - ``ERR_UNCONFIGURED``
       - A required step was skipped, such as ``initialize()`` before ``infer()``
 
