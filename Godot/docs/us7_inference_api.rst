@@ -138,7 +138,6 @@ For a custom loop, such as a turn-based game, call the policy directly:
             var state: ScholaPolicyState
 
             func _ready() -> void:
-                policy.load()
                 policy.initialize($Enemy)
                 state = policy.create_state()
 
@@ -160,9 +159,12 @@ For a custom loop, such as a turn-based game, call the policy directly:
             schola::Point action = definition.action_space.make_point();
             policy.think(observation, *state, action);
 
-``initialize()`` reads the agent's spaces and checks that they fit the model. It must be called
-before ``create_state()`` and ``infer()``. For a model without memory, the ``state`` argument of
-``infer()`` can be omitted.
+``initialize()`` loads ``model_path`` if no model is loaded yet, reads the agent's spaces, and checks
+that they fit the model. It must be called before ``create_state()`` and ``infer()``. For a model
+without memory, the ``state`` argument of ``infer()`` can be omitted.
+
+Call ``load()`` earlier, for example during a loading screen, to avoid a pause when the first agent
+appears, or call it again to reload after changing ``model_path``.
 
 
 Recurrent ONNX Models
@@ -262,8 +264,10 @@ Errors never stop the game:
   after the call.
 - :cpp:class:`ScholaInferenceStepper` runs on its own, so it also emits
   ``inference_failed(message)``. If one agent's ``_act()`` fails, the other agents still act.
-- If the stepper's policy is replaced or reloaded, the stepper removes its agents and reports an
-  error; add the agents again. An agent that leaves the scene tree is removed automatically.
+- If the stepper's ``policy`` is replaced, the stepper removes its agents and reports an error; add
+  the agents again. If the policy is reloaded with ``load()``, every step fails until each agent is
+  removed and added again, as in Unreal Schola. An agent that leaves the scene tree is removed
+  automatically.
 - The Inspector shows a warning on a :cpp:class:`ScholaInferenceStepper` without a policy, with an
   empty ``model_path``, or with an agent path that is not a :cpp:class:`ScholaAgent`.
 

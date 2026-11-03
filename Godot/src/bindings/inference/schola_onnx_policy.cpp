@@ -50,7 +50,10 @@ int32_t ScholaOnnxPolicy::get_max_state_sequence_length() const {
 }
 
 godot::Error ScholaOnnxPolicy::load() {
-	policy.reset();
+	if (policy == nullptr) {
+		policy = std::make_unique<schola::OnnxPolicy>();
+	}
+	policy->unload_model();
 	definition.reset();
 	stateless_state.reset();
 	last_error = godot::String();
@@ -61,20 +64,18 @@ godot::Error ScholaOnnxPolicy::load() {
 		return report_failure("ScholaOnnxPolicy.load: cannot read '" + model_path + "'", error == godot::OK ? godot::ERR_FILE_CORRUPT : error, &last_error);
 	}
 
-	auto loaded = std::make_unique<schola::OnnxPolicy>();
-	schola::Status status = loaded->set_max_state_sequence_length(max_state_sequence_length);
+	schola::Status status = policy->set_max_state_sequence_length(max_state_sequence_length);
 	if (status.is_ok()) {
-		status = loaded->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
+		status = policy->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
 	}
 	if (!status.is_ok()) {
 		return report_failure("ScholaOnnxPolicy.load", status, &last_error);
 	}
-	policy = std::move(loaded);
 	return godot::OK;
 }
 
 bool ScholaOnnxPolicy::is_loaded() const {
-	return policy != nullptr;
+	return policy != nullptr && policy->is_loaded();
 }
 
 bool ScholaOnnxPolicy::is_recurrent() const {
@@ -95,8 +96,11 @@ godot::PackedStringArray ScholaOnnxPolicy::get_output_names() const {
 
 godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
 	last_error = godot::String();
-	if (policy == nullptr) {
-		return report_failure("ScholaOnnxPolicy.initialize: call load() first", godot::ERR_UNCONFIGURED, &last_error);
+	if (!is_loaded()) {
+		const godot::Error error = load();
+		if (error != godot::OK) {
+			return error;
+		}
 	}
 	schola::Agent *agent = p_agent == nullptr ? nullptr : p_agent->get_agent();
 	if (agent == nullptr) {
@@ -128,7 +132,7 @@ bool ScholaOnnxPolicy::is_initialized() const {
 godot::Ref<ScholaPolicyState> ScholaOnnxPolicy::create_state() {
 	last_error = godot::String();
 	if (!is_initialized()) {
-		report_failure("ScholaOnnxPolicy.create_state: call load() and initialize() first", godot::ERR_UNCONFIGURED, &last_error);
+		report_failure("ScholaOnnxPolicy.create_state: call initialize() first", godot::ERR_UNCONFIGURED, &last_error);
 		return godot::Ref<ScholaPolicyState>();
 	}
 	std::unique_ptr<schola::PolicyState> state;
@@ -146,7 +150,7 @@ godot::Ref<ScholaPolicyState> ScholaOnnxPolicy::create_state() {
 godot::Variant ScholaOnnxPolicy::infer(const godot::Variant &p_observation, const godot::Ref<ScholaPolicyState> &p_state) {
 	last_error = godot::String();
 	if (!is_initialized()) {
-		report_failure("ScholaOnnxPolicy.infer: call load() and initialize() first", godot::ERR_UNCONFIGURED, &last_error);
+		report_failure("ScholaOnnxPolicy.infer: call initialize() first", godot::ERR_UNCONFIGURED, &last_error);
 		return godot::Variant();
 	}
 	schola::PolicyState *state = p_state.is_valid() ? p_state->get_state() : stateless_state.get();

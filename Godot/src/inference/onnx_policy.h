@@ -18,6 +18,8 @@ public:
 	~OnnxPolicy() override;
 
 	Status load_model(const uint8_t *p_data, size_t p_size, const std::string &p_model_name);
+	void unload_model();
+	bool is_loaded() const;
 	Status set_max_state_sequence_length(int32_t p_length);
 	int32_t get_max_state_sequence_length() const;
 	const std::vector<std::string> &get_input_names() const;

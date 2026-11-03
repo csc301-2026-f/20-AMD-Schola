@@ -14,7 +14,6 @@
 #include <memory>
 
 namespace schola {
-class OnnxPolicy;
 class SimpleStepper;
 class Status;
 } // namespace schola
@@ -51,7 +50,6 @@ protected:
 
 private:
 	godot::Error prepare(ScholaAgent *p_agent);
-	godot::Error drop_stale_stepper(const godot::String &p_context);
 	void on_agent_exiting(godot::Object *p_agent);
 	godot::Error report(const godot::String &p_message, godot::Error p_error);
 	godot::Error report(const godot::String &p_context, const schola::Status &p_status);
@@ -60,5 +58,4 @@ private:
 	godot::TypedArray<godot::NodePath> agents;
 	bool enabled = true;
 	std::unique_ptr<schola::SimpleStepper> stepper;
-	const schola::OnnxPolicy *stepper_policy = nullptr;
 };

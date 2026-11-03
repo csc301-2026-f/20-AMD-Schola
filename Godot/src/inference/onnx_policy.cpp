@@ -822,6 +822,14 @@ bool OnnxPolicy::is_recurrent() const {
 	return !impl->states.empty();
 }
 
+void OnnxPolicy::unload_model() {
+	impl->clear_model();
+}
+
+bool OnnxPolicy::is_loaded() const {
+	return impl->session != nullptr;
+}
+
 bool OnnxPolicy::is_ready() const {
 	return impl->session != nullptr && impl->initialized;
 }

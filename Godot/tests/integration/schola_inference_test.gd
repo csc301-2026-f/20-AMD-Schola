@@ -38,6 +38,16 @@ func test_infer_runs_the_model_on_a_gdscript_value() -> void:
 	assert_array(_values(action)).contains_exactly([2.0, 4.0, 6.0])
 
 
+func test_initialize_loads_the_model_by_itself() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+	assert_bool(policy.is_loaded()).is_true()
+
+	var missing := _policy("does_not_exist.onnx")
+	assert_int(missing.initialize(_agent(3, 3, null))).is_equal(ERR_FILE_NOT_FOUND)
+	assert_str(missing.get_last_error()).starts_with("ScholaOnnxPolicy.load: ")
+
+
 func test_initialize_rejects_an_agent_whose_spaces_do_not_fit() -> void:
 	var policy := _policy("box_scale.onnx")
 	assert_int(policy.load()).is_equal(OK)
@@ -92,6 +102,20 @@ func test_copy_from_reports_a_state_of_another_size() -> void:
 	assert_str(state.get_last_error()).starts_with("ScholaPolicyState.copy_from: ")
 
 
+func test_reloading_keeps_the_policy_and_needs_initialize_again() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.load()).is_equal(OK)
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+
+	assert_int(policy.load()).is_equal(OK)
+	assert_bool(policy.is_loaded()).is_true()
+	assert_bool(policy.is_initialized()).is_false()
+
+	policy.model_path = FIXTURES + "does_not_exist.onnx"
+	assert_int(policy.load()).is_equal(ERR_FILE_NOT_FOUND)
+	assert_bool(policy.is_loaded()).is_false()
+
+
 func test_stepper_drives_its_agents_every_step() -> void:
 	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
@@ -144,7 +168,7 @@ func test_stepper_keeps_a_state_per_agent() -> void:
 	assert_int(first.actions.size()).is_equal(4)
 
 
-func test_stepper_reports_a_reloaded_policy() -> void:
+func test_stepper_fails_after_a_reload_until_its_agents_are_added_again() -> void:
 	var messages: Array = []
 	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
@@ -156,9 +180,11 @@ func test_stepper_reports_a_reloaded_policy() -> void:
 
 	assert_int(stepper.policy.load()).is_equal(OK)
 	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
-	assert_str(messages[0]).contains("reloaded")
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_int(messages.size()).is_equal(2)
 	assert_int(agent.actions.size()).is_equal(0)
 
+	assert_int(stepper.remove_agent(agent)).is_equal(1)
 	assert_int(stepper.add_agent(agent)).is_equal(OK)
 	assert_int(stepper.step()).is_equal(OK)
 	assert_int(agent.actions.size()).is_equal(1)
