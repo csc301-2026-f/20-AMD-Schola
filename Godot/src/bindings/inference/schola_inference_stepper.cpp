@@ -101,10 +101,16 @@ godot::Error ScholaInferenceStepper::step() {
 		return godot::OK;
 	}
 	schola::Status status = stepper->step();
-	if (!status.is_ok()) {
-		return report("ScholaInferenceStepper.step", status);
+	if (status.is_ok()) {
+		last_step_error = godot::String();
+		return godot::OK;
 	}
-	return godot::OK;
+	const godot::String message = godot::String("ScholaInferenceStepper.step: ") + to_godot_string(status.get_message());
+	if (message == last_step_error) {
+		return to_godot_error(status);
+	}
+	last_step_error = message;
+	return report(message, to_godot_error(status));
 }
 
 godot::PackedStringArray ScholaInferenceStepper::get_configuration_errors() const {

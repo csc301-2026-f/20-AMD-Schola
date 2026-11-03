@@ -58,4 +58,5 @@ private:
 	godot::TypedArray<godot::NodePath> agents;
 	bool enabled = true;
 	std::unique_ptr<schola::SimpleStepper> stepper;
+	godot::String last_step_error;
 };

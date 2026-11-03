@@ -181,7 +181,7 @@ func test_stepper_fails_after_a_reload_until_its_agents_are_added_again() -> voi
 	assert_int(stepper.policy.load()).is_equal(OK)
 	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
 	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
-	assert_int(messages.size()).is_equal(2)
+	assert_int(messages.size()).is_equal(1)
 	assert_int(agent.actions.size()).is_equal(0)
 
 	assert_int(stepper.remove_agent(agent)).is_equal(1)
