@@ -50,10 +50,10 @@ godot --headless --path Godot \
   --ignoreHeadlessMode -a res://tests/integration/training_host_test.gd
 ```
 
-The focused suite requires the US1 Godot environment adapter, including
-`ScholaEnvironment::get_environment()`. The host can compile before that
-adapter is available, but the runtime extension cannot link and the suite cannot
-run end to end.
+The focused suite runs against the native Godot environment adapter and covers
+multiple environments, episode completion, all three autoreset modes, session
+failure handling, and reset-request validation. Build both extensions before
+running the suite.
 
 CI runs the same suite headlessly against the supported Godot version.
 

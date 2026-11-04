@@ -7,6 +7,7 @@ const TestAgent := preload("res://tests/integration/support/us4_test_agent.gd")
 const TestEnvironment := preload("res://tests/integration/support/us4_test_environment.gd")
 
 const STATUS_OK := 0
+const STATUS_INVALID_ARGUMENT := 1
 const STATUS_NOT_FOUND := 2
 const STATUS_INVALID_DATA := 3
 const STATUS_FAILED_PRECONDITION := 5
@@ -15,11 +16,22 @@ const AUTORESET_SAME_STEP := 0
 const AUTORESET_NEXT_STEP := 1
 const AUTORESET_DISABLED := 2
 
+var _previous_scene: Node
+
+
+func before_test() -> void:
+	_previous_scene = get_tree().current_scene
+
+
+func after_test() -> void:
+	get_tree().current_scene = _previous_scene
+
 
 func _test_root() -> Node:
 	var root := auto_free(Node.new()) as Node
 	root.name = "US4TestRoot"
-	get_tree().current_scene.add_child(root)
+	get_tree().root.add_child(root)
+	get_tree().current_scene = root
 	return root
 
 
@@ -159,10 +171,51 @@ func test_partial_definition_failure_does_not_leave_a_usable_session() -> void:
 
 	var result := host.define()
 
-	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_str(_status_message(result)).contains("duplicate")
 	assert_object(result["value"]).is_null()
 	assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+
+
+func test_invalid_reset_requests_do_not_reset_any_environment() -> void:
+	var root := _test_root()
+	var first := _add_environment(root, "FirstEnvironment", "first") as TestEnvironment
+	var second := _add_environment(root, "SecondEnvironment", "second") as TestEnvironment
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var invalid_requests: Array[Dictionary] = [
+		{"0": {}}, {0.5: {}}, {true: {}}, {4294967296: {}}, {-1: {}}, {2: {}},
+		{0: "invalid settings"}, {0: {}, 1: {"seed": "42"}},
+		{0: {"seed": 1.5}}, {0: {"seed": null}},
+		{0: {"seed": 2147483648}}, {0: {"seed": -2147483649}},
+		{0: {"options": "invalid options"}},
+		{0: {"options": {1: "value"}}}, {0: {"options": {"key": 1}}},
+	]
+	for request in invalid_requests:
+		var result := host.reset(request)
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+		assert_object(result["value"]).is_null()
+		assert_int(first.reset_count).is_equal(0)
+		assert_int(second.reset_count).is_equal(0)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	assert_int(first.reset_count).is_equal(1)
+	assert_int(second.reset_count).is_equal(1)
+
+
+func test_reset_forwards_seed_boundaries_and_options() -> void:
+	var root := _test_root()
+	var environment := _add_environment(root, "Environment", "agent") as TestEnvironment
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	for seed in [-2147483648, 2147483647]:
+		var result := host.reset({0: {"seed": seed, "options": {"track": "hard"}}})
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_int(environment.last_seed).is_equal(seed)
+		assert_dict(environment.last_options).is_equal({"track": "hard"})
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	assert_object(environment.last_seed).is_null()
+	assert_dict(environment.last_options).is_empty()
 
 
 func test_multiple_environments_run_repeated_episodes_without_state_leakage() -> void:

@@ -13,6 +13,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -141,32 +142,60 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 	return schola::Status::ok();
 }
 
-schola::ResetRequest decode_reset_request(const godot::Dictionary &dict) {
+schola::Status decode_reset_request(const godot::Dictionary &dict, schola::ResetRequest &r_request) {
 	schola::ResetRequest request;
-
-	godot::Array keys = dict.keys();
-
-	for (int i = 0; i < keys.size(); ++i) {
-		int environment_id = keys[i];
-		godot::Dictionary entry = dict[environment_id];
+	const godot::Array keys = dict.keys();
+	for (int64_t i = 0; i < keys.size(); ++i) {
+		const godot::Variant key = keys[i];
+		if (key.get_type() != godot::Variant::INT) {
+			return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+					"reset environment IDs must be integers");
+		}
+		const int64_t environment_id = key;
+		if (environment_id < 0 || environment_id > std::numeric_limits<schola::EnvironmentId>::max()) {
+			return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+					"reset environment ID is outside the supported range");
+		}
+		if (dict[key].get_type() != godot::Variant::DICTIONARY) {
+			return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+					"reset settings for environment " + std::to_string(environment_id) + " must be a dictionary");
+		}
+		const godot::Dictionary entry = dict[key];
 		schola::ResetSettings settings;
 
 		if (entry.has("seed")) {
-			settings.seed = static_cast<int>(entry["seed"]);
+			const godot::Variant seed = entry["seed"];
+			if (seed.get_type() != godot::Variant::INT ||
+					static_cast<int64_t>(seed) < std::numeric_limits<int32_t>::min() ||
+					static_cast<int64_t>(seed) > std::numeric_limits<int32_t>::max()) {
+				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+						"reset seed must be a signed 32-bit integer");
+			}
+			settings.seed = static_cast<int32_t>(static_cast<int64_t>(seed));
 		}
 
 		if (entry.has("options")) {
-			godot::Dictionary options = entry["options"];
-			for (int j = 0; j < options.keys().size(); j++) {
-				std::string key = to_std_string(godot::String(options.keys()[j]));
-				std::string value = to_std_string(godot::String(options.values()[j]));
-				settings.options[key] = value;
+			if (entry["options"].get_type() != godot::Variant::DICTIONARY) {
+				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+						"reset options must be a dictionary of strings");
+			}
+			const godot::Dictionary options = entry["options"];
+			const godot::Array option_keys = options.keys();
+			for (int64_t j = 0; j < option_keys.size(); ++j) {
+				const godot::Variant option_key = option_keys[j];
+				const godot::Variant value = options[option_key];
+				if (option_key.get_type() != godot::Variant::STRING || value.get_type() != godot::Variant::STRING) {
+					return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+							"reset option keys and values must be strings");
+				}
+				settings.options.emplace(to_std_string(godot::String(option_key)), to_std_string(godot::String(value)));
 			}
 		}
 
-		request.environments[environment_id] = std::move(settings);
+		request.environments.emplace(static_cast<schola::EnvironmentId>(environment_id), std::move(settings));
 	}
-	return request;
+	r_request = std::move(request);
+	return schola::Status::ok();
 }
 
 godot::Dictionary encode_info(const std::map<std::string, std::string> &info) {
@@ -418,8 +447,14 @@ godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) 
 		return encode_result(fail_session(nodes));
 	}
 
+	schola::ResetRequest request;
+	schola::Status status = decode_reset_request(p_request, request);
+	if (!status.is_ok()) {
+		return encode_result(status);
+	}
+
 	schola::InitialState state;
-	schola::Status status = handle_coordinator_result(coordinator.reset(decode_reset_request(p_request), state));
+	status = handle_coordinator_result(coordinator.reset(request, state));
 	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
 }
 
