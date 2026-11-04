@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "core/environment/agent.h"
+
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
@@ -10,9 +12,7 @@
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-namespace schola {
-class Agent;
-} // namespace schola
+#include <memory>
 
 class ScholaSpace;
 
@@ -75,9 +75,10 @@ public:
 
 	// === End US1 Additions ===
 
-	// returns the US1 core adapter while this node is in the scene tree
+	// returns the US1 core adapter, created on the first call and owned by this node
 	// (ScholaAgent is the godot wrapper, schola::Agent is abstraction owned by US1)
 	// the adapter is the same whether or not a ScholaEnvironment registers this agent for training
+	// the pointer is non-owning and stays valid for as long as this node exists
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
@@ -97,4 +98,12 @@ private:
 	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
+
+	// === US1 Addition Below ===
+
+	// The GodotAgentAdapter behind get_agent(). Stored as the core type so this
+	// header doesn't need the adapter's definition.
+	std::unique_ptr<schola::Agent> agent_adapter;
+
+	// === End US1 Addition ===
 };

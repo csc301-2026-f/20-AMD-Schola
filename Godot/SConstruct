@@ -84,7 +84,7 @@ def build_extension(name, source_directories, addon_directory, configure=None):
 
 runtime_targets = build_extension(
     "schola",
-    ["src/core", "src/bindings", "src/inference", "src/runtime"],
+    ["src/core", "src/interop", "src/bindings", "src/inference", "src/runtime"],
     "schola",
     configure=use_onnxruntime,
 )

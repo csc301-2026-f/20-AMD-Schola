@@ -72,8 +72,9 @@ public:
 	const T *get_if() const;
 
 	// Checks that the definition itself is well-formed, recursing into Dict entries. Returns
-	// INVALID_DATA for a malformed definition, such as a non-positive dimension or size, mismatched
-	// Box bound sizes, a NaN bound, low > high, or a duplicate Dict key. The message identifies the
+	// INVALID_DATA for a malformed definition, such as a non-positive dimension or size, a Box with an
+	// unknown dtype or more than INT32_MAX elements, mismatched Box bound sizes, a NaN bound,
+	// low > high, or a duplicate Dict key. The message identifies the
 	// failing field and its Dict key path.
 	Status check_definition() const;
 	// Checks the complete point against this space without modifying, clipping, coercing, reordering,

@@ -4,10 +4,9 @@
 
 - **Date:** Oct 5, 2026
 - **Time:** 8:00 p.m.–8:30 p.m.
-- **Duration:** Approximately 30 minutes
 - **Location:** Zoom
-- **Meeting type:** TA Meeting 1
 - **Minutes prepared by:** Sanjay Ram
+- **Minutes source:** Meeting notes
 
 ## Attendees
 

@@ -1,53 +1,45 @@
-# Your Team Number and Name
+# Team 20: D2 Review and Retrospective
 
- > _Note:_ This document is meant to be written during (or shortly after) your review meeting, which should happen fairly close to the due date.      
- >      
- > _Suggestion:_ Have your review meeting a day or two before the due date. This way you will have some time to go over (and edit) this document, and all team members should have a chance to make their contribution.
+## What worked well
 
+### Stable contracts enabled parallel work
 
-## Iteration XX - Review & Retrospect
+Each user-story owner first contributed the interfaces needed by adjacent components. Shared abstractions such as `Agent`, `Environment`, `Policy`, `Space`, and `Status` let the team implement spaces, lifecycle coordination, connector behavior, and inference in parallel. When AMD's upstream policy-state design changed, the team updated the US7 boundary without redesigning unrelated modules.
 
- * When: FILL IN THE DATE WHEN YOU ACTUALLY HAD YOUR REVIEW MEETING
- * Where: PHYSICAL LOCATION AND/OR ONLINE
+### The shared foundation kept implementations consistent
 
-## Process - Reflection
+The initial Godot foundation established the SCons targets, dependency pins, runtime and training add-ons, Catch2 and GdUnit4 tests, and GitHub Actions checks. The development contract also fixed rules such as keeping the core independent from Godot and returning failures as `Status` values. These constraints made independently developed user stories fit into the same architecture.
 
+### A focused demo made integration problems visible
 
-#### Q1. What worked well
+The team built 1 small grid-world instead of several disconnected feature samples. Connecting environment definitions, training messages, episode resets, reward reporting, policy export, and local inference exposed integration issues that unit tests alone would not show. The demo also gave the team a concrete boundary between completed production code and temporary stand-ins.
 
-List **process-related** (i.e. team organization and how you work) decisions and actions that worked well.
+## What did not work well
 
+### Cross-story dependencies were resolved too late
 
- * 2 - 4 important decisions, processes, actions, or anything else that worked well for you, ordered from most to least important.
- * Give a supporting argument about what makes you think that way.
- * Feel free to refer/link to process artifact(s).
+Several implementations depended on types owned by other stories. The team merged contracts first, but concrete adapters and conversions arrived close to the demo deadline. This left insufficient time to connect every production component. The final D2 release uses native Godot environment and agent configuration, but retains GDScript stand-ins for the core environment adapter and episode lifecycle plus JSON over local TCP in place of the final gRPC adapter.
 
-#### Q2. What did not work well
+### The team optimized individual branches before the integrated product
 
-List **process-related** (i.e. team organization and how you work) decisions and actions that did not work well.
+Work progressed inside user-story branches, while the end-to-end path was assembled late. Components could pass their own tests without proving that a user could move from environment definition to training and inference. The release branch and focused demo corrected this for D2, but the team should have created that integration target earlier.
 
- * 2 - 4 important decisions, processes, actions, or anything else that did not work well for you, ordered from most to least important.
- * Give a supporting argument about what makes you think that way.
- * Feel free to refer/link to process artifact(s).
+### The architecture change consumed iteration time
 
+D1 used C# to prototype the Godot interface. After confirming the production requirements, the team moved to C++ GDExtensions for runtime performance, native ONNX integration, and packaging. The decision improved the production architecture but required the team to rebuild the foundation and replace parts of the original prototype during D2.
 
-#### Q3(a). Planned changes
+## Process changes for the next iteration
 
-List any **process-related** (i.e. team organization and/or how you work) changes you are planning to make (if there are any)
+- Maintain 1 integration branch and runnable example throughout the iteration, rather than assembling it near the deadline.
+- Merge shared dependencies before the features that consume them, with internal dates that leave time for integration testing.
+- Split implementations into reviewable increments and merge them once their tests pass.
+- Add a packaged-demo workflow early so every milestone can be tested from a clean machine without a developer checkout.
+- Record the production status of every demo component so temporary stand-ins are not mistaken for completed user stories.
 
- * Ordered from most to least important, with supporting argument explaining a change.
+## Demo review
 
-#### Q3(b). Integration & Next steps
-Briefly explain how you integrated the previously developed individuals components as one product (i.e. How did you split the work across your team) and how was the work integrated together.
+The team prepared the D2 presentation by rehearsing 1 complete grid-world workflow and keeping the controls, connection state, reward graph, and inference status visible in the scene. During the course Demo Day on October 22, 2026, the team showed the environment configuration, training exchange, episode progression, reward improvement, policy export, and ONNX inference running in Godot after the trainer closed.
 
- * Keep this very short (1-3 lines).
+The presentation used the integrated D2 prototype, not a claim that every production adapter was complete. At Demo Day, US2 space validation and US7 ONNX inference were represented by production C++ components, while the Godot-facing environment configuration, episode lifecycle, and training transport were identified as stand-ins. Before the final D2 release, the team replaced the environment and agent configuration with native US5 nodes. The US1 adapter, US4 host integration, and US3 gRPC transport remain incomplete; their production core components are implemented and tested separately where noted.
 
-
-## Product - Review
-
-#### Q4. How was your product demo?
- * How did you prepare your demo?
- * What did you manage to demo to your partner?
- * Did your partner accept the features? And were there change requests?
- * What were your learnings through this process? This can be either from a process and/or product perspective.
- * *This section will be marked very leniently so keep it brief and just make sure the points are addressed*
+The Demo Day presentation was accepted without a required redo. The team also showed its D2 progress to AMD, and the partner was satisfied with it. Earlier AMD feedback warned against over-engineering reward configuration and asked for a small end-to-end trained example; the grid-world and its compact reward model followed that direction. The main lesson was that a polished interface helps explain the workflow, but the team must label integration boundaries clearly and prioritize replacing stand-ins in the next iteration.
