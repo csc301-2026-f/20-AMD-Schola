@@ -1,14 +1,13 @@
-# AMD Schola Partner Kickoff Meeting
+# AMD Schola Partner Meeting 1
 
 ## Meeting details
 
 - **Date:** September 25, 2026
 - **Time:** 11:00 a.m.–12:00 p.m.
-- **Duration:** Approximately 41 minutes
 - **Location:** Microsoft Teams
-- **Meeting type:** Initial partner meeting and project-scoping discussion
 - **Minutes prepared by:** Shahyar Anfaz
-  
+- **Minutes source:** Meeting transcript
+
 ## Attendees
 
 ### AMD
@@ -117,16 +116,16 @@ The team asked whether the AMD representatives should be added to the CSC301 rep
 
 ## Action items
 
-| Owner | Action | Target date | Status |
-| --- | --- | --- | --- |
-| Alex | Create a Microsoft Teams group chat for the AMD representatives and student team. | After the meeting | Planned |
-| Student team | Select and document the partner liaison. | As soon as possible | Open |
-| Partner liaison | Contact Alex and arrange the recurring weekly one-hour partner meeting. | Before the next partner meeting | Open |
-| Student team | Propose the initial Godot architecture, including the boundary between core, training, communication, and inference modules. | Before the next partner meeting | Open |
-| Student team | Investigate Godot-native extension and API patterns and prototype any high-risk abstractions. | During initial planning | Open |
-| Student team | Define MVP user stories and acceptance criteria around environment definition, training, ONNX export, and Godot inference. | Before the next partner meeting | Open |
-| Student team | Create a plan for independently prototyping training communication and ONNX inference. | During initial planning | Open |
-| Student team and AMD | Review the proposed architecture and MVP. | Next partner meeting | Open |
+| Owner                | Action                                                                                                                       | Target date                     | Status  |
+|----------------------|------------------------------------------------------------------------------------------------------------------------------|---------------------------------|---------|
+| Alex                 | Create a Microsoft Teams group chat for the AMD representatives and student team.                                            | After the meeting               | Planned |
+| Student team         | Select and document the partner liaison.                                                                                     | As soon as possible             | Open    |
+| Partner liaison      | Contact Alex and arrange the recurring weekly one-hour partner meeting.                                                      | Before the next partner meeting | Open    |
+| Student team         | Propose the initial Godot architecture, including the boundary between core, training, communication, and inference modules. | Before the next partner meeting | Open    |
+| Student team         | Investigate Godot-native extension and API patterns and prototype any high-risk abstractions.                                | During initial planning         | Open    |
+| Student team         | Define MVP user stories and acceptance criteria around environment definition, training, ONNX export, and Godot inference.   | Before the next partner meeting | Open    |
+| Student team         | Create a plan for independently prototyping training communication and ONNX inference.                                       | During initial planning         | Open    |
+| Student team and AMD | Review the proposed architecture and MVP.                                                                                    | Next partner meeting            | Open    |
 
 ## Open questions for the next meeting
 
