@@ -10,7 +10,6 @@
 
 #include <chrono>
 #include <string>
-#include <thread>
 #include <vector>
 
 using namespace schola;
@@ -165,11 +164,10 @@ TEST_CASE("start is rejected while a session is already running", "[connector]")
 	CHECK(session.loop.is_running());
 }
 
-TEST_CASE("tick and poll_tick are rejected before start", "[connector]") {
+TEST_CASE("tick is rejected before start", "[connector]") {
 	ConnectorLoop loop;
 
 	CHECK(loop.tick(10ms).get_code() == StatusCode::FAILED_PRECONDITION);
-	CHECK(loop.poll_tick(10ms).get_code() == StatusCode::FAILED_PRECONDITION);
 }
 
 TEST_CASE("tick routes a reset to the backend and replies with its initial state", "[connector]") {
@@ -264,40 +262,6 @@ TEST_CASE("a disconnect ends the session without answering Python", "[connector]
 	CHECK(session.connector.close_count == 1);
 	CHECK(session.backend.close_count == 1);
 	CHECK_FALSE(session.loop.is_running());
-}
-
-TEST_CASE("poll_tick returns NOT_FOUND while waiting, then TIMEOUT after the limit", "[connector]") {
-	Session session;
-	REQUIRE(session.start().is_ok());
-
-	CHECK(session.loop.poll_tick(10s).get_code() == StatusCode::NOT_FOUND);
-	CHECK(session.loop.is_running());
-
-	std::this_thread::sleep_for(30ms);
-	CHECK(session.loop.poll_tick(10ms).get_code() == StatusCode::TIMEOUT);
-	REQUIRE(session.connector.failure.has_value());
-	CHECK(session.connector.failure->get_code() == StatusCode::TIMEOUT);
-	CHECK_FALSE(session.loop.is_running());
-}
-
-TEST_CASE("poll_tick with a zero timeout never times out", "[connector]") {
-	Session session;
-	REQUIRE(session.start().is_ok());
-	std::this_thread::sleep_for(5ms);
-
-	CHECK(session.loop.poll_tick(0ms).get_code() == StatusCode::NOT_FOUND);
-	CHECK(session.loop.is_running());
-}
-
-TEST_CASE("poll_tick runs an update as soon as it arrives", "[connector]") {
-	Session session;
-	session.connector.updates.push_back(step_update(3));
-	REQUIRE(session.start().is_ok());
-
-	REQUIRE(session.loop.poll_tick(10ms).is_ok());
-
-	CHECK(session.connector.step_replies.size() == 1);
-	CHECK(session.loop.is_running());
 }
 
 TEST_CASE("stop closes the backend and connector once and is safe to repeat", "[connector]") {
