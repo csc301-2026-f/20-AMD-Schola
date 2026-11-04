@@ -3,14 +3,18 @@
 extends EditorPlugin
 
 const Monitor = preload("res://addons/schola/ui/schola_monitor.gd")
+const SpaceInspector = preload("res://addons/schola/space_inspector.gd")
 const PREVIEW = "res://examples/ui_preview/main.tscn"
 var _dock: VBoxContainer
 var _capabilities: Label
 var _nodes: ItemList
 var _scene_nodes: Array[Node] = []
+var _space_inspector: EditorInspectorPlugin
 
 
 func _enter_tree() -> void:
+	_space_inspector = SpaceInspector.new()
+	add_inspector_plugin(_space_inspector)
 	_dock = VBoxContainer.new()
 	_dock.name = "Schola"
 	_dock.custom_minimum_size.x = 260
@@ -46,6 +50,8 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	remove_inspector_plugin(_space_inspector)
+	_space_inspector = null
 	remove_control_from_docks(_dock)
 	_dock.queue_free()
 

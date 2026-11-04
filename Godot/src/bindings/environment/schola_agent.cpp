@@ -3,15 +3,48 @@
 #include "bindings/environment/schola_agent.h"
 
 #include "bindings/environment/godot_agent_adapter.h"
+#include "bindings/environment/schola_environment.h"
 #include "bindings/spaces/schola_space.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
 #include <memory>
 
+ScholaAgent::~ScholaAgent() {
+	disconnect_space_signals();
+}
+
+void ScholaAgent::disconnect_space_signals() {
+	const godot::Callable callback = callable_mp(this, &ScholaAgent::refresh_configuration_warnings);
+	for (const godot::Ref<ScholaSpace> &space : { observation_space, action_space }) {
+		if (space.is_valid() && space->is_connected("changed", callback)) {
+			space->disconnect("changed", callback);
+		}
+	}
+}
+
+void ScholaAgent::connect_space_signals() {
+	const godot::Callable callback = callable_mp(this, &ScholaAgent::refresh_configuration_warnings);
+	for (const godot::Ref<ScholaSpace> &space : { observation_space, action_space }) {
+		if (space.is_valid() && !space->is_connected("changed", callback)) {
+			space->connect("changed", callback);
+		}
+	}
+}
+
+void ScholaAgent::refresh_configuration_warnings() {
+	update_configuration_warnings();
+	for (godot::Node *ancestor = get_parent(); ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (ScholaEnvironment *environment = godot::Object::cast_to<ScholaEnvironment>(ancestor)) {
+			environment->update_configuration_warnings();
+			break;
+		}
+	}
+}
+
 void ScholaAgent::set_agent_id(const godot::String &p_agent_id) {
 	agent_id = p_agent_id;
-	update_configuration_warnings();
+	refresh_configuration_warnings();
 }
 
 godot::String ScholaAgent::get_agent_id() const {
@@ -27,8 +60,10 @@ godot::String ScholaAgent::get_agent_type() const {
 }
 
 void ScholaAgent::set_observation_space(const godot::Ref<ScholaSpace> &p_observation_space) {
+	disconnect_space_signals();
 	observation_space = p_observation_space;
-	update_configuration_warnings();
+	connect_space_signals();
+	refresh_configuration_warnings();
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_observation_space() const {
@@ -36,8 +71,10 @@ godot::Ref<ScholaSpace> ScholaAgent::get_observation_space() const {
 }
 
 void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space) {
+	disconnect_space_signals();
 	action_space = p_action_space;
-	update_configuration_warnings();
+	connect_space_signals();
+	refresh_configuration_warnings();
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_action_space() const {

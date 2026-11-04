@@ -24,6 +24,8 @@ class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
 public:
+	~ScholaAgent() override;
+
 	// IDs must be unique within one environment
 	// empty agent_id : use the godot node name
 	// nonempty id : use configured value
@@ -102,6 +104,10 @@ protected:
 	static void _bind_methods();
 
 private:
+	void disconnect_space_signals();
+	void connect_space_signals();
+	void refresh_configuration_warnings();
+
 	// Stores the Inspector value; an empty ID means use this node's name
 	godot::String agent_id;
 	// Stores the Inspector value; an empty type means use the resolved agent ID
