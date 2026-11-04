@@ -84,9 +84,7 @@ public:
 	 *    _is_terminated, _is_truncated and _get_info.
 	 *
 	 * _get_reward must be overridden; the others default to false and an
-	 * empty Dictionary. The step limit belongs to US4, so max_episode_steps
-	 * is not applied here. Emits episode_ended once every agent has
-	 * finished.
+	 * empty Dictionary. Emits episode_ended once every agent has finished.
 	 *
 	 * @param p_actions One action per agent that should act this step, keyed
 	 *        by agent ID. A finished agent is left out, not an error.
