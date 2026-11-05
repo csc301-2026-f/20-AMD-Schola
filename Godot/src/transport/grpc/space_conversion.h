@@ -34,6 +34,9 @@ void point_to_proto(const Point &p_point, const Space &p_space, ::Schola::Point 
 /** Validates against p_space. INCOMPATIBLE for Text; INVALID_ARGUMENT if the point does not fit. */
 Status proto_to_point(const ::Schola::Point &p_message, const Space &p_space, Point &r_point);
 
+/** Decodes a point without space validation (Python validates training actions). */
+Status proto_to_point(const ::Schola::Point &p_message, Point &r_point);
+
 void interaction_definition_to_proto(const InteractionDefinition &p_definition, ::Schola::AgentDefinition &r_message);
 Status proto_to_interaction_definition(const ::Schola::AgentDefinition &p_message, InteractionDefinition &r_definition);
 
