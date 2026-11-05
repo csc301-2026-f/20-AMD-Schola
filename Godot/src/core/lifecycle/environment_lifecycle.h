@@ -11,65 +11,85 @@
 
 namespace schola {
 
-// Enforces legal state transitions for one non-owned environment. This is the
-// only US4 class that directly depends on the provisional US1 Environment API.
-// US1 must let this class initialize definitions, reset with settings, and step
-// the environment. Environment membership and definitions remain fixed after
-// initialize(). Output parameters remain unchanged whenever an operation returns
-// a non-OK Status. Validation and precondition failures detected before calling
-// the Environment leave the lifecycle state unchanged. Once an Environment call
-// begins, any non-OK Status transitions the lifecycle to FAULTED because the
-// caller cannot prove that the environment remained unchanged. A faulted
-// lifecycle rejects initialize(), reset(), and step(); only close() remains
-// legal.
+/**
+ * @class EnvironmentLifecycle
+ * @brief Coordinates one non-owned environment through its episode lifecycle.
+ *
+ * Environment membership and definitions remain fixed after initialize().
+ * Output parameters remain unchanged when an operation returns a non-OK Status.
+ * A validation failure detected before an Environment call leaves the lifecycle
+ * state unchanged; a failed Environment call transitions it to FAULTED because
+ * the caller cannot prove that the environment remained unchanged. A faulted
+ * lifecycle accepts only close().
+ *
+ * Termination and truncation are reported by the Environment. The lifecycle
+ * tracks successful steps but does not impose an episode-length limit.
+ */
 class EnvironmentLifecycle {
 public:
+	/**
+	 * @brief Creates a lifecycle with a stable ID and a non-owning environment reference.
+	 * @param[in] p_id Stable environment ID for this lifecycle.
+	 * @param[in] p_environment Environment that this lifecycle coordinates.
+	 */
 	EnvironmentLifecycle(EnvironmentId p_id, Environment &p_environment);
 
 	EnvironmentLifecycle(const EnvironmentLifecycle &) = delete;
 	EnvironmentLifecycle &operator=(const EnvironmentLifecycle &) = delete;
 
+	/** @return The stable environment ID assigned at construction. */
 	EnvironmentId get_id() const;
+	/** @return The lifecycle's current state. */
 	LifecycleState get_state() const;
+	/** @return The number of successful steps in the current episode. */
 	uint64_t get_episode_step_count() const;
+	/** @return The number of successfully started episodes. */
 	uint64_t get_episode_count() const;
 
-	// Valid after initialize() succeeds. The reference remains valid for the
-	// lifetime of this lifecycle.
+	/**
+	 * @brief Returns the fixed definition discovered by a successful initialize().
+	 * @return The environment definition, valid after initialize() succeeds.
+	 */
 	const EnvironmentDefinition &get_definition() const;
 
-	// Discovers the environment definition and transitions from UNINITIALIZED to
-	// RESET_PENDING. Initialization may succeed only once. An Environment failure
-	// transitions to FAULTED.
+	/**
+	 * @brief Discovers the environment definition and transitions from UNINITIALIZED to
+	 * RESET_PENDING. Initialization may succeed only once.
+	 * @return OK on success, or a failure describing the invalid state or environment error.
+	 */
 	Status initialize();
 
-	// A successful reset starts a new episode, resets the episode step count to
-	// zero, and transitions to ACTIVE. Reset is allowed from RESET_PENDING, ACTIVE,
-	// or COMPLETE, so an explicit request may interrupt an active episode. The
-	// output is changed only when the reset succeeds. The initial observation is
-	// forwarded without an engine-side value scan; Python owns observation-space
-	// validation. An Environment failure transitions to FAULTED.
-	// Reset must return exactly the declared agent IDs; malformed results fault
-	// the lifecycle without changing the output.
+	/**
+	 * @brief Starts a new episode and transitions to ACTIVE.
+	 *
+	 * Reset is allowed from RESET_PENDING, ACTIVE, or COMPLETE, so an explicit
+	 * request may interrupt an active episode. Success increments the episode
+	 * count and resets the step count to zero. The environment must return exactly
+	 * the declared agent IDs. The output changes only on success.
+	 * @param[in] p_settings Seed and options for this reset.
+	 * @param[out] r_initial_state Initial state for every declared agent.
+	 * @return OK on success, or a failure describing the invalid state, malformed output, or environment error.
+	 */
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
-	// Requires ACTIVE. Steps unfinished agents and captures an owned state
-	// snapshot. Each successful step increments the episode step count. Termination
-	// and truncation are supplied by the environment; the lifecycle imposes no step
-	// limit. Physical effects may appear in a later observation
-	// according to Godot's normal frame timing. The environment transitions to
-	// COMPLETE when every agent is terminated or truncated; otherwise it remains
-	// ACTIVE. Point contents are forwarded without an engine-side value scan; Python
-	// owns space validation. The output is changed only when the step succeeds. An
-	// Environment failure transitions to FAULTED.
-	// Actions must name exactly the unfinished declared agents. Invalid membership
-	// is rejected before calling the Environment. A successful Environment response
-	// must name exactly the agents that acted, or the lifecycle becomes FAULTED.
+	/**
+	 * @brief Steps every unfinished agent and captures an owned state snapshot.
+	 *
+	 * Requires ACTIVE. Actions must name exactly the unfinished declared agents,
+	 * and a successful response must name exactly the agents that acted. Each
+	 * successful call increments the step count. The lifecycle becomes COMPLETE
+	 * only when every agent is terminated or truncated by the environment.
+	 * Otherwise it remains ACTIVE. The output changes only on success.
+	 * @param[in] p_actions One action for every unfinished declared agent.
+	 * @param[out] r_state Latest state for every agent in the environment.
+	 * @return OK on success, or a failure describing invalid actions, malformed output, or an environment error.
+	 */
 	Status step(const std::map<AgentId, Point> &p_actions, EnvironmentState &r_state);
 
-	// Releases episode-local state and transitions to CLOSED from any state,
-	// including FAULTED. Closing an already closed lifecycle succeeds without
-	// further work.
+	/**
+	 * @brief Releases episode-local state and idempotently transitions to CLOSED.
+	 * @return OK after the lifecycle is closed.
+	 */
 	Status close();
 
 private:

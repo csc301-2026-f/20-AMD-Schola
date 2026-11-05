@@ -98,6 +98,7 @@ TEST_CASE("lifecycle leaves an episode active when the environment does not end 
 	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
 	CHECK_FALSE(state.agents.at(RUNNER).truncated);
 	CHECK_FALSE(state.agents.at(RUNNER).terminated);
+	CHECK(lifecycle.get_episode_step_count() == 3);
 }
 
 TEST_CASE("lifecycle surfaces a rejected action as a fault", "[lifecycle][environment]") {

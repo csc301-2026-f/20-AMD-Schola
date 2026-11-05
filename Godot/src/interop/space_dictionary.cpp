@@ -9,26 +9,10 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <cmath>
-#include <iterator>
 
 namespace schola {
 
 namespace {
-
-const char *DTYPE_NAMES[] = {
-	"float32",
-	"uint8",
-	"uint16",
-	"uint32",
-	"uint64",
-	"int8",
-	"int16",
-	"int32",
-	"int64",
-	"float16",
-	"float64",
-	"bool",
-};
 
 godot::Array bounds_to_array(const std::vector<float> &p_bounds) {
 	godot::Array result;
@@ -56,8 +40,7 @@ godot::Dictionary space_to_dictionary(const Space &p_space) {
 		result["low"] = bounds_to_array(box->low);
 		result["high"] = bounds_to_array(box->high);
 		result["shape"] = ints_to_array(box->shape);
-		const size_t dtype = static_cast<size_t>(box->dtype);
-		result["dtype"] = dtype < std::size(DTYPE_NAMES) ? DTYPE_NAMES[dtype] : "unknown";
+		result["dtype"] = dtype_name(box->dtype);
 	} else if (const DiscreteSpace *discrete = p_space.get_if<DiscreteSpace>()) {
 		result["type"] = "Discrete";
 		result["n"] = discrete->n;

@@ -383,6 +383,9 @@ TEST_CASE("autoreset uses default settings and supports repeated truncated episo
 	InitialState initial;
 	REQUIRE(session.coordinator.reset(request, initial).is_ok());
 	for (int episode = 0; episode < 3; ++episode) {
+		for (auto &environment : session.environments) {
+			environment.step_states.at("agent").truncated = true;
+		}
 		StepResult terminal;
 		REQUIRE(session.coordinator.step(session.actions(), terminal).is_ok());
 		CHECK(terminal.state.environments[0].agents.at("agent").truncated);

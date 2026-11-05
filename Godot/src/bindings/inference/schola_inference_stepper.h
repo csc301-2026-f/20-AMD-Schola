@@ -11,6 +11,12 @@
 #include <godot_cpp/variant/typed_array.hpp>
 
 #include <cstdint>
+#include <memory>
+
+namespace schola {
+class SimpleStepper;
+class Status;
+} // namespace schola
 
 class ScholaAgent;
 
@@ -18,6 +24,9 @@ class ScholaInferenceStepper : public godot::Node {
 	GDCLASS(ScholaInferenceStepper, godot::Node)
 
 public:
+	ScholaInferenceStepper();
+	~ScholaInferenceStepper() override;
+
 	void set_policy(const godot::Ref<ScholaOnnxPolicy> &p_policy);
 	godot::Ref<ScholaOnnxPolicy> get_policy() const;
 	void set_agents(const godot::TypedArray<godot::NodePath> &p_agents);
@@ -29,7 +38,7 @@ public:
 	int32_t remove_agent(ScholaAgent *p_agent);
 	void reset_state(ScholaAgent *p_agent);
 	void reset_states();
-	bool step();
+	godot::Error step();
 
 	godot::PackedStringArray get_configuration_errors() const;
 	godot::PackedStringArray _get_configuration_warnings() const override;
@@ -38,4 +47,17 @@ public:
 
 protected:
 	static void _bind_methods();
+
+private:
+	godot::Error prepare(ScholaAgent *p_agent);
+	void on_agent_exiting(godot::Object *p_agent);
+	godot::Error report(const godot::String &p_message, godot::Error p_error);
+	godot::Error report(const godot::String &p_context, const schola::Status &p_status);
+
+	godot::Ref<ScholaOnnxPolicy> policy;
+	godot::TypedArray<godot::NodePath> agents;
+	bool enabled = true;
+	bool stepping = false;
+	std::unique_ptr<schola::SimpleStepper> stepper;
+	godot::String last_step_error;
 };

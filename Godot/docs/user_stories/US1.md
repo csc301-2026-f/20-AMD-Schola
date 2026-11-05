@@ -1,8 +1,8 @@
 # US1: Define a reinforcement-learning environment
 
 - **Owner(s):** Isaac and Sanjay
-- **Status:** In progress
-- **Last updated:** Oct. 30, 2026
+- **Status:** Complete
+- **Last updated:** Nov. 4, 2026
 
 ## Story
 
@@ -19,7 +19,7 @@ As a Godot developer, I want to define a reinforcement-learning environment thro
 
 ## Progress
 
-- The adapters API and Godot bind hooks are complete. Developers can override hooks such as `observe`, `act`, and `define`.
-- The agent adapter is complete.
-- The environment adapter header is complete; its implementation remains.
-- After the environment adapter is implemented, the remaining work is end-to-end testing and cleanup.
+- The native agent and environment adapters are implemented and merged in #34.
+- GDScript hooks expose actions, observations, reset behavior, rewards, termination, truncation, and info without requiring environment code to manage transport.
+- Reset seeds and options reach environment scripts through the native adapter.
+- The passing Godot host integration suite exercises the adapters across multiple environments, repeated episodes, all three autoreset modes, and configuration failures.

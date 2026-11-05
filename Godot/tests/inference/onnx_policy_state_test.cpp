@@ -32,7 +32,7 @@ void write_pending(OnnxPolicyState &r_state, std::vector<float> p_values) {
 } // namespace
 
 TEST_CASE("a new state is zeroed and sized from its layouts", "[inference]") {
-	OnnxPolicyState state(nullptr, { { "state_in_h", 3, 2 }, { "state_in_c", 1, 4 } });
+	OnnxPolicyState state({ { "state_in_h", 3, 2 }, { "state_in_c", 1, 4 } });
 
 	REQUIRE(state.get_buffers().size() == 2);
 	REQUIRE(state.get_buffers()[0].values == std::vector<float>(8, 0.0f));
@@ -41,7 +41,7 @@ TEST_CASE("a new state is zeroed and sized from its layouts", "[inference]") {
 }
 
 TEST_CASE("without a sequence, notify_state_update replaces the state", "[inference]") {
-	OnnxPolicyState state(nullptr, { { "state_in_h", 1, 2 } });
+	OnnxPolicyState state({ { "state_in_h", 1, 2 } });
 	write_pending(state, { 1.0f, 2.0f });
 
 	REQUIRE(sequence_of(state.get_buffers()[0]) == std::vector<float>{ 0.0f, 0.0f });
@@ -50,7 +50,7 @@ TEST_CASE("without a sequence, notify_state_update replaces the state", "[infere
 }
 
 TEST_CASE("with a sequence, notify_state_update slides the window", "[inference]") {
-	OnnxPolicyState state(nullptr, { { "state_in_h", 3, 2 } });
+	OnnxPolicyState state({ { "state_in_h", 3, 2 } });
 
 	write_pending(state, { 1.0f, 1.0f });
 	REQUIRE(state.notify_state_update().is_ok());
@@ -68,7 +68,7 @@ TEST_CASE("with a sequence, notify_state_update slides the window", "[inference]
 }
 
 TEST_CASE("reset zeros the whole state", "[inference]") {
-	OnnxPolicyState state(nullptr, { { "state_in_h", 2, 2 } });
+	OnnxPolicyState state({ { "state_in_h", 2, 2 } });
 	write_pending(state, { 5.0f, 5.0f });
 	REQUIRE(state.notify_state_update().is_ok());
 
@@ -77,10 +77,10 @@ TEST_CASE("reset zeros the whole state", "[inference]") {
 }
 
 TEST_CASE("copy_from copies matching states in place", "[inference]") {
-	OnnxPolicyState source(nullptr, { { "state_in_h", 2, 2 } });
+	OnnxPolicyState source({ { "state_in_h", 2, 2 } });
 	write_pending(source, { 7.0f, 8.0f });
 	REQUIRE(source.notify_state_update().is_ok());
-	OnnxPolicyState target(nullptr, { { "state_in_h", 2, 2 } });
+	OnnxPolicyState target({ { "state_in_h", 2, 2 } });
 	const float *data_before = target.get_buffers()[0].values.data();
 
 	REQUIRE(target.copy_from(source).is_ok());
@@ -89,9 +89,9 @@ TEST_CASE("copy_from copies matching states in place", "[inference]") {
 }
 
 TEST_CASE("copy_from rejects a different state", "[inference]") {
-	OnnxPolicyState state(nullptr, { { "state_in_h", 2, 2 } });
+	OnnxPolicyState state({ { "state_in_h", 2, 2 } });
 
-	OnnxPolicyState other_size(nullptr, { { "state_in_h", 3, 2 } });
+	OnnxPolicyState other_size({ { "state_in_h", 3, 2 } });
 	REQUIRE(state.copy_from(other_size).get_code() == StatusCode::INVALID_ARGUMENT);
 
 	EmptyPolicyState empty;

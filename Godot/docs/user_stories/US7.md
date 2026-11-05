@@ -2,7 +2,7 @@
 
 - **Owner:** Bohdan
 - **Status:** In progress
-- **Last updated:** Oct. 30, 2026
+- **Last updated:** Nov. 4, 2026
 
 ## Story
 
@@ -21,7 +21,8 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 
 ## Progress
 
-- The core policy API, ONNX loading, per-agent recurrent state, and observe-infer-act loop are implemented and tested.
+- The core policy API, ONNX loading, per-agent recurrent state, and observe-infer-act loop are implemented and tested, including the automatic physics loop.
+- Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.
-- Remaining work includes completing and validating the packaged export workflow and confirming recurrent-model sequence-length behavior.
-- No new progress was discussed at the Oct. 30 partner meeting.
+- Windows debug and release exports run the policy without Python or the training add-on.
+- Remaining work includes a demonstration agent with learned behavior, exports on Linux and macOS, attention models from a real trainer, and reading the sequence length from model metadata.

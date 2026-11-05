@@ -20,9 +20,9 @@ public:
 	void set_spaces(const godot::Dictionary &p_spaces);
 	godot::Dictionary get_spaces() const;
 
-	// A Dict that contains itself yields an empty Box entry where the cycle closes
+	// A cycle yields an empty Box where it closes
 	schola::Space to_space() const override;
-	// Reports a non-String key, an entry without a ScholaSpace, or a Dict that contains itself
+	// Reports non-String keys, unassigned entries, and cycles
 	godot::String get_resource_error(const godot::String &p_path) const override;
 
 protected:
