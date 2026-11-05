@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 extends SceneTree
 ## Headless check of the D3 scene through the native training host, without Python.
 ##

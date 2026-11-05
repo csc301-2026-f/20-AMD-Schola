@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 @tool
 extends VBoxContainer
 ## Editor dock showing each Schola environment, its agents and their US2 space checks.

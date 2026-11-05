@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaHud
 extends CanvasLayer
 ## Compact in-game Schola panel: mode, controls, episode stats, reward history and log.

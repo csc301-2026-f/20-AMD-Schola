@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaParallelViewer
 extends Control
 ## One window for parallel training: starts python/train_parallel.py with the chosen number of

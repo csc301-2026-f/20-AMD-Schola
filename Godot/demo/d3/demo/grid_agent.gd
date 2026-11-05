@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 @tool
 @icon("res://addons/schola_d3/icons/schola_agent.svg")
 class_name GridAgent

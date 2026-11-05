@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaDemoRunner
 extends Node
 ## Hands control of the grid to the keyboard, the Python trainer or an ONNX policy. Every mode runs

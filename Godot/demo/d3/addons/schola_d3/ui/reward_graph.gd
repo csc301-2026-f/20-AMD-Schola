@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaRewardGraph
 extends Control
 ## Episode reward history with a rolling average.

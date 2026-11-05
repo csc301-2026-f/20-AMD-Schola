@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 """Classic synchronous parallel training for the Schola D3 demo.
 
 Starts N Godot instances of the D3 scene, each on its own port and its own CPU core, then runs

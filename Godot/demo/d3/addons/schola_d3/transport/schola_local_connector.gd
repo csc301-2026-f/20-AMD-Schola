@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaLocalConnector
 extends RefCounted
 ## Stand-in for US3's Connector (Godot/src/core/connector/connector.h): newline-delimited JSON

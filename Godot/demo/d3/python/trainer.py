@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 """Tabular Q-learning client for the Schola D3 demo, over one or more Godot instances.
 
 Talks to Godot's ScholaLocalConnector (the stand-in for US3) with newline-delimited JSON over

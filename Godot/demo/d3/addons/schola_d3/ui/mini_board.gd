@@ -1,3 +1,5 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
 class_name ScholaMiniBoard
 extends Control
 ## Draws one training instance's grid from the reports it sends to the parallel viewer.
