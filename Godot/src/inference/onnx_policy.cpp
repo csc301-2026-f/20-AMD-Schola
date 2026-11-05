@@ -769,7 +769,7 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 	if (is_recurrent()) {
 		state = dynamic_cast<OnnxPolicyState *>(&p_state);
 		if (state == nullptr) {
-			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
+			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state does not fit this model; create it with create_initial_state()");
 		}
 		const std::vector<OnnxPolicyState::Buffer> &buffers = state->get_buffers();
 		bool matches = buffers.size() == impl->states.size();
@@ -781,7 +781,7 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state no longer matches the model; create a new state after reloading");
 		}
 	} else if (dynamic_cast<EmptyPolicyState *>(&p_state) == nullptr) {
-		return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
+		return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state does not fit this model; create it with create_initial_state()");
 	}
 
 	for (Binding &binding : impl->observations) {
@@ -831,10 +831,6 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 		}
 	}
 	return state == nullptr ? Status::ok() : state->notify_state_update();
-}
-
-Status OnnxPolicy::batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) {
-	return Policy::batched_think(p_observations, p_states, r_actions);
 }
 
 bool OnnxPolicy::is_recurrent() const {

@@ -158,8 +158,8 @@ void ScholaInferenceStepper::_physics_process([[maybe_unused]] double p_delta) {
 }
 
 godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
-	if (p_agent == nullptr || p_agent->get_agent() == nullptr) {
-		return report("ScholaInferenceStepper.add_agent: the agent must be a ScholaAgent inside the scene tree", godot::ERR_INVALID_PARAMETER);
+	if (p_agent == nullptr) {
+		return report("ScholaInferenceStepper.add_agent: the agent must be a ScholaAgent", godot::ERR_INVALID_PARAMETER);
 	}
 	if (policy.is_null()) {
 		return report("ScholaInferenceStepper.add_agent: set a ScholaOnnxPolicy in the policy property", godot::ERR_UNCONFIGURED);

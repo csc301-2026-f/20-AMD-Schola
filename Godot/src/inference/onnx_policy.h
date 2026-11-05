@@ -28,7 +28,6 @@ public:
 	Status init(const InteractionDefinition &p_definition) override;
 	Status create_initial_state(std::unique_ptr<PolicyState> &r_state) const override;
 	Status think(const Point &p_observation, PolicyState &p_state, Point &r_action) override;
-	Status batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) override;
 	bool is_recurrent() const override;
 
 	bool is_ready() const;

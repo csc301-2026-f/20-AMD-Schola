@@ -29,7 +29,8 @@ godot::PackedStringArray to_godot_names(const std::vector<std::string> &p_names)
 
 } // namespace
 
-ScholaOnnxPolicy::ScholaOnnxPolicy() = default;
+ScholaOnnxPolicy::ScholaOnnxPolicy() :
+		policy(std::make_unique<schola::OnnxPolicy>()) {}
 
 ScholaOnnxPolicy::~ScholaOnnxPolicy() = default;
 
@@ -50,9 +51,6 @@ int32_t ScholaOnnxPolicy::get_max_state_sequence_length() const {
 }
 
 godot::Error ScholaOnnxPolicy::load() {
-	if (policy == nullptr) {
-		policy = std::make_unique<schola::OnnxPolicy>();
-	}
 	policy->unload_model();
 	definition.reset();
 	stateless_state.reset();
@@ -75,11 +73,11 @@ godot::Error ScholaOnnxPolicy::load() {
 }
 
 bool ScholaOnnxPolicy::is_loaded() const {
-	return policy != nullptr && policy->is_loaded();
+	return policy->is_loaded();
 }
 
 bool ScholaOnnxPolicy::is_recurrent() const {
-	return policy != nullptr && policy->is_recurrent();
+	return policy->is_recurrent();
 }
 
 godot::String ScholaOnnxPolicy::get_last_error() const {
@@ -87,11 +85,11 @@ godot::String ScholaOnnxPolicy::get_last_error() const {
 }
 
 godot::PackedStringArray ScholaOnnxPolicy::get_input_names() const {
-	return policy == nullptr ? godot::PackedStringArray() : to_godot_names(policy->get_input_names());
+	return to_godot_names(policy->get_input_names());
 }
 
 godot::PackedStringArray ScholaOnnxPolicy::get_output_names() const {
-	return policy == nullptr ? godot::PackedStringArray() : to_godot_names(policy->get_output_names());
+	return to_godot_names(policy->get_output_names());
 }
 
 godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
@@ -102,13 +100,12 @@ godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
 			return error;
 		}
 	}
-	schola::Agent *agent = p_agent == nullptr ? nullptr : p_agent->get_agent();
-	if (agent == nullptr) {
-		return report_failure("ScholaOnnxPolicy.initialize: the agent must be a ScholaAgent inside the scene tree", godot::ERR_INVALID_PARAMETER, &last_error);
+	if (p_agent == nullptr) {
+		return report_failure("ScholaOnnxPolicy.initialize: the agent must be a ScholaAgent", godot::ERR_INVALID_PARAMETER, &last_error);
 	}
 
 	auto agent_definition = std::make_unique<schola::InteractionDefinition>();
-	schola::Status status = agent->define(*agent_definition);
+	schola::Status status = p_agent->get_agent()->define(*agent_definition);
 	if (status.is_ok()) {
 		status = policy->init(*agent_definition);
 	}
