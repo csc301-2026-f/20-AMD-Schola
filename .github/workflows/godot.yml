@@ -95,7 +95,24 @@ jobs:
       - name: Verify dependency pins
         run: python Godot/tools/verify_dependency_pins.py
 
+      - name: Test prebuilt dependency installer
+        run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+
+      - name: Install committed gRPC and protobuf
+        run: python Godot/tools/setup_grpc.py
+
+      - name: Verify gRPC generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
+
+      - name: Cache ONNX Runtime
+        id: onnx-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: Godot/thirdparty/onnxruntime
+          key: onnxruntime-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Godot/dependencies.lock.json', 'Godot/tools/setup_onnxruntime.py') }}
+
       - name: Install ONNX Runtime
+        if: steps.onnx-cache.outputs.cache-hit != 'true'
         run: python Godot/tools/setup_onnxruntime.py
 
       - name: Identify compiler for build cache
@@ -160,17 +177,36 @@ jobs:
           name: godot-linux-debug
           path: Godot/addons
 
+      - name: Cache Godot download
+        id: godot-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: godot.zip
+          key: godot-linux-x86_64-4.7.2-cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+
       - name: Download Godot 4.7.2
+        if: steps.godot-cache.outputs.cache-hit != 'true'
         run: |
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
             --output godot.zip \
             https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+
+      - name: Verify and unpack Godot
+        run: |
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  godot.zip" \
             | sha256sum --check --strict
           unzip -q godot.zip
           chmod +x Godot_v4.7.2-stable_linux.x86_64
 
+      - name: Cache Godot test dependencies
+        id: gdunit-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: Godot/addons/gdUnit4
+          key: gdunit4-v1-${{ hashFiles('Godot/dependencies.lock.json', 'Godot/tools/setup_test_dependencies.py') }}
+
       - name: Install Godot test dependencies
+        if: steps.gdunit-cache.outputs.cache-hit != 'true'
         run: python Godot/tools/setup_test_dependencies.py
 
       - name: Import project resources

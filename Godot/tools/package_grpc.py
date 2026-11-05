@@ -24,22 +24,43 @@ def main():
     compiler = ["cl"] if system == "windows" else ["c++", "--version"]
     version = subprocess.run(compiler, capture_output=True, text=True)
     provenance = {
-        "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "source_commit": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip(),
         "runner_image": os.environ.get("ImageOS"),
         "runner_image_version": os.environ.get("ImageVersion"),
         "platform": platform.platform(),
         "compiler": (version.stdout + version.stderr).strip(),
-        "configuration_key": setup_grpc.cache_key(lock["grpc"], lock["protobuf"], system, machine),
-        "configuration": [str(value) for value in setup_grpc.configure_arguments(system, machine, Path("source"), Path("build"), Path("install"))],
+        "configuration_key": setup_grpc.cache_key(
+            lock["grpc"], lock["protobuf"], system, machine
+        ),
+        "configuration": [
+            str(value)
+            for value in setup_grpc.configure_arguments(
+                system, machine, Path("source"), Path("build"), Path("install")
+            )
+        ],
     }
     root = setup_grpc.INSTALL_DIRECTORY
-    (root / "build_provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
+    (root / "build_provenance.json").write_text(
+        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+    )
     arguments.output.mkdir(parents=True, exist_ok=True)
     name = f"{system}-{machine}"
     archive = Path(shutil.make_archive(str(arguments.output / name), "zip", root))
-    digest = hashlib.file_digest(archive.open("rb"), "sha256").hexdigest()
-    manifest = {"file": archive.name, "sha256": digest, "configuration_key": provenance["configuration_key"], "stamp": setup_grpc.expected_stamp(lock["grpc"], lock["protobuf"], system, machine)}
-    (arguments.output / f"{name}.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    with archive.open("rb") as source:
+        digest = hashlib.file_digest(source, "sha256").hexdigest()
+    manifest = {
+        "file": archive.name,
+        "sha256": digest,
+        "configuration_key": provenance["configuration_key"],
+        "stamp": setup_grpc.expected_stamp(
+            lock["grpc"], lock["protobuf"], system, machine
+        ),
+    }
+    (arguments.output / f"{name}.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
     print(f"Packaged {archive} ({archive.stat().st_size} bytes), sha256={digest}")
 
 
