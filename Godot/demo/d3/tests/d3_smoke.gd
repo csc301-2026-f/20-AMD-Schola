@@ -22,14 +22,59 @@ func _initialize() -> void:
 
 
 func _start() -> void:
+	var scene := _instantiate()
+	_run(scene)
+	_ok(_host.close(), "close")
+	scene.free()
+	_run_custom_map()
+	quit(1 if _failures > 0 else 0)
+
+
+## The main scene without its runner and HUD, using the scene's own map unless one is given.
+func _instantiate(map := {}) -> Node:
 	var scene := MAIN_SCENE.instantiate()
 	# The demo's own runner opens a host session, and an environment joins only one session.
 	for node_name in ["Runner", "HUD"]:
 		scene.get_node(node_name).free()
+	(scene.get_node(ENVIRONMENT_PATH) as GridEnvironment).use_saved_map = false
 	root.add_child(scene)
 	current_scene = scene
-	_run(scene)
-	quit(1 if _failures > 0 else 0)
+	if not map.is_empty():
+		var environment := scene.get_node(ENVIRONMENT_PATH) as GridEnvironment
+		environment.arena.apply_map(map)
+		environment._update_observation_space()
+	return scene
+
+
+func _run_custom_map() -> void:
+	_expect(GridArena.validate_map({"size": [2, 6], "goal": [0, 0], "hazards": []}) != "", "a 2-wide map is rejected")
+	_expect(GridArena.validate_map({"size": [4, 4], "goal": [1, 1], "hazards": [[1, 1]]}) != "", "a hazard on the goal is rejected")
+	_expect(GridArena.validate_map({"size": [4, 4], "goal": [4, 0], "hazards": []}) != "", "a goal outside the grid is rejected")
+
+	var map := {"size": [4, 4], "goal": [3, 0], "hazards": [[1, 3]]}
+	_expect(GridArena.validate_map(map) == "", "a 4x4 map is valid")
+	var scene := _instantiate(map)
+	var environment := scene.get_node(ENVIRONMENT_PATH) as GridEnvironment
+	var agent: ScholaAgent = environment.get_agents()[0]
+	_expect(agent.observation_space.high == PackedFloat32Array([3, 3, 3, 3]), "observation bounds follow the 4x4 map: %s" % agent.observation_space.high)
+	_expect(environment.get_map_summary().begins_with("4×4 · 1 hazard"), "map summary: %s" % environment.get_map_summary())
+
+	_host = ScholaTrainingHost.new()
+	scene.add_child(_host)
+	if not _ok(_host.initialize_session(), "custom map initialize_session") or not _ok(_host.set_autoreset_mode(AUTORESET_DISABLED), "custom map autoreset"):
+		return
+	var defined := _host.define()
+	if not _ok(defined, "custom map define"):
+		return
+	_expect(defined.value.environments[0].agents[_agent_id].observation_space.high == [3.0, 3.0, 3.0, 3.0], "the host definition carries the 4x4 bounds")
+	environment.random_start = false
+	environment.start_cell = Vector2i(0, 3)
+	var start: Variant = _reset(null)
+	_expect(start == PackedFloat32Array([0, 3, 3, -3]), "custom map start observation %s" % start)
+	var last := _step(RIGHT)
+	_expect(last.get("terminated") == true and last.info.outcome == "failure", "the custom hazard at (1, 3) ends the episode")
+	_ok(_host.close(), "custom map close")
+	scene.free()
 
 
 func _run(scene: Node) -> void:
@@ -81,7 +126,6 @@ func _run(scene: Node) -> void:
 	_expect(last.get("truncated") == true and last.get("terminated") == false and last.info.outcome == "timeout", "step 40 truncates with timeout")
 
 	_check_policy(environment, agents[0])
-	_ok(_host.close(), "close")
 
 
 func _check_policy(environment: GridEnvironment, agent: ScholaAgent) -> void:

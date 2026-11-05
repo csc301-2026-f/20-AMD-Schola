@@ -14,6 +14,7 @@ const MODE_TEXT := {
 	ScholaDemoRunner.Mode.STOPPING: ["STOPPING", "Trainer is saving its policy", Color(0.78, 0.56, 0.16)],
 	ScholaDemoRunner.Mode.POLICY: ["INFERENCE", "ONNX policy controls the agent", Color(0.56, 0.32, 0.86)],
 	ScholaDemoRunner.Mode.CLOSED: ["CLOSED", "Host session closed; reload the scene", Color(0.75, 0.22, 0.22)],
+	ScholaDemoRunner.Mode.EDITING: ["EDITING", "Click: hazard · right click: goal", Color(0.16, 0.6, 0.6)],
 }
 const OUTCOME_COLORS := {
 	"running": Color(0.8, 0.8, 0.8),
@@ -32,6 +33,10 @@ var _start_button: Button
 var _stop_button: Button
 var _load_onnx_button: Button
 var _parallel_button: Button
+var _map_label: Label
+var _map_edit_button: Button
+var _map_editor: VBoxContainer
+var _map_status: Label
 var _speed_label: Label
 var _stats := {}
 var _graph: ScholaRewardGraph
@@ -109,6 +114,7 @@ func _build() -> void:
 	speed.add_child(slider)
 	box.add_child(speed)
 	_on_speed_changed(slider.value)
+	_build_map_section(box)
 
 	box.add_child(HSeparator.new())
 	var stats := GridContainer.new()
@@ -152,6 +158,78 @@ func _build() -> void:
 		_parallel_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		footer.add_child(_parallel_button)
 	box.add_child(footer)
+
+
+# Map editing is offered when the environment implements the GridEnvironment map methods.
+func _build_map_section(box: VBoxContainer) -> void:
+	var environment := runner.environment
+	if not environment.has_method("get_map_summary"):
+		return
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 4)
+	var title := _muted_label("Map")
+	title.custom_minimum_size.x = 40
+	row.add_child(title)
+	_map_label = Label.new()
+	_map_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	row.add_child(_map_label)
+	_map_edit_button = _button("Edit map", _begin_map_edit)
+	row.add_child(_map_edit_button)
+	box.add_child(row)
+
+	_map_editor = VBoxContainer.new()
+	_map_editor.visible = false
+	_map_editor.add_theme_constant_override("separation", 4)
+	var size_row := HBoxContainer.new()
+	size_row.add_theme_constant_override("separation", 4)
+	var size_label := _muted_label("Size")
+	size_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	size_row.add_child(size_label)
+	for change in [["W −", -1, 0], ["W +", 1, 0], ["H −", 0, -1], ["H +", 0, 1]]:
+		size_row.add_child(_button(change[0], func(): environment.call("resize_map", change[1], change[2])))
+	_map_editor.add_child(size_row)
+	var edit_row := HBoxContainer.new()
+	edit_row.add_theme_constant_override("separation", 4)
+	var save := _button("Save", _save_map)
+	var cancel := _button("Cancel", func(): get_tree().reload_current_scene())
+	for button in [_button("Random", func(): environment.call("randomize_map")), _button("Default", func(): environment.call("restore_default_map")), save, cancel]:
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		edit_row.add_child(button)
+	_map_editor.add_child(edit_row)
+	_map_status = _muted_label("Saving reloads the scene; retrain for the new map.")
+	_map_status.add_theme_font_size_override("font_size", 10)
+	_map_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_map_editor.add_child(_map_status)
+	box.add_child(_map_editor)
+
+	var arena: Node = environment.get_node_or_null("Arena")
+	if arena != null and arena.has_signal("map_changed"):
+		arena.map_changed.connect(_refresh_map)
+	_refresh_map()
+
+
+func _refresh_map() -> void:
+	var environment := runner.environment
+	_map_label.text = environment.call("get_map_summary")
+	if not bool(environment.call("is_default_map")):
+		_map_label.text += " · custom"
+
+
+func _begin_map_edit() -> void:
+	if runner.begin_map_edit():
+		runner.environment.call("set_map_editing", true)
+		_map_editor.visible = true
+		_map_edit_button.disabled = true
+
+
+func _save_map() -> void:
+	var error: String = runner.environment.call("save_map")
+	if error != "":
+		_map_status.text = "Cannot save: " + error
+		_map_status.add_theme_color_override("font_color", OUTCOME_COLORS.failure)
+		return
+	get_tree().reload_current_scene()
 
 
 ## The compact panel theme, shared with the parallel viewer.
@@ -219,6 +297,9 @@ func _on_mode_changed(mode: ScholaDemoRunner.Mode) -> void:
 	var idle := mode in [ScholaDemoRunner.Mode.MANUAL, ScholaDemoRunner.Mode.POLICY]
 	_start_button.disabled = not idle
 	_load_onnx_button.disabled = not idle
+	_stop_button.disabled = mode == ScholaDemoRunner.Mode.EDITING
+	if _map_edit_button != null:
+		_map_edit_button.disabled = not idle
 	if _parallel_button != null:
 		_parallel_button.disabled = not idle
 	_stop_button.text = "Reload" if mode == ScholaDemoRunner.Mode.CLOSED else "Stop"

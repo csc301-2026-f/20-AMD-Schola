@@ -14,7 +14,7 @@ signal episode_started(episode: int)
 signal step_completed(state: Dictionary)
 signal episode_finished(outcome: String, total_reward: float)
 
-enum Mode { MANUAL, WAITING, TRAINING, STOPPING, POLICY, CLOSED }
+enum Mode { MANUAL, WAITING, TRAINING, STOPPING, POLICY, CLOSED, EDITING }
 
 const FRAME_WAIT_BUDGET_USEC := 10000
 const GROUP := "schola_demo_runner"
@@ -197,10 +197,26 @@ func load_onnx_policy() -> void:
 	if _policy_state == null:
 		_log("could not create a policy state: %s" % policy.get_last_error(), true)
 		return
+	if environment.has_method("check_policy_map"):
+		var warning: String = environment.call("check_policy_map", policy.model_path)
+		if warning != "":
+			_log(warning, true)
 	policy_source = "ONNX policy"
 	_set_mode(Mode.POLICY)
 	_reset_episode()
 	_log("loaded ONNX policy %s (inputs %s, outputs %s)" % [policy.model_path, policy.get_input_names(), policy.get_output_names()])
+
+
+## Pauses play so the map can be edited. The scene reloads to leave this mode, because the host
+## session's spaces are fixed once it is defined.
+func begin_map_edit() -> bool:
+	if mode != Mode.MANUAL and mode != Mode.POLICY:
+		_log("stop training before editing the map", true)
+		return false
+	_clear_policy()
+	_set_mode(Mode.EDITING)
+	_log("editing the map: click toggles a hazard, right click moves the goal")
+	return true
 
 
 func run_validation_check() -> void:
@@ -489,6 +505,8 @@ func _on_trainer_notification(message: Dictionary) -> void:
 			trainer_progress.emit(message)
 		"saved":
 			_log("trainer saved policy to %s" % message.get("path"))
+			if policy != null and environment.has_method("record_policy_map"):
+				environment.call("record_policy_map", policy.model_path)
 		"log":
 			_log("python: %s" % message.get("message"))
 

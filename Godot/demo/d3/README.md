@@ -52,6 +52,24 @@ These follow from the current US1 and US4 contracts:
 4. On the `Runner` node, set `python_executable` to a Python that has the packages above, for example `.venv/Scripts/python.exe`.
 5. Press F5 or the Play button.
 
+## Changing the map
+
+Press **Edit map** in the main panel. The agent pauses and the map becomes editable:
+
+- **Left click** toggles a hazard; drag to paint or erase several. **Right click** moves the goal.
+- **W − / W + / H − / H +** change the grid size, from 3 to 10 cells per side. Markers that no longer fit are dropped.
+- **Random** keeps the size and places a random goal and hazards. Every free cell can still reach the goal.
+- **Default** restores the map authored in `demo/main.tscn`.
+- **Save** writes the map to `user://d3_map.json` and reloads the scene. Saving the default map deletes that file. **Cancel** discards the edits.
+
+The panel's **Map** row shows the size, the hazard count, and `custom` when a saved map is in use. It also reports how many free cells can't reach the goal; an episode that starts in one of them always times out.
+
+How a saved map takes effect:
+
+- **Reload:** saving reloads the scene. The host session's spaces are fixed once it is defined, and the observation bounds follow the grid size: `[0, 0, -(w-1), -(h-1)]` to `[w-1, h-1, w-1, h-1]`.
+- **Parallel training:** every instance reads the same saved file, so all instances train on the current map. A single instance can use another file with `--map=<path>` after `--`.
+- **Policies:** the observation doesn't include hazards, so a policy only fits the map it was trained on. When training finishes, the instance saves that map next to the model as `policies/q_policy.map.json`. **Policy** logs a warning if the current map is different.
+
 ## Parallel training
 
 ### Parallel viewer
