@@ -4,6 +4,7 @@
 
 #include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
+#include "bindings/lifecycle/schola_training_host.h"
 #include "bindings/schola_runtime_probe.h"
 #include "bindings/spaces/schola_box_space.h"
 #include "bindings/spaces/schola_dict_space.h"
@@ -18,6 +19,7 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaRuntimeProbe);
 	GDREGISTER_CLASS(ScholaEnvironment);
 	GDREGISTER_CLASS(ScholaAgent);
+	GDREGISTER_CLASS(ScholaTrainingHost);
 	GDREGISTER_ABSTRACT_CLASS(ScholaSpace);
 	GDREGISTER_CLASS(ScholaBoxSpace);
 	GDREGISTER_CLASS(ScholaDiscreteSpace);

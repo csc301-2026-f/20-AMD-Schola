@@ -42,6 +42,19 @@ godot --headless --path Godot \
   --ignoreHeadlessMode -a res://tests/integration
 ```
 
+Run only the training-host lifecycle suite with:
+
+```sh
+godot --headless --path Godot \
+  -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests/integration/training_host_test.gd
+```
+
+The focused suite runs against the native Godot environment adapter and covers
+multiple environments, episode completion, all three autoreset modes, session
+failure handling, and reset-request validation. Build both extensions before
+running the suite.
+
 CI runs the same suite headlessly against the supported Godot version.
 
 Godot has an [upstream race](https://github.com/godotengine/godot/issues/98062) that can abort a completed headless import while editor add-ons are shutting down. If the import reaches completion and exits with status 134, rerun the import command. CI retries this step at most 3 times and still fails persistent import errors.
