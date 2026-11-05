@@ -67,15 +67,14 @@ schola::Space ScholaBoxSpace::to_space() const {
 		element_count = 1;
 		for (int32_t dimension : box.shape) {
 			element_count *= dimension > 0 ? dimension : 0;
-			// Stop before int64 overflow; check_definition() rejects shapes this large
+			// Avoid overflow; check_definition() reports it
 			if (element_count > MAX_EXPANDED_ELEMENTS) {
 				break;
 			}
 		}
 	}
 
-	// An empty bound is unbounded on that side and a single bound applies to every element
-	// An oversized shape keeps the bounds as entered so check_definition() can report it
+	// Oversized shapes keep the bounds as entered for check_definition() to report
 	const auto expand = [element_count](const godot::PackedFloat32Array &p_bound, float p_unbounded, std::vector<float> &r_bound) {
 		if (element_count > MAX_EXPANDED_ELEMENTS) {
 			r_bound.assign(p_bound.ptr(), p_bound.ptr() + p_bound.size());

@@ -30,15 +30,14 @@ const char *kind_name(SpaceKind p_kind) {
 	return "Unknown";
 }
 
-// The whole numbers an integer or bool dtype can hold, as [low, high_exclusive) so that 64-bit limits
-// stay exact in double. text is the inclusive range shown in error messages.
+// [low, high_exclusive) keeps 64-bit limits exact in double. text is for error messages.
 struct WholeRange {
 	double low;
 	double high_exclusive;
 	const char *text;
 };
 
-// Returns nullptr for floating-point dtypes, whose values may be fractional or infinite.
+// Returns nullptr for float dtypes.
 const WholeRange *whole_range(DType p_dtype) {
 	static const WholeRange UINT8_RANGE{ 0.0, std::ldexp(1.0, 8), "[0, 255]" };
 	static const WholeRange UINT16_RANGE{ 0.0, std::ldexp(1.0, 16), "[0, 65535]" };
@@ -133,7 +132,7 @@ Status check_box(const BoxSpace &p_box, const std::string &p_path) {
 		}
 		element_count *= p_box.shape[i];
 
-		// Protobuf repeated fields and Godot packed arrays index with 32-bit integers
+		// Protobuf and Godot arrays use 32-bit indices
 		if (element_count > MAX_BOX_ELEMENTS) {
 			return invalid_data(p_path, "Box shape " + format_list(p_box.shape) + " has more than " + std::to_string(MAX_BOX_ELEMENTS) + " elements");
 		}
@@ -219,7 +218,7 @@ Status validate_box(const BoxSpace &p_box, const BoxPoint &p_point, const std::s
 	if (p_point.values.size() != p_box.low.size()) {
 		return invalid_argument(p_path, "Box point has " + std::to_string(p_point.values.size()) + " values but the space expects " + std::to_string(p_box.low.size()));
 	}
-	// The definition's finite, in-range bounds already keep whole values inside the dtype
+	// Bounds already keep whole values in range
 	const bool needs_whole = whole_range(p_box.dtype) != nullptr;
 	for (size_t i = 0; i < p_point.values.size(); ++i) {
 		const float value = p_point.values[i];

@@ -16,18 +16,12 @@ namespace schola {
 
 class Space;
 
-// Returns the numpy name of p_dtype, such as "uint8", or "unknown" for a value outside DType.
+// Returns the numpy name, such as "uint8", or "unknown".
 const char *dtype_name(DType p_dtype);
 
-// Continuous values with per-element bounds. A valid definition has at least one dimension, every
-// dimension is positive, and low and high each hold product(shape) entries in row-major order.
-// low[i] <= high[i] and neither bound is NaN. An unbounded side, including a bound omitted from the
-// protobuf definition, is stored as negative or positive infinity. An empty protobuf shape is converted
-// to {low.size()}, matching Python Schola.
-//
-// Python Schola casts bounds and points to dtype with numpy, which truncates fractions and wraps or
-// garbles values outside the type. So for integer and bool dtypes, every bound must be a finite whole
-// number within the type's range (0 or 1 for bool), and every point value must be a whole number.
+// low and high hold product(shape) values in row-major order; infinity means unbounded. An empty
+// protobuf shape becomes {low.size()}. Integer and bool dtypes need finite, whole, in-range bounds and
+// whole values, because numpy truncates or garbles anything else.
 struct BoxSpace {
 	std::vector<float> low;
 	std::vector<float> high;
@@ -50,18 +44,14 @@ struct MultiBinarySpace {
 	int32_t n = 0;
 };
 
-// Named subspaces with unique keys. Space(DictSpace) sorts entries by key in byte-wise std::string
-// order, which matches gymnasium's sorted() on Python str keys. That order fixes the flattened layout,
-// so it matches Python Schola regardless of declaration order or protobuf map order.
+// Named subspaces, sorted by key to match gymnasium's Dict order and flattened layout.
 struct DictSpace {
 	std::vector<std::pair<std::string, Space>> entries;
-	// Returns a non-owning pointer to the subspace for p_key, or nullptr if the key is absent.
-	// The pointer is invalidated when entries is modified.
+	// Returns nullptr if p_key is absent. Invalidated when entries changes.
 	const Space *find(const std::string &p_key) const;
 };
 
-// An observation or action space definition. A Space owns all of its nested data, is safe to copy
-// and move, and holds no references to Godot, protobuf, ONNX, or caller-owned storage.
+// An observation or action space. Owns all its data and is safe to copy.
 class Space {
 public:
 	// Constructs an empty Box space.
@@ -70,37 +60,26 @@ public:
 	Space(DiscreteSpace p_space);
 	Space(MultiDiscreteSpace p_space);
 	Space(MultiBinarySpace p_space);
-	// Sorts p_space.entries by key. See DictSpace.
+	// Sorts entries by key.
 	Space(DictSpace p_space);
 
 	SpaceKind get_kind() const;
-	// Returns a non-owning pointer to the held definition, or nullptr if the space holds a different kind.
+	// Returns nullptr if the space holds a different kind.
 	template <typename T>
 	const T *get_if() const;
 
-	// Checks that the definition itself is well-formed, recursing into Dict entries. Returns
-	// INVALID_DATA for a malformed definition, such as a non-positive dimension or size, a Box with an
-	// unknown dtype or more than INT32_MAX elements, mismatched Box bound sizes, a NaN bound,
-	// low > high, an integer or bool Box bound that is not a whole number in the dtype's range, or a
-	// duplicate Dict key. The message identifies the failing field and its Dict key path.
+	// Returns INVALID_DATA, naming the field and Dict key path, if the definition is malformed.
 	Status check_definition() const;
-	// Checks the complete point against this space without modifying, clipping, coercing, reordering,
-	// filling, or discarding values. Assumes the definition already passed check_definition(). Returns
-	// INVALID_ARGUMENT for a wrong kind or size, a NaN or out-of-bounds Box value, a fractional value in
-	// an integer or bool Box, an out-of-range Discrete or MultiDiscrete value, a MultiBinary value other
-	// than 0 or 1, or Dict keys that are missing, extra, duplicated, or not sorted by key. The message
-	// identifies the invalid element index and its Dict key path.
+	// Returns INVALID_ARGUMENT, naming the index and Dict key path, if p_point does not fit. Never changes
+	// the point. Assumes check_definition() passed.
 	Status validate(const Point &p_point) const;
-	// Returns a point of this space's kind and size that passes validate(). Every value is zero, except
-	// Box elements, which are zero clamped to [low[i], high[i]].
+	// Returns a valid point of zeros, with Box values clamped to their bounds.
 	Point make_point() const;
-	// Returns the flattened size, matching Unreal Schola: Box is the element count, Discrete is n
-	// (one-hot), MultiDiscrete is the sum of nvec, MultiBinary is n, and Dict is the sum of its entries.
+	// Matches Unreal Schola: Discrete is n (one-hot), MultiDiscrete is sum(nvec), Dict sums its entries.
 	int64_t get_flattened_size() const;
 	std::string to_string() const;
 
-	// Compares kind and definition exactly. Dict entries are always sorted, so declaration order does
-	// not affect equality.
+	// Exact comparison. Dict entries are sorted, so declaration order does not matter.
 	bool operator==(const Space &p_other) const;
 	bool operator!=(const Space &p_other) const;
 

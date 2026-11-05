@@ -101,7 +101,7 @@ Status wrong_value(const std::string &p_path, const char *p_expected, int64_t p_
 	return invalid(p_path, message);
 }
 
-// Returns false when p_value is not a list of numbers; r_error names a bad Array element
+// r_error names a bad Array element
 bool read_floats(const godot::Variant &p_value, std::vector<float> &r_values, std::string &r_error) {
 	switch (p_value.get_type()) {
 		case godot::Variant::PACKED_FLOAT32_ARRAY: {
@@ -132,7 +132,7 @@ bool read_floats(const godot::Variant &p_value, std::vector<float> &r_values, st
 	}
 }
 
-// Returns false when p_value is neither p_packed_type nor an Array of int; r_error names a bad Array element
+// r_error names a bad Array element
 bool read_ints(const godot::Variant &p_value, godot::Variant::Type p_packed_type, int64_t p_min, int64_t p_max, std::vector<int64_t> &r_values, std::string &r_error) {
 	r_values.clear();
 	if (p_value.get_type() == p_packed_type && p_packed_type == godot::Variant::PACKED_INT32_ARRAY) {

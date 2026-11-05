@@ -9,25 +9,22 @@
 
 #include <cstdint>
 
-// Inspector resource for a continuous US2 Box space
+// Inspector resource for a Box space
 class ScholaBoxSpace : public ScholaSpace {
 	GDCLASS(ScholaBoxSpace, ScholaSpace)
 
 public:
-	// One lower and upper bound per Box element in row-major order
-	// An empty bound is unbounded and a single bound applies to every element
-	// Integer and bool dtypes need finite whole-number bounds, so they cannot be left empty
+	// Row-major, one per element. Empty is unbounded (float dtypes only); one value applies to all
 	void set_low(const godot::PackedFloat32Array &p_low);
 	godot::PackedFloat32Array get_low() const;
 	void set_high(const godot::PackedFloat32Array &p_high);
 	godot::PackedFloat32Array get_high() const;
 
-	// Positive dimensions in row-major order
-	// An empty shape uses one dimension of the larger of low.size() and high.size()
+	// Empty uses one dimension sized to the longer bound
 	void set_shape(const godot::PackedInt32Array &p_shape);
 	godot::PackedInt32Array get_shape() const;
 
-	// US2 DType value for the Box elements
+	// DType value
 	void set_dtype(int32_t p_dtype);
 	int32_t get_dtype() const;
 
