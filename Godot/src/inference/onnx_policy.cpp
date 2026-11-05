@@ -233,6 +233,8 @@ struct Binding {
 	std::vector<int64_t> shape;
 	size_t element_count = 0;
 	std::vector<int32_t> bounds;
+	std::vector<float> low;
+	std::vector<float> high;
 	std::vector<uint8_t> buffer;
 	OrtPtr<OrtValue> value;
 
@@ -246,6 +248,8 @@ namespace {
 bool leaf_shape(const Space &p_space, Binding &r_binding, std::vector<int64_t> &r_dimensions) {
 	if (const BoxSpace *box = p_space.get_if<BoxSpace>()) {
 		r_binding.kind = SpaceKind::BOX;
+		r_binding.low = box->low;
+		r_binding.high = box->high;
 		r_dimensions.assign(box->shape.begin(), box->shape.end());
 	} else if (const DiscreteSpace *discrete = p_space.get_if<DiscreteSpace>()) {
 		r_binding.kind = SpaceKind::DISCRETE;
@@ -274,14 +278,33 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 	return true;
 }
 
+Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p_values) {
+	for (size_t i = 0; i < p_values.size(); ++i) {
+		if (p_values[i] < 0 || p_values[i] >= p_binding.bounds[i]) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, p_binding.label("observation") + " value " + std::to_string(p_values[i]) + " is outside [0, " + std::to_string(p_binding.bounds[i]) + ")");
+		}
+	}
+	return Status::ok();
+}
+
 Status write_observation(Binding &r_binding, const Point &p_point) {
 	bool written = false;
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX) {
 		written = write_values(r_binding, box->values);
 	} else if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>(); discrete && r_binding.kind == SpaceKind::DISCRETE) {
+		Status status = check_observation(r_binding, { discrete->value });
+		if (!status.is_ok()) {
+			return status;
+		}
 		store(r_binding.element_type, r_binding.buffer, 0, discrete->value);
 		written = true;
 	} else if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>(); multi_discrete && r_binding.kind == SpaceKind::MULTI_DISCRETE) {
+		if (multi_discrete->values.size() == r_binding.bounds.size()) {
+			Status status = check_observation(r_binding, multi_discrete->values);
+			if (!status.is_ok()) {
+				return status;
+			}
+		}
 		written = write_values(r_binding, multi_discrete->values);
 	} else if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>(); multi_binary && r_binding.kind == SpaceKind::MULTI_BINARY) {
 		written = write_values(r_binding, multi_binary->values);
@@ -292,32 +315,25 @@ Status write_observation(Binding &r_binding, const Point &p_point) {
 	return Status::ok();
 }
 
-Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) {
-	const double value = load(p_binding.element_type, p_binding.buffer, p_index);
-	if (value < 0.0 || value >= p_binding.bounds[p_index]) {
-		return Status::error(StatusCode::RUNTIME_FAILURE,
-				"the model returned " + std::to_string(static_cast<int64_t>(value)) + " for " + p_binding.label("action") + ", outside [0, " + std::to_string(p_binding.bounds[p_index]) + ")");
-	}
-	r_value = static_cast<int32_t>(value);
-	return Status::ok();
+int32_t read_integer(const Binding &p_binding, size_t p_index) {
+	return static_cast<int32_t>(static_cast<int64_t>(load(p_binding.element_type, p_binding.buffer, p_index)));
 }
 
 Status read_action(const Binding &p_binding, Point &r_point) {
 	if (BoxPoint *box = r_point.get_if<BoxPoint>(); box && p_binding.kind == SpaceKind::BOX && box->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < box->values.size(); ++i) {
-			box->values[i] = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
+			const float value = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
+			box->values[i] = value < p_binding.low[i] ? p_binding.low[i] : (value > p_binding.high[i] ? p_binding.high[i] : value);
 		}
 		return Status::ok();
 	}
 	if (DiscretePoint *discrete = r_point.get_if<DiscretePoint>(); discrete && p_binding.kind == SpaceKind::DISCRETE) {
-		return read_integer(p_binding, 0, discrete->value);
+		discrete->value = read_integer(p_binding, 0);
+		return Status::ok();
 	}
 	if (MultiDiscretePoint *multi_discrete = r_point.get_if<MultiDiscretePoint>(); multi_discrete && p_binding.kind == SpaceKind::MULTI_DISCRETE && multi_discrete->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < multi_discrete->values.size(); ++i) {
-			Status status = read_integer(p_binding, i, multi_discrete->values[i]);
-			if (!status.is_ok()) {
-				return status;
-			}
+			multi_discrete->values[i] = read_integer(p_binding, i);
 		}
 		return Status::ok();
 	}
@@ -737,7 +753,7 @@ Status OnnxPolicy::create_initial_state(std::unique_ptr<PolicyState> &r_state) c
 	for (const StateLayout &state : impl->states) {
 		layouts.push_back({ impl->inputs[state.input_index].name, state.has_sequence ? impl->max_state_sequence_length : 1, state.state_size });
 	}
-	r_state = std::make_unique<OnnxPolicyState>(this, layouts);
+	r_state = std::make_unique<OnnxPolicyState>(layouts);
 	return Status::ok();
 }
 
@@ -749,8 +765,8 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 	OnnxPolicyState *state = nullptr;
 	if (is_recurrent()) {
 		state = dynamic_cast<OnnxPolicyState *>(&p_state);
-		if (state == nullptr || state->get_owner() != this) {
-			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
+		if (state == nullptr) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state does not fit this model; create it with create_initial_state()");
 		}
 		const std::vector<OnnxPolicyState::Buffer> &buffers = state->get_buffers();
 		bool matches = buffers.size() == impl->states.size();
@@ -762,7 +778,7 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state no longer matches the model; create a new state after reloading");
 		}
 	} else if (dynamic_cast<EmptyPolicyState *>(&p_state) == nullptr) {
-		return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state was not created by this policy");
+		return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state does not fit this model; create it with create_initial_state()");
 	}
 
 	for (Binding &binding : impl->observations) {
@@ -814,12 +830,16 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 	return state == nullptr ? Status::ok() : state->notify_state_update();
 }
 
-Status OnnxPolicy::batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) {
-	return Policy::batched_think(p_observations, p_states, r_actions);
-}
-
 bool OnnxPolicy::is_recurrent() const {
 	return !impl->states.empty();
+}
+
+void OnnxPolicy::unload_model() {
+	impl->clear_model();
+}
+
+bool OnnxPolicy::is_loaded() const {
+	return impl->session != nullptr;
 }
 
 bool OnnxPolicy::is_ready() const {

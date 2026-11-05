@@ -52,6 +52,22 @@ TEST_CASE("load_model detects recurrent state", "[inference]") {
 	REQUIRE(policy.is_recurrent());
 }
 
+TEST_CASE("unload_model and a failed load leave no model loaded", "[inference]") {
+	OnnxPolicy policy;
+	REQUIRE_FALSE(policy.is_loaded());
+	REQUIRE(load(policy, "box_scale.onnx").is_ok());
+	REQUIRE(policy.is_loaded());
+
+	policy.unload_model();
+	REQUIRE_FALSE(policy.is_loaded());
+	REQUIRE(policy.get_input_names().empty());
+
+	REQUIRE(load(policy, "box_scale.onnx").is_ok());
+	const std::vector<uint8_t> garbage = { 1, 2, 3, 4, 5 };
+	REQUIRE_FALSE(policy.load_model(garbage.data(), garbage.size(), "garbage.onnx").is_ok());
+	REQUIRE_FALSE(policy.is_loaded());
+}
+
 TEST_CASE("load_model rejects data that is not a model", "[inference]") {
 	OnnxPolicy policy;
 	const std::vector<uint8_t> garbage = { 1, 2, 3, 4, 5 };
