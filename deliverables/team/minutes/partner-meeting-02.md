@@ -4,10 +4,9 @@
 
 - **Date:** Oct 2, 2026
 - **Time:** 11:00 a.m.–12:00 p.m.
-- **Duration:** Approximately 50 minutes
 - **Location:** Microsoft Teams
-- **Meeting type:** Partner Meeting 2
-- **Minutes prepared by:** Sanjay Ram Co-authored by Granola
+- **Minutes prepared by:** Sanjay Ram
+- **Minutes source:** Shared Granola notes
 
 ## Attendees
 

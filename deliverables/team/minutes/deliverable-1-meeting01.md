@@ -4,9 +4,7 @@
 
 - **Date:** September 28, 2026
 - **Time:** 9:00 p.m.–11:00 p.m.
-- **Duration:** Approximately 2 hours
 - **Location:** Discord
-- **Meeting type:** Completing Deliverable 1
 - **Minutes prepared by:** Sanjay Ram
 
 ## Attendees
@@ -60,13 +58,13 @@ The team agreed to keep environment-independent C# logic separate from Godot bin
 
 ## Action items
 
-| Owner | Action | Target | Status at meeting end |
-| --- | --- | --- | --- |
-| Sanjay and Jimmy | Produce the interactive D1 prototype and make it accessible to the TA and AMD. | Before D1 submission | In progress |
-| Isaac, Vansh, Shahyar, Guneev, and Bohdan | Refine the seven MVP user stories and add testable acceptance criteria. | Before D1 submission | In progress |
-| Vansh | Send the user stories and architecture to AMD for review and retain evidence of the communication. | Before D1 submission | Open |
-| Team | Complete assigned planning-document sections and remove the template instructions. | Before D1 submission | In progress |
-| Team | Confirm the recurring weekly AMD meeting time. | Before the next partner meeting | Open |
+| Owner                                     | Action                                                                                             | Target                          | Status at meeting end |
+|-------------------------------------------|----------------------------------------------------------------------------------------------------|---------------------------------|-----------------------|
+| Sanjay and Jimmy                          | Produce the interactive D1 prototype and make it accessible to the TA and AMD.                     | Before D1 submission            | In progress           |
+| Isaac, Vansh, Shahyar, Guneev, and Bohdan | Refine the seven MVP user stories and add testable acceptance criteria.                            | Before D1 submission            | In progress           |
+| Vansh                                     | Send the user stories and architecture to AMD for review and retain evidence of the communication. | Before D1 submission            | Open                  |
+| Team                                      | Complete assigned planning-document sections and remove the template instructions.                 | Before D1 submission            | In progress           |
+| Team                                      | Confirm the recurring weekly AMD meeting time.                                                     | Before the next partner meeting | Open                  |
 
 ## Team-building activity
 

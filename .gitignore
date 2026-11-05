@@ -162,3 +162,4 @@ coverage_html_report/*
 /Godot/compile_commands.json
 /Godot/generated/
 /Godot/reports/
+/Godot/thirdparty/

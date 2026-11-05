@@ -7,19 +7,33 @@
 #include "core/policy/policy_state.h"
 #include "core/spaces/point.h"
 
+#include <cstdint>
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace schola::testing {
 
-// Test double for Policy: public fields script what it returns and record what it receives.
+class CounterState final : public PolicyState {
+public:
+	int32_t count = 0;
+
+	void reset() override { count = 0; }
+	Status copy_from(const PolicyState &p_other) override;
+	std::string to_string() const override { return "CounterState(" + std::to_string(count) + ")"; }
+};
+
 class FakePolicy final : public Policy {
 public:
-	Point action; // Copied into r_action by every think().
-	std::vector<Point> observations; // Every observation received, in order.
-	std::vector<const PolicyState *> states; // State of every think() call, in order.
-	Status next_error = Status::ok(); // Returned once by the next call, to test error paths.
+	Point action;
+	bool stateful = false;
+	std::vector<Point> observations;
+	std::vector<const PolicyState *> states;
+	int32_t fail_at_call = -1;
+	Status failure = Status::error(StatusCode::RUNTIME_FAILURE, "FakePolicy failure");
 
 	Status init(const InteractionDefinition &p_definition) override;
+	Status create_initial_state(std::unique_ptr<PolicyState> &r_state) const override;
 	Status think(const Point &p_observation, PolicyState &p_state, Point &r_action) override;
 };
 

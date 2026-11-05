@@ -1,7 +1,5 @@
 // Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
-// Compiles the public US7 inference headers together. Behavioral tests are added with the implementation.
-
 #include "core/policy/policy.h"
 #include "core/policy/policy_state.h"
 #include "core/stepper/simple_stepper.h"
