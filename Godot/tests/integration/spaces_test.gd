@@ -107,6 +107,8 @@ func test_dict_that_contains_itself_reports_a_cycle() -> void:
 	space.spaces = {"mode": _discrete(2), "self": space}
 	assert_str(space.get_definition_error()).contains("at 'self': Dict contains itself")
 	assert_str(space.get_validation_error({"mode": 0})).is_not_empty()
+	# RefCounted cannot release a self-reference; break the intentionally invalid graph.
+	space.spaces = {}
 
 
 func test_dict_used_twice_is_not_a_cycle() -> void:
