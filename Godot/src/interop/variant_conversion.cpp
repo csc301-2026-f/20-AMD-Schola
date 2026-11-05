@@ -18,6 +18,7 @@
 #include <limits>
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace schola {
@@ -26,7 +27,6 @@ namespace {
 
 constexpr int64_t INT32_LOW = std::numeric_limits<int32_t>::min();
 constexpr int64_t INT32_HIGH = std::numeric_limits<int32_t>::max();
-constexpr int DTYPE_COUNT = static_cast<int>(DType::BOOL) + 1;
 
 std::string type_name(const godot::Variant &p_value) {
 	return godot::Variant::get_type_name(p_value.get_type()).utf8().get_data();
@@ -40,7 +40,7 @@ std::string at_path(const std::string &p_path, const std::string &p_message) {
 	if (p_path.empty()) {
 		return p_message;
 	}
-	return "At '" + p_path + "': " + p_message;
+	return "at '" + p_path + "': " + p_message;
 }
 
 std::string join_path(const std::string &p_path, const std::string &p_key) {
@@ -251,116 +251,6 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	return Status::ok();
 }
 
-Status get_field(const godot::Dictionary &p_dictionary, const char *p_name, godot::Variant::Type p_type, const std::string &p_path, godot::Variant &r_value) {
-	if (!p_dictionary.has(p_name)) {
-		return invalid(p_path, std::string("space Dictionary is missing '") + p_name + "'");
-	}
-	r_value = p_dictionary[p_name];
-	if (r_value.get_type() != p_type) {
-		return invalid(p_path, std::string("space Dictionary field '") + p_name + "' must be " + to_std_string(godot::Variant::get_type_name(p_type)) + " but is " + type_name(r_value));
-	}
-	return Status::ok();
-}
-
-Status get_int32(const godot::Dictionary &p_dictionary, const char *p_name, const std::string &p_path, int32_t &r_value) {
-	godot::Variant value;
-	Status status = get_field(p_dictionary, p_name, godot::Variant::INT, p_path, value);
-	if (!status.is_ok()) {
-		return status;
-	}
-	const int64_t number = value;
-	if (number < INT32_LOW || number > INT32_HIGH) {
-		return invalid(p_path, std::string("space Dictionary field '") + p_name + "' is outside the 32-bit integer range");
-	}
-	r_value = static_cast<int32_t>(number);
-	return Status::ok();
-}
-
-Status parse_space(const godot::Variant &p_value, const std::string &p_path, Space &r_space) {
-	if (p_value.get_type() != godot::Variant::DICTIONARY) {
-		return invalid(p_path, "expected a space Dictionary but got " + type_name(p_value));
-	}
-	const godot::Dictionary dictionary = p_value;
-	const godot::Variant kind_value = dictionary.get("kind", godot::Variant());
-	if (!is_string(kind_value)) {
-		return invalid(p_path, "space Dictionary needs a String 'kind'");
-	}
-	const std::string kind = to_std_string(kind_value);
-	godot::Variant value;
-	Status status = Status::ok();
-
-	if (kind == "box") {
-		BoxSpace box;
-		const char *bound_names[] = { "low", "high" };
-		std::vector<float> *bounds[] = { &box.low, &box.high };
-		for (int i = 0; i < 2; ++i) {
-			status = get_field(dictionary, bound_names[i], godot::Variant::PACKED_FLOAT32_ARRAY, p_path, value);
-			if (!status.is_ok()) {
-				return status;
-			}
-			const godot::PackedFloat32Array bound = value;
-			bounds[i]->assign(bound.ptr(), bound.ptr() + bound.size());
-		}
-		status = get_field(dictionary, "shape", godot::Variant::PACKED_INT32_ARRAY, p_path, value);
-		if (!status.is_ok()) {
-			return status;
-		}
-		const godot::PackedInt32Array shape = value;
-		box.shape.assign(shape.ptr(), shape.ptr() + shape.size());
-		if (dictionary.has("dtype")) {
-			int32_t dtype = 0;
-			status = get_int32(dictionary, "dtype", p_path, dtype);
-			if (!status.is_ok()) {
-				return status;
-			}
-			if (dtype < 0 || dtype >= DTYPE_COUNT) {
-				return invalid(p_path, "space Dictionary dtype " + std::to_string(dtype) + " is not a known DType");
-			}
-			box.dtype = static_cast<DType>(dtype);
-		}
-		r_space = Space(std::move(box));
-	} else if (kind == "discrete") {
-		DiscreteSpace discrete;
-		status = get_int32(dictionary, "n", p_path, discrete.n);
-		r_space = Space(discrete);
-	} else if (kind == "multi_discrete") {
-		status = get_field(dictionary, "nvec", godot::Variant::PACKED_INT32_ARRAY, p_path, value);
-		if (status.is_ok()) {
-			const godot::PackedInt32Array nvec = value;
-			r_space = Space(MultiDiscreteSpace{ std::vector<int32_t>(nvec.ptr(), nvec.ptr() + nvec.size()) });
-		}
-	} else if (kind == "multi_binary") {
-		MultiBinarySpace multi_binary;
-		status = get_int32(dictionary, "n", p_path, multi_binary.n);
-		r_space = Space(multi_binary);
-	} else if (kind == "dict") {
-		status = get_field(dictionary, "spaces", godot::Variant::DICTIONARY, p_path, value);
-		if (!status.is_ok()) {
-			return status;
-		}
-		const godot::Dictionary spaces = value;
-		const godot::Array keys = spaces.keys();
-		DictSpace dict;
-		for (int64_t i = 0; i < keys.size(); ++i) {
-			const godot::Variant &key = keys[i];
-			if (!is_string(key)) {
-				return invalid(p_path, "Dict space key " + to_std_string(key.stringify()) + " is " + type_name(key) + " but must be a String");
-			}
-			const std::string name = to_std_string(key);
-			Space entry;
-			status = parse_space(spaces[key], join_path(p_path, name), entry);
-			if (!status.is_ok()) {
-				return status;
-			}
-			dict.entries.emplace_back(name, std::move(entry));
-		}
-		r_space = Space(std::move(dict));
-	} else {
-		return invalid(p_path, "unknown space kind '" + kind + "'");
-	}
-	return status;
-}
-
 godot::PackedFloat32Array to_packed_floats(const std::vector<float> &p_values) {
 	godot::PackedFloat32Array result;
 	result.resize(static_cast<int64_t>(p_values.size()));
@@ -380,8 +270,17 @@ godot::PackedInt32Array to_packed_ints(const std::vector<int32_t> &p_values) {
 }
 
 } //namespace
+
 Status variant_to_point(const godot::Variant &p_value, const Space &p_space, Point &r_point) {
-	return convert(p_value, p_space, {}, r_point);
+	Point point;
+	Status status = convert(p_value, p_space, {}, point);
+	if (status.is_ok()) {
+		status = p_space.validate(point);
+	}
+	if (status.is_ok()) {
+		r_point = std::move(point);
+	}
+	return status;
 }
 
 godot::Variant point_to_variant(const Point &p_point) {
@@ -396,8 +295,9 @@ godot::Variant point_to_variant(const Point &p_point) {
 	}
 	if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>()) {
 		godot::PackedByteArray values;
-		for (uint8_t value : multi_binary->values) {
-			values.push_back(value);
+		values.resize(static_cast<int64_t>(multi_binary->values.size()));
+		for (size_t i = 0; i < multi_binary->values.size(); ++i) {
+			values.set(static_cast<int64_t>(i), multi_binary->values[i]);
 		}
 		return values;
 	}
@@ -406,47 +306,6 @@ godot::Variant point_to_variant(const Point &p_point) {
 		values[godot::String::utf8(entry.first.c_str())] = point_to_variant(entry.second);
 	}
 	return values;
-}
-
-Status variant_to_space(const godot::Variant &p_value, Space &r_space) {
-	Space space;
-	Status status = parse_space(p_value, {}, space);
-	if (!status.is_ok()) {
-		return status;
-	}
-	status = space.check_definition();
-	if (status.is_ok()) {
-		r_space = std::move(space);
-	}
-	return status;
-}
-
-godot::Variant space_to_variant(const Space &p_space) {
-	godot::Dictionary result;
-	if (const BoxSpace *box = p_space.get_if<BoxSpace>()) {
-		result["kind"] = "box";
-		result["low"] = to_packed_floats(box->low);
-		result["high"] = to_packed_floats(box->high);
-		result["shape"] = to_packed_ints(box->shape);
-		result["dtype"] = static_cast<int64_t>(box->dtype);
-	} else if (const DiscreteSpace *discrete = p_space.get_if<DiscreteSpace>()) {
-		result["kind"] = "discrete";
-		result["n"] = discrete->n;
-	} else if (const MultiDiscreteSpace *multi_discrete = p_space.get_if<MultiDiscreteSpace>()) {
-		result["kind"] = "multi_discrete";
-		result["nvec"] = to_packed_ints(multi_discrete->nvec);
-	} else if (const MultiBinarySpace *multi_binary = p_space.get_if<MultiBinarySpace>()) {
-		result["kind"] = "multi_binary";
-		result["n"] = multi_binary->n;
-	} else {
-		godot::Dictionary spaces;
-		for (const auto &entry : p_space.get_if<DictSpace>()->entries) {
-			spaces[godot::String::utf8(entry.first.c_str())] = space_to_variant(entry.second);
-		}
-		result["kind"] = "dict";
-		result["spaces"] = spaces;
-	}
-	return result;
 }
 
 } //namespace schola

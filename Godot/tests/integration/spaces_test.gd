@@ -124,3 +124,31 @@ func test_box_rejects_unknown_dtype_and_oversized_shape() -> void:
 	assert_str(space.to_dictionary()["dtype"]).is_equal("unknown")
 	var huge := _box(PackedFloat32Array(), PackedFloat32Array(), PackedInt32Array([100000, 100000, 100000]))
 	assert_str(huge.get_definition_error()).contains("elements")
+
+
+func test_multi_discrete_and_multi_binary_accept_packed_and_plain_arrays() -> void:
+	var multi_discrete := ScholaMultiDiscreteSpace.new()
+	multi_discrete.nvec = PackedInt32Array([3, 2])
+	assert_int(typeof(multi_discrete.make_default_value())).is_equal(TYPE_PACKED_INT32_ARRAY)
+	assert_str(multi_discrete.get_validation_error(PackedInt32Array([2, 1]))).is_empty()
+	assert_str(multi_discrete.get_validation_error([2, 1])).is_empty()
+	assert_str(multi_discrete.get_validation_error([2, 2])).contains("index 1")
+	assert_str(multi_discrete.get_validation_error([2])).contains("of size 2")
+
+	var multi_binary := ScholaMultiBinarySpace.new()
+	multi_binary.n = 3
+	assert_int(typeof(multi_binary.make_default_value())).is_equal(TYPE_PACKED_BYTE_ARRAY)
+	assert_str(multi_binary.get_validation_error(PackedByteArray([0, 1, 1]))).is_empty()
+	assert_str(multi_binary.get_validation_error([1, 0, 1])).is_empty()
+	assert_str(multi_binary.get_validation_error([1, 2, 1])).contains("0 or 1")
+	assert_str(multi_binary.get_validation_error([1, 0.5, 1])).contains("Array element 1")
+
+
+func test_integer_box_needs_whole_bounds_and_values() -> void:
+	var space := _box(PackedFloat32Array([0.0]), PackedFloat32Array([255.0]), PackedInt32Array([2]))
+	space.dtype = 1 # uint8
+	assert_str(space.get_definition_error()).is_empty()
+	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 255.0]))).is_empty()
+	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 0.5]))).contains("needs a whole number")
+	space.low = PackedFloat32Array()
+	assert_str(space.get_definition_error()).contains("dtype uint8 needs a whole number in [0, 255]")

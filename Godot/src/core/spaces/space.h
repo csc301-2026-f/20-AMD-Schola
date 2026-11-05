@@ -16,11 +16,18 @@ namespace schola {
 
 class Space;
 
+// Returns the numpy name of p_dtype, such as "uint8", or "unknown" for a value outside DType.
+const char *dtype_name(DType p_dtype);
+
 // Continuous values with per-element bounds. A valid definition has at least one dimension, every
 // dimension is positive, and low and high each hold product(shape) entries in row-major order.
 // low[i] <= high[i] and neither bound is NaN. An unbounded side, including a bound omitted from the
 // protobuf definition, is stored as negative or positive infinity. An empty protobuf shape is converted
 // to {low.size()}, matching Python Schola.
+//
+// Python Schola casts bounds and points to dtype with numpy, which truncates fractions and wraps or
+// garbles values outside the type. So for integer and bool dtypes, every bound must be a finite whole
+// number within the type's range (0 or 1 for bool), and every point value must be a whole number.
 struct BoxSpace {
 	std::vector<float> low;
 	std::vector<float> high;
@@ -74,15 +81,15 @@ public:
 	// Checks that the definition itself is well-formed, recursing into Dict entries. Returns
 	// INVALID_DATA for a malformed definition, such as a non-positive dimension or size, a Box with an
 	// unknown dtype or more than INT32_MAX elements, mismatched Box bound sizes, a NaN bound,
-	// low > high, or a duplicate Dict key. The message identifies the
-	// failing field and its Dict key path.
+	// low > high, an integer or bool Box bound that is not a whole number in the dtype's range, or a
+	// duplicate Dict key. The message identifies the failing field and its Dict key path.
 	Status check_definition() const;
 	// Checks the complete point against this space without modifying, clipping, coercing, reordering,
 	// filling, or discarding values. Assumes the definition already passed check_definition(). Returns
-	// INVALID_ARGUMENT for a wrong kind or size, a NaN or out-of-bounds Box value, an out-of-range
-	// Discrete or MultiDiscrete value, a MultiBinary value other than 0 or 1, or Dict keys that are
-	// missing, extra, duplicated, or not sorted by key. The message identifies the invalid element index
-	// and its Dict key path.
+	// INVALID_ARGUMENT for a wrong kind or size, a NaN or out-of-bounds Box value, a fractional value in
+	// an integer or bool Box, an out-of-range Discrete or MultiDiscrete value, a MultiBinary value other
+	// than 0 or 1, or Dict keys that are missing, extra, duplicated, or not sorted by key. The message
+	// identifies the invalid element index and its Dict key path.
 	Status validate(const Point &p_point) const;
 	// Returns a point of this space's kind and size that passes validate(). Every value is zero, except
 	// Box elements, which are zero clamped to [low[i], high[i]].

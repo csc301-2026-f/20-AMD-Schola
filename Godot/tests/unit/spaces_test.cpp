@@ -114,6 +114,46 @@ TEST_CASE("a malformed definition is rejected with the failing field", "[spaces]
 	}
 }
 
+TEST_CASE("integer and bool Box dtypes need whole, in-range bounds and values", "[spaces]") {
+	const auto make_typed_box = [](std::vector<float> p_low, std::vector<float> p_high, DType p_dtype) {
+		const std::vector<int32_t> shape{ static_cast<int32_t>(p_low.size()) };
+		return Space(BoxSpace{ std::move(p_low), std::move(p_high), shape, p_dtype });
+	};
+
+	SECTION("whole, in-range bounds are accepted") {
+		CHECK(make_typed_box({ 0, 0 }, { 255, 255 }, DType::UINT8).check_definition().is_ok());
+		CHECK(make_typed_box({ -128 }, { 127 }, DType::INT8).check_definition().is_ok());
+		CHECK(make_typed_box({ 0 }, { 1 }, DType::BOOL).check_definition().is_ok());
+	}
+	SECTION("an unbounded side is rejected") {
+		const Status status = make_typed_box({ -INF }, { 10 }, DType::INT32).check_definition();
+		CHECK(status.get_code() == StatusCode::INVALID_DATA);
+		CHECK(message_contains(status, "low[0]"));
+		CHECK(message_contains(status, "dtype int32 needs a whole number"));
+	}
+	SECTION("a fractional bound is rejected") {
+		CHECK(message_contains(make_typed_box({ 0 }, { 2.5f }, DType::INT16).check_definition(), "high[0] is 2.5"));
+	}
+	SECTION("a bound outside the dtype's range is rejected") {
+		CHECK(message_contains(make_typed_box({ -1 }, { 255 }, DType::UINT8).check_definition(), "in [0, 255]"));
+		CHECK(message_contains(make_typed_box({ 0 }, { 256 }, DType::UINT8).check_definition(), "high[0] is 256"));
+		CHECK_FALSE(make_typed_box({ 0 }, { 2 }, DType::BOOL).check_definition().is_ok());
+		// 2^31 is the nearest float to INT32_MAX and does not fit in int32
+		CHECK_FALSE(make_typed_box({ 0 }, { 2147483647.0f }, DType::INT32).check_definition().is_ok());
+	}
+	SECTION("float dtypes keep fractional and unbounded values") {
+		CHECK(make_typed_box({ -INF }, { INF }, DType::FLOAT64).check_definition().is_ok());
+		CHECK(make_typed_box({ 0 }, { 10 }, DType::FLOAT16).validate(Point(BoxPoint{ { 7.5f } })).is_ok());
+	}
+	SECTION("a fractional value is rejected") {
+		const Space space = make_typed_box({ 0, 0 }, { 10, 10 }, DType::UINT8);
+		CHECK(space.validate(Point(BoxPoint{ { 3, 7 } })).is_ok());
+		const Status status = space.validate(Point(BoxPoint{ { 3, 7.5f } }));
+		CHECK(status.get_code() == StatusCode::INVALID_ARGUMENT);
+		CHECK(message_contains(status, "index 1 is 7.5 but dtype uint8 needs a whole number"));
+	}
+}
+
 TEST_CASE("an invalid point is rejected with an error that names the failing index", "[spaces]") {
 	const Space box = make_box({ 0, 0, 0 }, { 5, 5, 5 }, { 3 });
 
@@ -232,5 +272,7 @@ TEST_CASE("to_string describes the space and point", "[spaces]") {
 	CHECK(Space(DiscreteSpace{ 4 }).to_string() == "Discrete(4)");
 	CHECK(Space(MultiDiscreteSpace{ { 3, 2 } }).to_string() == "MultiDiscrete([3, 2])");
 	CHECK(make_box({ 0 }, { 1 }, { 1 }).to_string() == "Box(low=[0], high=[1], shape=[1], dtype=float32)");
+	CHECK(Space(BoxSpace{ { 0 }, { 1 }, { 1 }, DType::BOOL }).to_string() == "Box(low=[0], high=[1], shape=[1], dtype=bool)");
+	CHECK(std::string(dtype_name(static_cast<DType>(99))) == "unknown");
 	CHECK(Point(MultiBinaryPoint{ { 0, 1 } }).to_string() == "MultiBinary([0, 1])");
 }

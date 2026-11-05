@@ -30,34 +30,51 @@ const char *kind_name(SpaceKind p_kind) {
 	return "Unknown";
 }
 
-const char *dtype_name(DType p_dtype) {
+// The whole numbers an integer or bool dtype can hold, as [low, high_exclusive) so that 64-bit limits
+// stay exact in double. text is the inclusive range shown in error messages.
+struct WholeRange {
+	double low;
+	double high_exclusive;
+	const char *text;
+};
+
+// Returns nullptr for floating-point dtypes, whose values may be fractional or infinite.
+const WholeRange *whole_range(DType p_dtype) {
+	static const WholeRange UINT8_RANGE{ 0.0, std::ldexp(1.0, 8), "[0, 255]" };
+	static const WholeRange UINT16_RANGE{ 0.0, std::ldexp(1.0, 16), "[0, 65535]" };
+	static const WholeRange UINT32_RANGE{ 0.0, std::ldexp(1.0, 32), "[0, 4294967295]" };
+	static const WholeRange UINT64_RANGE{ 0.0, std::ldexp(1.0, 64), "[0, 18446744073709551615]" };
+	static const WholeRange INT8_RANGE{ -std::ldexp(1.0, 7), std::ldexp(1.0, 7), "[-128, 127]" };
+	static const WholeRange INT16_RANGE{ -std::ldexp(1.0, 15), std::ldexp(1.0, 15), "[-32768, 32767]" };
+	static const WholeRange INT32_RANGE{ -std::ldexp(1.0, 31), std::ldexp(1.0, 31), "[-2147483648, 2147483647]" };
+	static const WholeRange INT64_RANGE{ -std::ldexp(1.0, 63), std::ldexp(1.0, 63), "[-9223372036854775808, 9223372036854775807]" };
+	static const WholeRange BOOL_RANGE{ 0.0, 2.0, "[0, 1]" };
 	switch (p_dtype) {
-		case DType::FLOAT32:
-			return "float32";
 		case DType::UINT8:
-			return "uint8";
+			return &UINT8_RANGE;
 		case DType::UINT16:
-			return "uint16";
+			return &UINT16_RANGE;
 		case DType::UINT32:
-			return "uint32";
+			return &UINT32_RANGE;
 		case DType::UINT64:
-			return "uint64";
+			return &UINT64_RANGE;
 		case DType::INT8:
-			return "int8";
+			return &INT8_RANGE;
 		case DType::INT16:
-			return "int16";
+			return &INT16_RANGE;
 		case DType::INT32:
-			return "int32";
+			return &INT32_RANGE;
 		case DType::INT64:
-			return "int64";
-		case DType::FLOAT16:
-			return "float16";
-		case DType::FLOAT64:
-			return "float64";
+			return &INT64_RANGE;
 		case DType::BOOL:
-			return "bool";
+			return &BOOL_RANGE;
+		default:
+			return nullptr;
 	}
-	return "unknown";
+}
+
+bool is_whole(float p_value) {
+	return std::isfinite(p_value) && std::floor(p_value) == p_value;
 }
 
 std::string at_path(const std::string &p_path, const std::string &p_message) {
@@ -138,6 +155,18 @@ Status check_box(const BoxSpace &p_box, const std::string &p_path) {
 			return invalid_data(p_path, "Box low[" + std::to_string(i) + "] (" + format_float(p_box.low[i]) + ") is greater than high[" + std::to_string(i) + "] (" + format_float(p_box.high[i]) + ")");
 		}
 	}
+	if (const WholeRange *range = whole_range(p_box.dtype)) {
+		const char *side_names[] = { "low", "high" };
+		const std::vector<float> *sides[] = { &p_box.low, &p_box.high };
+		for (int side = 0; side < 2; ++side) {
+			for (size_t i = 0; i < sides[side]->size(); ++i) {
+				const float bound = (*sides[side])[i];
+				if (!is_whole(bound) || bound < range->low || bound >= range->high_exclusive) {
+					return invalid_data(p_path, std::string("Box ") + side_names[side] + "[" + std::to_string(i) + "] is " + format_float(bound) + " but dtype " + dtype_name(p_box.dtype) + " needs a whole number in " + range->text);
+				}
+			}
+		}
+	}
 	return Status::ok();
 }
 
@@ -190,6 +219,8 @@ Status validate_box(const BoxSpace &p_box, const BoxPoint &p_point, const std::s
 	if (p_point.values.size() != p_box.low.size()) {
 		return invalid_argument(p_path, "Box point has " + std::to_string(p_point.values.size()) + " values but the space expects " + std::to_string(p_box.low.size()));
 	}
+	// The definition's finite, in-range bounds already keep whole values inside the dtype
+	const bool needs_whole = whole_range(p_box.dtype) != nullptr;
 	for (size_t i = 0; i < p_point.values.size(); ++i) {
 		const float value = p_point.values[i];
 		if (std::isnan(value)) {
@@ -197,6 +228,9 @@ Status validate_box(const BoxSpace &p_box, const BoxPoint &p_point, const std::s
 		}
 		if (value < p_box.low[i] || value > p_box.high[i]) {
 			return invalid_argument(p_path, "Box value at index " + std::to_string(i) + " is " + format_float(value) + ", outside [" + format_float(p_box.low[i]) + ", " + format_float(p_box.high[i]) + "]");
+		}
+		if (needs_whole && !is_whole(value)) {
+			return invalid_argument(p_path, "Box value at index " + std::to_string(i) + " is " + format_float(value) + " but dtype " + dtype_name(p_box.dtype) + " needs a whole number");
 		}
 	}
 	return Status::ok();
@@ -279,6 +313,36 @@ bool box_equal(const BoxSpace &p_a, const BoxSpace &p_b) {
 }
 
 } //namespace
+
+const char *dtype_name(DType p_dtype) {
+	switch (p_dtype) {
+		case DType::FLOAT32:
+			return "float32";
+		case DType::UINT8:
+			return "uint8";
+		case DType::UINT16:
+			return "uint16";
+		case DType::UINT32:
+			return "uint32";
+		case DType::UINT64:
+			return "uint64";
+		case DType::INT8:
+			return "int8";
+		case DType::INT16:
+			return "int16";
+		case DType::INT32:
+			return "int32";
+		case DType::INT64:
+			return "int64";
+		case DType::FLOAT16:
+			return "float16";
+		case DType::FLOAT64:
+			return "float64";
+		case DType::BOOL:
+			return "bool";
+	}
+	return "unknown";
+}
 
 const Space *DictSpace::find(const std::string &p_key) const {
 	for (const auto &entry : entries) {

@@ -16,6 +16,7 @@ class ScholaBoxSpace : public ScholaSpace {
 public:
 	// One lower and upper bound per Box element in row-major order
 	// An empty bound is unbounded and a single bound applies to every element
+	// Integer and bool dtypes need finite whole-number bounds, so they cannot be left empty
 	void set_low(const godot::PackedFloat32Array &p_low);
 	godot::PackedFloat32Array get_low() const;
 	void set_high(const godot::PackedFloat32Array &p_high);

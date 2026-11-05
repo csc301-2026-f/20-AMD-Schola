@@ -40,4 +40,8 @@ public:
 
 protected:
 	static void _bind_methods();
+
+private:
+	// Builds this resource's space once and returns why it is invalid, or an empty string
+	godot::String build_space(schola::Space &r_space) const;
 };
