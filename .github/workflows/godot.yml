@@ -1,6 +1,7 @@
 name: Godot
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -108,8 +109,11 @@ jobs:
         with:
           path: ${{ env.SCONS_CACHE }}
           key: scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-${{ github.sha }}
+          # SCons checks input and command signatures before reusing each output.
+          # Older configurations can still supply unchanged godot-cpp objects.
           restore-keys: |
             scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-
+            scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-
 
       - name: Build debug extensions
         run: scons -C Godot platform=linux target=template_debug -j2
