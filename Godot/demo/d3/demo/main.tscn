@@ -1,0 +1,86 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://demo/grid_environment.gd" id="1_env"]
+[ext_resource type="Script" path="res://demo/grid_arena.gd" id="2_arena"]
+[ext_resource type="PackedScene" path="res://demo/goal.tscn" id="4_goal"]
+[ext_resource type="PackedScene" path="res://demo/hazard.tscn" id="5_hazard"]
+[ext_resource type="Script" path="res://demo/grid_player.gd" id="6_player"]
+[ext_resource type="Script" path="res://demo/grid_agent.gd" id="7_agent"]
+[ext_resource type="Script" path="res://addons/schola_d3/runtime/demo_runner.gd" id="8_runner"]
+[ext_resource type="Script" path="res://addons/schola_d3/ui/schola_hud.gd" id="9_hud"]
+
+[sub_resource type="ScholaBoxSpace" id="ScholaBoxSpace_obs"]
+low = PackedFloat32Array(0, 0, -5, -5)
+high = PackedFloat32Array(5, 5, 5, 5)
+shape = PackedInt32Array(4)
+
+[sub_resource type="ScholaDiscreteSpace" id="ScholaDiscreteSpace_act"]
+n = 4
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_grid"]
+model_path = "res://policies/q_policy.onnx"
+
+[node name="Main" type="Node"]
+
+[node name="Background" type="ColorRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -280.0
+mouse_filter = 2
+color = Color(0.11, 0.115, 0.135, 1)
+
+[node name="ScholaEnvironment" type="ScholaEnvironment" parent="."]
+script = ExtResource("1_env")
+
+[node name="Arena" type="Node2D" parent="ScholaEnvironment" node_paths=PackedStringArray("fit_to")]
+script = ExtResource("2_arena")
+fit_to = NodePath("../../Background")
+
+[node name="Goal" parent="ScholaEnvironment/Arena" instance=ExtResource("4_goal")]
+position = Vector2(352, 32)
+
+[node name="Hazard1" parent="ScholaEnvironment/Arena" instance=ExtResource("5_hazard")]
+position = Vector2(160, 96)
+
+[node name="Hazard2" parent="ScholaEnvironment/Arena" instance=ExtResource("5_hazard")]
+position = Vector2(160, 160)
+
+[node name="Hazard3" parent="ScholaEnvironment/Arena" instance=ExtResource("5_hazard")]
+position = Vector2(288, 224)
+
+[node name="Hazard4" parent="ScholaEnvironment/Arena" instance=ExtResource("5_hazard")]
+position = Vector2(96, 288)
+
+[node name="Player" type="Node2D" parent="ScholaEnvironment/Arena"]
+position = Vector2(32, 352)
+script = ExtResource("6_player")
+
+[node name="ScholaAgent" type="ScholaAgent" parent="ScholaEnvironment/Arena/Player"]
+script = ExtResource("7_agent")
+agent_id = "agent_0"
+observation_space = SubResource("ScholaBoxSpace_obs")
+action_space = SubResource("ScholaDiscreteSpace_act")
+
+[node name="Banner" type="Label" parent="ScholaEnvironment/Arena"]
+offset_right = 384.0
+offset_bottom = 384.0
+mouse_filter = 2
+theme_override_colors/font_outline_color = Color(0.06, 0.065, 0.08, 1)
+theme_override_constants/outline_size = 12
+theme_override_constants/line_spacing = -4
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Runner" type="Node" parent="." node_paths=PackedStringArray("environment")]
+script = ExtResource("8_runner")
+environment = NodePath("../ScholaEnvironment")
+policy = SubResource("ScholaOnnxPolicy_grid")
+
+[node name="HUD" type="CanvasLayer" parent="." node_paths=PackedStringArray("runner")]
+script = ExtResource("9_hud")
+runner = NodePath("../Runner")
+parallel_scene = "res://demo/parallel.tscn"
+
+[connection signal="episode_started" from="ScholaEnvironment" to="ScholaEnvironment/Arena" method="hide_outcome"]
+[connection signal="episode_finished" from="Runner" to="ScholaEnvironment/Arena" method="show_outcome"]
