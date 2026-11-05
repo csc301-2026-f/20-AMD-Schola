@@ -30,8 +30,11 @@ struct GrpcConnectorSettings {
  * client.
  *
  * gRPC handles each call on one of its worker threads. Those threads only
- * convert and queue messages, then wait for the main thread's reply; they
- * never touch Godot or a TrainingBackend.
+ * queue messages, then wait for the main thread's reply; they never touch
+ * Godot or a TrainingBackend.
+ *
+ * One GrpcConnector serves one training session. After close(), create a
+ * new one for the next session.
  */
 class GrpcConnector final : public Connector {
 public:

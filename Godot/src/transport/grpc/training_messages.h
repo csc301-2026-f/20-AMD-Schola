@@ -20,7 +20,9 @@
 namespace schola {
 
 // Converts the GymService messages. Spaces and points inside them use US2's
-// protobuf conversions.
+// protobuf conversions, which need each point's space. That is why the
+// state and update conversions take the TrainingDefinition published at
+// startup.
 
 /**
  * StartGymConnector request.
@@ -34,19 +36,33 @@ Status from_proto(const ::Schola::GymConnectorStartRequest &p_message, StartRequ
 void to_proto(const TrainingDefinition &p_definition, ::Schola::TrainingDefinition &r_message);
 
 /**
- * UpdateState request.
+ * UpdateState request. Each action is read with its agent's action space
+ * from p_definition, which also checks that it fits that space.
  *
  * Out: Python's CLOSED status becomes UpdateKind::CLOSE. Its ERROR status
- *      returns CLOSED carrying Python's report. Points pass through without
- *      space validation; Python validates them.
+ *      (or any status this build does not know) returns CLOSED.
+ *      INVALID_ARGUMENT if the message has neither a reset nor a step, or an
+ *      action does not fit its space. NOT_FOUND for an action addressed to an
+ *      environment or agent that is not in p_definition.
  */
-Status from_proto(const ::Schola::StateUpdate &p_message, ConnectorUpdate &r_update);
+Status from_proto(const ::Schola::StateUpdate &p_message, const TrainingDefinition &p_definition, ConnectorUpdate &r_update);
 
-/** UpdateState reply after a reset. */
-void to_proto(const InitialState &p_initial_state, ::Schola::State &r_message);
+/**
+ * UpdateState reply after a reset.
+ *
+ * Out: NOT_FOUND if a state names an environment or agent that is not in
+ *      p_definition.
+ */
+Status to_proto(const InitialState &p_initial_state, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
-/** UpdateState reply after a step. */
-void to_proto(const StepResult &p_result, ::Schola::State &r_message);
+/**
+ * UpdateState reply after a step. initial_state is only sent when an
+ * environment auto-reset, because Python checks whether it is present.
+ *
+ * Out: NOT_FOUND if a state names an environment or agent that is not in
+ *      p_definition.
+ */
+Status to_proto(const StepResult &p_result, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
 /**
  * Converts a Status into the gRPC status Python receives, prefixing the
