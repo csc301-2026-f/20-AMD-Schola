@@ -137,7 +137,9 @@ TEST_CASE("integer and bool Box dtypes need whole, in-range bounds and values", 
 	SECTION("a bound outside the dtype's range is rejected") {
 		CHECK(message_contains(make_typed_box({ -1 }, { 255 }, DType::UINT8).check_definition(), "in [0, 255]"));
 		CHECK(message_contains(make_typed_box({ 0 }, { 256 }, DType::UINT8).check_definition(), "high[0] is 256"));
-		CHECK_FALSE(make_typed_box({ 0 }, { 2 }, DType::BOOL).check_definition().is_ok());
+		CHECK(message_contains(make_typed_box({ 0 }, { 2 }, DType::BOOL).check_definition(), "in [0, 1]"));
+		CHECK(message_contains(make_typed_box({ 0 }, { INF }, DType::UINT64).check_definition(), "in [0, 18446744073709551615]"));
+		CHECK(message_contains(make_typed_box({ -INF }, { 0 }, DType::INT64).check_definition(), "in [-9223372036854775808, 9223372036854775807]"));
 		// 2^31 is the nearest float to INT32_MAX and does not fit in int32
 		CHECK_FALSE(make_typed_box({ 0 }, { 2147483647.0f }, DType::INT32).check_definition().is_ok());
 	}

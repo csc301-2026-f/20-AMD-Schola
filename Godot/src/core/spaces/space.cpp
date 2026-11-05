@@ -34,20 +34,26 @@ const char *kind_name(SpaceKind p_kind) {
 struct WholeRange {
 	double low;
 	double high_exclusive;
-	const char *text;
+	std::string text;
 };
+
+template <typename T>
+WholeRange make_whole_range() {
+	using Limits = std::numeric_limits<T>;
+	return { static_cast<double>(Limits::min()), std::ldexp(1.0, Limits::digits), "[" + std::to_string(+Limits::min()) + ", " + std::to_string(+Limits::max()) + "]" };
+}
 
 // Returns nullptr for float dtypes.
 const WholeRange *whole_range(DType p_dtype) {
-	static const WholeRange UINT8_RANGE{ 0.0, std::ldexp(1.0, 8), "[0, 255]" };
-	static const WholeRange UINT16_RANGE{ 0.0, std::ldexp(1.0, 16), "[0, 65535]" };
-	static const WholeRange UINT32_RANGE{ 0.0, std::ldexp(1.0, 32), "[0, 4294967295]" };
-	static const WholeRange UINT64_RANGE{ 0.0, std::ldexp(1.0, 64), "[0, 18446744073709551615]" };
-	static const WholeRange INT8_RANGE{ -std::ldexp(1.0, 7), std::ldexp(1.0, 7), "[-128, 127]" };
-	static const WholeRange INT16_RANGE{ -std::ldexp(1.0, 15), std::ldexp(1.0, 15), "[-32768, 32767]" };
-	static const WholeRange INT32_RANGE{ -std::ldexp(1.0, 31), std::ldexp(1.0, 31), "[-2147483648, 2147483647]" };
-	static const WholeRange INT64_RANGE{ -std::ldexp(1.0, 63), std::ldexp(1.0, 63), "[-9223372036854775808, 9223372036854775807]" };
-	static const WholeRange BOOL_RANGE{ 0.0, 2.0, "[0, 1]" };
+	static const WholeRange UINT8_RANGE = make_whole_range<uint8_t>();
+	static const WholeRange UINT16_RANGE = make_whole_range<uint16_t>();
+	static const WholeRange UINT32_RANGE = make_whole_range<uint32_t>();
+	static const WholeRange UINT64_RANGE = make_whole_range<uint64_t>();
+	static const WholeRange INT8_RANGE = make_whole_range<int8_t>();
+	static const WholeRange INT16_RANGE = make_whole_range<int16_t>();
+	static const WholeRange INT32_RANGE = make_whole_range<int32_t>();
+	static const WholeRange INT64_RANGE = make_whole_range<int64_t>();
+	static const WholeRange BOOL_RANGE = make_whole_range<bool>();
 	switch (p_dtype) {
 		case DType::UINT8:
 			return &UINT8_RANGE;
