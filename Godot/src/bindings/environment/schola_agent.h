@@ -6,6 +6,7 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -13,6 +14,7 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <memory>
+#include <vector>
 
 class ScholaSpace;
 
@@ -24,6 +26,7 @@ class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
 public:
+	ScholaAgent();
 	~ScholaAgent() override;
 
 	// IDs must be unique within one environment
@@ -97,13 +100,15 @@ public:
 	// Reports missing observation or action spaces and invalid US2 space definitions
 	// Space errors name the observation or action property and include the US2 validation reason
 	godot::PackedStringArray get_configuration_errors() const;
-	// Returns get_configuration_errors() so Godot displays Inspector warning icons
+	// Adds missing behavior hooks to resource errors for Godot's warning icons.
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 private:
+	void on_script_changed();
 	void disconnect_space_signals();
 	void connect_space_signals();
 	void refresh_configuration_warnings();
@@ -115,4 +120,5 @@ private:
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
 	std::unique_ptr<schola::Agent> agent_adapter;
+	std::vector<godot::Ref<godot::Script>> watched_scripts;
 };

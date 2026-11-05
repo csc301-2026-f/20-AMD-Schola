@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/random_number_generator.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
@@ -16,6 +17,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace schola {
 class Environment;
@@ -131,9 +133,8 @@ public:
 	/**
 	 * Checks the Inspector and scene-tree configuration.
 	 *
-	 * Reports a missing ScholaAgent and every
-	 * agent's own configuration errors, prefixed with its agent ID. Duplicate
-	 * agent IDs are reported by the adapter's initialize() instead.
+	 * Reports missing agents, duplicate resolved IDs, and each agent's resource
+	 * configuration errors. Script hooks are checked separately by editor warnings.
 	 *
 	 * @return One message per problem; empty when the configuration is valid.
 	 */
@@ -142,14 +143,24 @@ public:
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
-	 * @return The same messages as get_configuration_errors().
+	 * @return Configuration errors and missing required behavior hooks.
 	 */
 	godot::PackedStringArray _get_configuration_warnings() const override;
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 private:
+	friend class ScholaAgent;
+
+	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks) const;
+	void on_script_changed();
+	void queue_configuration_refresh();
+	void refresh_configuration_warnings();
+	std::vector<godot::Ref<godot::Script>> watched_scripts;
+	bool configuration_refresh_queued = false;
+
 	// === US1 Addition Below ===
 
 	// Created with the node so get_rng() is never null.

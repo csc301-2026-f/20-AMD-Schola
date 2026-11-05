@@ -2,6 +2,7 @@
 
 #include "bindings/environment/schola_agent.h"
 
+#include "bindings/environment/configuration_diagnostics.h"
 #include "bindings/environment/godot_agent_adapter.h"
 #include "bindings/environment/schola_environment.h"
 #include "bindings/spaces/schola_space.h"
@@ -10,8 +11,32 @@
 
 #include <memory>
 
+ScholaAgent::ScholaAgent() {
+	connect("script_changed", callable_mp(this, &ScholaAgent::on_script_changed));
+}
+
 ScholaAgent::~ScholaAgent() {
+	schola::configuration::disconnect_scripts(watched_scripts, callable_mp(this, &ScholaAgent::on_script_changed));
 	disconnect_space_signals();
+}
+
+void ScholaAgent::on_script_changed() {
+	schola::configuration::watch_scripts(this, watched_scripts, callable_mp(this, &ScholaAgent::on_script_changed));
+	refresh_configuration_warnings();
+}
+
+void ScholaAgent::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_ENTER_TREE:
+			on_script_changed();
+			break;
+		case NOTIFICATION_PATH_RENAMED:
+		case NOTIFICATION_EXIT_TREE:
+		case NOTIFICATION_PARENTED:
+		case NOTIFICATION_UNPARENTED:
+			refresh_configuration_warnings();
+			break;
+	}
 }
 
 void ScholaAgent::disconnect_space_signals() {
@@ -36,7 +61,8 @@ void ScholaAgent::refresh_configuration_warnings() {
 	update_configuration_warnings();
 	for (godot::Node *ancestor = get_parent(); ancestor != nullptr; ancestor = ancestor->get_parent()) {
 		if (ScholaEnvironment *environment = godot::Object::cast_to<ScholaEnvironment>(ancestor)) {
-			environment->update_configuration_warnings();
+			// Defer the scan until removals and reparenting have finished.
+			environment->queue_configuration_refresh();
 			break;
 		}
 	}
@@ -139,7 +165,14 @@ void ScholaAgent::_bind_methods() {
 }
 
 godot::PackedStringArray ScholaAgent::_get_configuration_warnings() const {
-	return get_configuration_errors();
+	godot::PackedStringArray warnings = get_configuration_errors();
+	if (!schola::configuration::has_hook(this, "_observe")) {
+		warnings.append("Implement _observe() in this agent's script to return its observation.");
+	}
+	if (!schola::configuration::has_hook(this, "_act")) {
+		warnings.append("Implement _act(action) in this agent's script to apply an action.");
+	}
+	return warnings;
 }
 godot::String ScholaAgent::get_resolved_agent_id() const {
 	return agent_id.is_empty() ? godot::String(get_name()) : agent_id;
