@@ -112,7 +112,7 @@ jobs:
             scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-
 
       - name: Build debug extensions
-        run: scons -C Godot platform=linux target=template_debug -j2
+        run: scons -C Godot platform=linux target=template_debug integration_tests=yes -j2
 
       - name: Build and run core unit tests
         run: |
