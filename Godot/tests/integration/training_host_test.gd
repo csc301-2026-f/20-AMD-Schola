@@ -116,6 +116,7 @@ func test_discovery_order_becomes_stable_environment_ids() -> void:
 	assert_int(environments.size()).is_equal(2)
 	assert_array(environments[0]["agents"].keys()).contains_exactly(["first_agent"])
 	assert_array(environments[1]["agents"].keys()).contains_exactly(["second_agent"])
+	assert_str(environments[0]["agents"]["first_agent"]["action_space"]["type"]).is_equal("Discrete")
 
 	var reset := host.reset({})
 	assert_int(_status_code(reset)).is_equal(STATUS_OK)

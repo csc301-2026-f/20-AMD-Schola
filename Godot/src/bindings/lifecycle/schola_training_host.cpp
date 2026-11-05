@@ -4,6 +4,7 @@
 
 #include "bindings/environment/schola_environment.h"
 
+#include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/scene_tree.hpp>
@@ -67,8 +68,8 @@ godot::Dictionary encode_training_definition(const schola::TrainingDefinition &d
 		godot::Dictionary agents;
 		for (auto &[agent_id, definition] : environment.agents) {
 			godot::Dictionary encoded_definition;
-			encoded_definition["observation_space"] = schola::space_to_variant(definition.observation_space);
-			encoded_definition["action_space"] = schola::space_to_variant(definition.action_space);
+			encoded_definition["observation_space"] = schola::space_to_dictionary(definition.observation_space);
+			encoded_definition["action_space"] = schola::space_to_dictionary(definition.action_space);
 			encoded_definition["agent_type"] = godot::String::utf8(definition.agent_type.c_str());
 			agents[godot::String::utf8(agent_id.c_str())] = encoded_definition;
 		}

@@ -13,9 +13,7 @@ enum class SpaceKind {
 	DICT,
 };
 
-// Declared element type of Box values, in the same order as Proto/DType.proto. It is carried so that
-// Python rebuilds the Box with its original dtype, such as uint8 for images. Values are stored as
-// float in every case, matching the protobuf BoxPoint wire format.
+// Box element type, in Proto/DType.proto order. Values are always stored as float, as on the wire.
 enum class DType {
 	FLOAT32,
 	UINT8,
