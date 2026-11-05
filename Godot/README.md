@@ -193,8 +193,12 @@ the adapter suite is skipped when it is unavailable.
 
 The driver is a test-only bridge, not a production training host. Running an
 ordinary scene does not automatically initialize, reset, or step its environments.
-The current `examples/basic_environment/` scene is a registration probe; the
-production example and its lifecycle-host integration remain work for US5 and US4.
+The current `examples/basic_environment/` scene is a registration probe. A gameplay
+example is outside US5's scope. `ScholaTrainingHost` supplies the production host;
+US4's existing callback implementations still need migration to `_get_step_result`.
+
+CI builds with `integration_tests=yes` so the adapter suite is exercised. Builds
+intended for distribution should omit that option to exclude the test driver.
 
 ### Editor and runtime monitor
 

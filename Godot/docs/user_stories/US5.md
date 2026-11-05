@@ -1,7 +1,7 @@
 # US5: Configure Schola through Godot-native tools
 
 - **Owner:** Vansh
-- **Status:** Core bindings implemented; demonstration work remains
+- **Status:** Core bindings implemented
 - **Last updated:** Nov. 5, 2026
 
 ## Story
@@ -12,8 +12,7 @@ As a Godot developer, I want to configure agents and environments through nodes 
 
 - A developer can add the required Schola components to a scene using Godot's normal node workflow.
 - Essential settings are visible and editable in the Inspector with understandable names and defaults.
-- The demonstration project can be configured without modifying Schola's internal source code.
-- The demonstration agent receives a small reward for moving backward, a larger reward for moving forward, and a penalty for remaining still.
+- Agent identities and observation/action resources can be configured without modifying Schola's internal source code.
 - Episode truncation can be implemented through the environment hooks without a special-purpose `MaxEpisodeSteps` node.
 - Running the scene reports missing or conflicting configuration clearly.
 
@@ -28,14 +27,15 @@ As a Godot developer, I want to configure agents and environments through nodes 
 
 ## Verification
 
-- The Windows native build and all 40 existing Godot integration tests pass, including identity/scene round trips and the consolidated callback path.
+- Before the latest merge from `main`, the Windows native build and all 40 existing Godot integration tests passed, including identity/scene round trips and the consolidated callback path.
 - An editor smoke check verified warning refreshes for scene-tree edits and script attachment. A separate layout check verified that enabling the Schola dock keeps the bottom panel within the editor window.
 - Vansh completed the manual editor persistence checks. This records owner-reported manual verification separately from the automated checks.
 - The scratch scene successfully initializes and resets, applies three actions, and returns a user-defined truncation on the third step. It uses the optional `ScholaEnvironmentTestDriver`, which is available only in builds with `integration_tests=yes`.
 
-## Remaining work
+## Scope
 
-- Add a current example under `Godot/examples/` that can be configured through the Inspector and demonstrates a small backward-movement reward, a larger forward-movement reward, and a penalty for remaining still, together with reset and user-defined truncation. The current scratch scene returns a constant reward; `examples/basic_environment/` remains a registration probe.
-- Coordinate the runnable production example with US4 lifecycle-host integration. The test-only driver demonstrates the adapter contract but is not a public training API; the production training host is not registered on this branch.
+- A runnable gameplay example and movement-specific reward behavior are outside US5's acceptance criteria. `examples/basic_environment/` remains a registration probe.
+- `ScholaTrainingHost` is included from `main`. Migration of US4's existing callback implementations to `_get_step_result` is separate integration work.
+- CI builds the native adapter test driver with `integration_tests=yes`, so the consolidated callback suite runs alongside the other integration tests.
 
-Frozen D1/D2 demos and the archived D1 prototype do not establish completion of the current example requirement.
+Frozen D1/D2 demos and the archived D1 prototype are historical artifacts, not evidence of current plugin functionality.

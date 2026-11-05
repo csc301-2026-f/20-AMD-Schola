@@ -156,3 +156,31 @@ func test_agent_type_fallback_remains_empty_after_scene_round_trip() -> void:
 	assert_str(restored.get("agent_type")).is_empty()
 	restored.set("agent_id", "player_2")
 	assert_str(restored.call("get_resolved_agent_type")).is_equal("player_2")
+
+
+func test_duplicate_ids_are_scoped_to_the_nearest_environment() -> void:
+	var environment: ScholaEnvironment = auto_free(ScholaEnvironment.new())
+	var first := ScholaAgent.new()
+	first.name = "First"
+	first.agent_id = "shared"
+	var second := ScholaAgent.new()
+	second.name = "Second"
+	second.agent_id = "shared"
+	var space := ScholaDiscreteSpace.new()
+	space.n = 2
+	for agent in [first, second]:
+		agent.observation_space = space
+		agent.action_space = space
+		environment.add_child(agent)
+	add_child(environment)
+
+	var errors := "; ".join(environment.get_configuration_errors())
+	assert_str(errors).contains("Duplicate agent ID 'shared'")
+	assert_str(errors).contains("First")
+	assert_str(errors).contains("Second")
+
+	var nested := ScholaEnvironment.new()
+	environment.add_child(nested)
+	second.reparent(nested)
+	assert_bool(environment.get_configuration_errors().is_empty()).is_true()
+	assert_bool(nested.get_configuration_errors().is_empty()).is_true()
