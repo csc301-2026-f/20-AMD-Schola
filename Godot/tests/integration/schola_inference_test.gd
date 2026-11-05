@@ -347,6 +347,129 @@ func test_stepper_forgets_a_freed_agent() -> void:
 	assert_int(kept.actions.size()).is_equal(1)
 
 
+func test_stepper_steps_by_itself_until_it_is_disabled() -> void:
+	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	for i in 3:
+		await get_tree().physics_frame
+	var actions: int = agent.actions.size()
+	assert_int(actions).is_greater(0)
+	assert_array(_values(agent.actions[0])).contains_exactly([2.0, 4.0, 6.0])
+
+	stepper.enabled = false
+	for i in 3:
+		await get_tree().physics_frame
+	assert_int(agent.actions.size()).is_equal(actions)
+
+
+func test_stepper_survives_an_agent_removed_during_act() -> void:
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
+	var second := _agent(3, 3, PackedFloat32Array([2.0, 2.0, 2.0]))
+	var third := _agent(3, 3, PackedFloat32Array([3.0, 3.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	for agent in [first, second, third]:
+		assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	second.on_act = func() -> void: stepper.remove_agent(second)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+
+	assert_int(first.actions.size()).is_equal(2)
+	assert_int(second.actions.size()).is_equal(1)
+	assert_array(_values(third.actions[-1])).contains_exactly([6.0, 6.0, 6.0])
+
+
+func test_stepper_survives_an_agent_freed_during_act() -> void:
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
+	var freed := _agent(3, 3, PackedFloat32Array([2.0, 2.0, 2.0]))
+	var third := _agent(3, 3, PackedFloat32Array([3.0, 3.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	for agent in [first, freed, third]:
+		assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	first.on_act = func() -> void:
+		first.on_act = Callable()
+		freed.free()
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+
+	assert_int(first.actions.size()).is_equal(2)
+	assert_array(_values(third.actions[-1])).contains_exactly([6.0, 6.0, 6.0])
+
+
+func test_stepper_skips_the_frame_when_an_agent_is_removed_during_observe() -> void:
+	var messages: Array = []
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
+	var second := _agent(3, 3, PackedFloat32Array([2.0, 2.0, 2.0]))
+	var third := _agent(3, 3, PackedFloat32Array([3.0, 3.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	for agent in [first, second, third]:
+		assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	first.on_observe = func() -> void: stepper.remove_agent(second)
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_int(first.actions.size()).is_equal(0)
+	assert_str(messages[0]).contains("while observing")
+
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(first.actions.size()).is_equal(1)
+	assert_int(second.actions.size()).is_equal(0)
+	assert_array(_values(third.actions[0])).contains_exactly([6.0, 6.0, 6.0])
+
+
+func test_stepper_forgets_an_agent_that_leaves_the_tree() -> void:
+	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+
+	remove_child(agent)
+	add_child(agent)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(1)
+
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(2)
+
+
+func test_stepper_forgets_a_reparented_agent() -> void:
+	var holder: Node = auto_free(Node.new())
+	add_child(holder)
+	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+
+	agent.reparent(holder)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(1)
+
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(2)
+
+
 func test_stepper_reports_errors_through_its_signal() -> void:
 	var messages: Array = []
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
