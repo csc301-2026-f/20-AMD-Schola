@@ -4,6 +4,8 @@ extends ScholaAgent
 
 var observation: Variant
 var actions: Array = []
+var on_observe := Callable()
+var on_act := Callable()
 
 
 func setup(observation_size: int, action_size: int, value: Variant) -> void:
@@ -13,11 +15,15 @@ func setup(observation_size: int, action_size: int, value: Variant) -> void:
 
 
 func _observe() -> Variant:
+	if on_observe.is_valid():
+		on_observe.call()
 	return observation
 
 
 func _act(action: Variant) -> void:
 	actions.append(action)
+	if on_act.is_valid():
+		on_act.call()
 
 
 func _box(size: int) -> ScholaBoxSpace:

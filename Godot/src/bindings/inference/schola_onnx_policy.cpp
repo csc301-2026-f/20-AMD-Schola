@@ -69,6 +69,7 @@ godot::Error ScholaOnnxPolicy::load() {
 	if (!status.is_ok()) {
 		return report_failure("ScholaOnnxPolicy.load", status, &last_error);
 	}
+	loaded_path = model_path;
 	return godot::OK;
 }
 
@@ -94,7 +95,7 @@ godot::PackedStringArray ScholaOnnxPolicy::get_output_names() const {
 
 godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
 	last_error = godot::String();
-	if (!is_loaded()) {
+	if (!is_loaded() || loaded_path != model_path || policy->get_max_state_sequence_length() != max_state_sequence_length) {
 		const godot::Error error = load();
 		if (error != godot::OK) {
 			return error;

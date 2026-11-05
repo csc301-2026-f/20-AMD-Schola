@@ -52,6 +52,7 @@ protected:
 
 private:
 	godot::String model_path;
+	godot::String loaded_path;
 	int32_t max_state_sequence_length = 1;
 	godot::String last_error;
 	std::unique_ptr<schola::OnnxPolicy> policy;

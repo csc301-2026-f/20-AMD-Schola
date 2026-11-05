@@ -57,6 +57,7 @@ private:
 	godot::Ref<ScholaOnnxPolicy> policy;
 	godot::TypedArray<godot::NodePath> agents;
 	bool enabled = true;
+	bool stepping = false;
 	std::unique_ptr<schola::SimpleStepper> stepper;
 	godot::String last_step_error;
 };

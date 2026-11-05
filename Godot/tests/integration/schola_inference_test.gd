@@ -102,6 +102,41 @@ func test_copy_from_reports_a_state_of_another_size() -> void:
 	assert_str(state.get_last_error()).starts_with("ScholaPolicyState.copy_from: ")
 
 
+func test_initialize_reloads_after_the_model_path_changes() -> void:
+	var policy := _policy("box_scale.onnx")
+	var agent := _agent(3, 3, null)
+	assert_int(policy.initialize(agent)).is_equal(OK)
+
+	policy.model_path = FIXTURES + "does_not_exist.onnx"
+	assert_int(policy.initialize(agent)).is_equal(ERR_FILE_NOT_FOUND)
+	assert_bool(policy.is_loaded()).is_false()
+	assert_bool(policy.is_initialized()).is_false()
+
+	policy.model_path = FIXTURES + "box_scale.onnx"
+	assert_int(policy.initialize(agent)).is_equal(OK)
+	assert_array(_values(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0])))).contains_exactly([2.0, 4.0, 6.0])
+
+
+func test_initialize_applies_a_changed_sequence_length() -> void:
+	var policy := _policy("counter_seq.onnx")
+	var agent := _agent(1, 2, null)
+	policy.max_state_sequence_length = 3
+	assert_int(policy.initialize(agent)).is_equal(OK)
+	assert_str(str(policy.create_state())).contains("3x2")
+
+	policy.max_state_sequence_length = 5
+	assert_int(policy.initialize(agent)).is_equal(OK)
+	assert_str(str(policy.create_state())).contains("5x2")
+
+
+func test_initialize_keeps_a_preloaded_model() -> void:
+	var policy := _policy("counter.onnx")
+	assert_int(policy.load()).is_equal(OK)
+	var names := policy.get_input_names()
+	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
+	assert_array(policy.get_input_names()).contains_exactly(names)
+
+
 func test_reloading_keeps_the_policy_and_needs_initialize_again() -> void:
 	var policy := _policy("box_scale.onnx")
 	assert_int(policy.load()).is_equal(OK)
@@ -241,6 +276,46 @@ func test_stepper_fails_after_a_reload_until_its_agents_are_added_again() -> voi
 	assert_int(stepper.add_agent(agent)).is_equal(OK)
 	assert_int(stepper.step()).is_equal(OK)
 	assert_int(agent.actions.size()).is_equal(1)
+
+
+func test_stepper_rejects_a_policy_change_during_a_step() -> void:
+	var messages: Array = []
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var second := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	var original := _policy("box_scale.onnx")
+	stepper.policy = original
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	assert_int(stepper.add_agent(first)).is_equal(OK)
+	assert_int(stepper.add_agent(second)).is_equal(OK)
+
+	first.on_observe = func() -> void: stepper.policy = _policy("box_scale.onnx")
+	first.on_act = func() -> void: stepper.policy = _policy("box_scale.onnx")
+	assert_int(stepper.step()).is_equal(OK)
+
+	assert_object(stepper.policy).is_same(original)
+	assert_int(messages.size()).is_equal(2)
+	assert_str(messages[0]).contains("set_deferred")
+	assert_int(first.actions.size()).is_equal(1)
+	assert_int(second.actions.size()).is_equal(1)
+
+
+func test_stepper_applies_a_deferred_policy_change_after_the_step() -> void:
+	var agent := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	var replacement := _policy("box_scale.onnx")
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	agent.on_act = func() -> void: stepper.set_deferred("policy", replacement)
+	assert_int(stepper.step()).is_equal(OK)
+	await get_tree().process_frame
+
+	assert_object(stepper.policy).is_same(replacement)
 
 
 func test_stepper_reports_a_changed_policy() -> void:

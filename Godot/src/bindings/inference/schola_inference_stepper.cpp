@@ -19,6 +19,10 @@ void ScholaInferenceStepper::set_policy(const godot::Ref<ScholaOnnxPolicy> &p_po
 	if (p_policy == policy) {
 		return;
 	}
+	if (stepping) {
+		(void)report("ScholaInferenceStepper.policy: cannot change the policy during a step; use set_deferred(\"policy\", value)", godot::ERR_BUSY);
+		return;
+	}
 	policy = p_policy;
 	if (stepper != nullptr) {
 		stepper.reset();
@@ -100,7 +104,10 @@ godot::Error ScholaInferenceStepper::step() {
 	if (stepper == nullptr) {
 		return godot::OK;
 	}
+	const bool was_stepping = stepping;
+	stepping = true;
 	schola::Status status = stepper->step();
+	stepping = was_stepping;
 	if (status.is_ok()) {
 		last_step_error = godot::String();
 		return godot::OK;
