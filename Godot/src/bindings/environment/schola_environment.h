@@ -51,20 +51,6 @@ public:
 	/** Defined in the .cpp, where GodotEnvironmentAdapter is a complete type. */
 	~ScholaEnvironment() override;
 
-	/**
-	 * Sets the episode step limit.
-	 *
-	 * @param p_max_episode_steps 0 for no step limit; a positive value
-	 *        truncates unfinished agents when an episode reaches that many
-	 *        steps. A negative value is a configuration error.
-	 */
-	void set_max_episode_steps(int32_t p_max_episode_steps);
-
-	/**
-	 * @return The episode step limit; 0 means no step limit.
-	 */
-	int32_t get_max_episode_steps() const;
-
 	// === US1 Additions Below ===
 
 	/**
@@ -170,7 +156,7 @@ public:
 	/**
 	 * Checks the Inspector and scene-tree configuration.
 	 *
-	 * Reports a negative max_episode_steps, a missing ScholaAgent, and every
+	 * Reports a missing ScholaAgent and every
 	 * agent's own configuration errors, prefixed with its agent ID. Duplicate
 	 * agent IDs are reported by the adapter's initialize() instead.
 	 *
@@ -189,8 +175,6 @@ protected:
 	static void _bind_methods();
 
 private:
-	int32_t max_episode_steps = 0;
-
 	// === US1 Addition Below ===
 
 	// Created with the node so get_rng() is never null.
