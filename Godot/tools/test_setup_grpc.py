@@ -38,6 +38,23 @@ class GrpcSetupTests(unittest.TestCase):
         self.assertIn("-DCMAKE_OSX_ARCHITECTURES=arm64", arguments)
         self.assertFalse(any("MSVC" in str(argument) for argument in arguments))
 
+    def test_cache_key_follows_the_pins_and_the_platform_build_options(self):
+        grpc = {"tag": "v1.80.0", "commit": "f5e2d6e"}
+        protobuf = {"version": "31.1"}
+        linux = setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64")
+        self.assertEqual(linux, setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64"))
+        self.assertNotEqual(linux, setup_grpc.cache_key(grpc, protobuf, "windows", "x86_64"))
+        self.assertNotEqual(
+            linux, setup_grpc.cache_key({**grpc, "commit": "0000000"}, protobuf, "linux", "x86_64")
+        )
+        configure_arguments = setup_grpc.configure_arguments
+        with patch.object(
+            setup_grpc,
+            "configure_arguments",
+            side_effect=lambda *arguments: configure_arguments(*arguments) + ["-DEXTRA=ON"],
+        ):
+            self.assertNotEqual(linux, setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64"))
+
     @unittest.skipUnless(os.name == "nt", "Windows read-only file semantics")
     def test_retry_removes_read_only_git_pack_files(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -2,6 +2,7 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -72,6 +73,23 @@ def expected_stamp(grpc, protobuf, system, machine):
         "platform": system,
         "arch": machine,
     }
+
+
+def cache_key(grpc, protobuf, system, machine):
+    # Covers what decides this platform's install, so CI keeps its cached build when
+    # only another platform's options or the script's other code change.
+    configuration = {
+        "stamp": expected_stamp(grpc, protobuf, system, machine),
+        "submodules": list(SUBMODULES),
+        "configure": [
+            str(argument)
+            for argument in configure_arguments(
+                system, machine, Path("source"), Path("build"), Path("install")
+            )
+        ],
+    }
+    encoded = json.dumps(configuration, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:16]
 
 
 def installed_stamp():
@@ -228,12 +246,21 @@ def main():
     parser.add_argument(
         "--force", action="store_true", help="Rebuild even if the pinned release is installed."
     )
+    parser.add_argument(
+        "--print-cache-key",
+        action="store_true",
+        help="Print the CI cache key for this host's build and exit without building.",
+    )
     arguments = parser.parse_args()
 
     dependencies = json.loads(LOCK_FILE.read_text(encoding="utf-8"))
     grpc = dependencies["grpc"]
     protobuf = dependencies["protobuf"]
     system, machine = host()
+
+    if arguments.print_cache_key:
+        print(cache_key(grpc, protobuf, system, machine))
+        return
 
     if shutil.which("cmake") is None:
         raise RuntimeError("CMake 3.16 or newer is required to build gRPC")

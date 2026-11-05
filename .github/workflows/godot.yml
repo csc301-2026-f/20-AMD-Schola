@@ -103,9 +103,11 @@ jobs:
 
       - name: Compute gRPC cache key
         id: grpc-key
+        # Changes only with the pins or this platform's build options, not with every
+        # edit to setup_grpc.py.
         run: |
-          pins=$(jq -c '{grpc, protobuf}' Godot/dependencies.lock.json | sha256sum | cut -c1-16)
-          echo "key=grpc-${{ runner.os }}-${{ runner.arch }}-${pins}-${{ hashFiles('Godot/tools/setup_grpc.py') }}" >> "$GITHUB_OUTPUT"
+          key=$(python Godot/tools/setup_grpc.py --print-cache-key)
+          echo "key=grpc-${{ runner.os }}-${{ runner.arch }}-${key}" >> "$GITHUB_OUTPUT"
 
       - name: Restore gRPC
         id: grpc-cache
