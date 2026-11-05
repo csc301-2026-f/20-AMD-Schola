@@ -142,6 +142,26 @@ func test_stepper_clamps_a_box_action_to_the_agent_space() -> void:
 	assert_array(_values(stepper.policy.infer(agent.observation))).contains_exactly([10.0, 2.0, -10.0])
 
 
+func test_stepper_keeps_stepping_after_a_bad_observation() -> void:
+	var messages: Array = []
+	var bad := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
+	var good := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	assert_int(stepper.add_agent(bad)).is_equal(OK)
+	assert_int(stepper.add_agent(good)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+
+	bad.observation = PackedFloat32Array([5.0])
+	assert_int(stepper.step()).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(messages.size()).is_equal(1)
+	assert_array(_values(bad.actions[1])).contains_exactly([2.0, 2.0, 2.0])
+	assert_array(_values(good.actions[1])).contains_exactly([2.0, 4.0, 6.0])
+
+
 func test_stepper_adds_the_agents_from_the_inspector_list() -> void:
 	var agent := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
 	agent.name = "InspectorAgent"

@@ -268,7 +268,8 @@ Errors never stop the game:
   failed call in ``get_last_error()``. Each call that can fail clears it first, so read it right
   after the call.
 - :cpp:class:`ScholaInferenceStepper` runs on its own, so it also emits
-  ``inference_failed(message)``. If one agent's ``_act()`` fails, the other agents still act.
+  ``inference_failed(message)``. If one agent's ``_observe()`` or ``_act()`` fails, the other agents
+  still act, and an agent whose ``_observe()`` failed reuses its last observation.
 - If the stepper's ``policy`` is replaced, the stepper removes its agents and reports an error; add
   the agents again. If the policy is reloaded with ``load()``, every step fails until each agent is
   removed and added again. An agent that leaves the scene tree is removed automatically.

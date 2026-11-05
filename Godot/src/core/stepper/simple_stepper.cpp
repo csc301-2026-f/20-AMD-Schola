@@ -142,10 +142,11 @@ Status SimpleStepper::step() {
 		action_ptrs.resize(count);
 	}
 
+	Status first_error = Status::ok();
 	for (size_t i = 0; i < count && i < entries.size(); ++i) {
-		Status status = entries[i].agent->observe(observations[i]);
-		if (!status.is_ok()) {
-			return Status::error(status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": observe: " + status.get_message());
+		Status observe_status = entries[i].agent->observe(observations[i]);
+		if (!observe_status.is_ok() && first_error.is_ok()) {
+			first_error = Status::error(observe_status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": observe: " + observe_status.get_message());
 		}
 		observation_ptrs[i] = &observations[i];
 		state_ptrs[i] = entries[i].state.get();
@@ -160,7 +161,6 @@ Status SimpleStepper::step() {
 		return Status::error(status.get_code(), "SimpleStepper::step: " + status.get_message());
 	}
 
-	Status first_error = Status::ok();
 	for (size_t i = 0; i < count && i < entries.size(); ++i) {
 		Status act_status = entries[i].agent->act(actions[i]);
 		if (!act_status.is_ok() && first_error.is_ok()) {
