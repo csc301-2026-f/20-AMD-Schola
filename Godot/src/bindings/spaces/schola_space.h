@@ -13,25 +13,21 @@ namespace schola {
 class Space;
 } // namespace schola
 
-// Godot-facing base resource for one observation or action space definition
-// resources own Inspector properties and convert them into US2 core spaces
+// Base Inspector resource for an observation or action space
 class ScholaSpace : public godot::Resource {
 	GDCLASS(ScholaSpace, godot::Resource)
 
 public:
-	// Returns this resource's US2 space definition
-	// Call Space::check_definition() to report invalid Inspector configuration
+	// May be invalid; see get_definition_error()
 	virtual schola::Space to_space() const = 0;
 
-	// Returns why the resource cannot form a space, such as an unassigned Dict entry
-	// p_path is the Dict key path of this resource
+	// Returns why the resource cannot form a space; p_path is its Dict key path
 	virtual godot::String get_resource_error(const godot::String &p_path) const;
 
-	// Returns an empty string when p_value belongs to this space
-	// Otherwise returns a reason why the value is invalid
+	// Returns an empty string if p_value fits, otherwise why not
 	godot::String get_validation_error(const godot::Variant &p_value) const;
 
-	// Returns an empty string when the definition is valid
+	// Returns an empty string if the definition is valid
 	godot::String get_definition_error() const;
 	godot::Dictionary to_dictionary() const;
 	int64_t get_flattened_size() const;
@@ -40,4 +36,8 @@ public:
 
 protected:
 	static void _bind_methods();
+
+private:
+	// Returns why the space is invalid, or an empty string
+	godot::String build_space(schola::Space &r_space) const;
 };

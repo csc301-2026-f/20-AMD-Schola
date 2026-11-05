@@ -6,18 +6,18 @@
 
 #include <godot_cpp/variant/dictionary.hpp>
 
-// Inspector resource for a named collection of US2 spaces
+// Inspector resource for a Dict space
 class ScholaDictSpace : public ScholaSpace {
 	GDCLASS(ScholaDictSpace, ScholaSpace)
 
 public:
-	// Maps each String key to one ScholaSpace resource
+	// String keys to ScholaSpace resources
 	void set_spaces(const godot::Dictionary &p_spaces);
 	godot::Dictionary get_spaces() const;
 
-	// A Dict that contains itself yields an empty Box entry where the cycle closes
+	// A cycle yields an empty Box where it closes
 	schola::Space to_space() const override;
-	// Reports a non-String key, an entry without a ScholaSpace, or a Dict that contains itself
+	// Reports non-String keys, unassigned entries, and cycles
 	godot::String get_resource_error(const godot::String &p_path) const override;
 
 protected:
@@ -25,6 +25,6 @@ protected:
 
 private:
 	godot::Dictionary spaces;
-	// Set while this resource's entries are being walked, so a cycle stops instead of recursing forever
+	// Stops cycles from recursing forever
 	mutable bool visiting = false;
 };
