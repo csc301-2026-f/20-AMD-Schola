@@ -89,8 +89,35 @@ use an explicit ID when that is undesirable.
 is preserved by `get_agent_type()`. Use `get_resolved_agent_type()` for the effective
 type: an explicit type takes precedence; an empty type falls back to the resolved
 agent ID, which itself falls back to the node name. Resolution does not change the
-saved properties. The US1 adapter should use the resolved type when populating
+saved properties. The integrated US1 adapter uses the resolved type when populating
 `InteractionDefinition::agent_type`; this resolver does not implement policy sharing.
+
+### Space resources and configuration warnings
+
+Assign `ScholaSpace` resources to the agent's `observation_space` and
+`action_space` fields. Both start unassigned and must be configured. The Inspector
+offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
+by US2, with inline help for their settings. Discrete and MultiBinary sizes start
+at zero and require a positive value; their Inspector fields provide positive-size
+range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
+
+Resources can be embedded in a scene or saved separately as `.tres` files. Shared
+resources intentionally share configuration; use Godot's Make Unique operation
+when an assignment needs an independent copy. The US5 owner has completed the
+manual editor persistence checks.
+
+Agent warning icons identify missing/invalid spaces and missing `_observe` or
+`_act` hooks. The environment also reports missing agents, missing
+`_get_step_result`, and duplicate resolved agent IDs, including the conflicting
+node paths. Nested environments are searched independently, so matching agent IDs
+across separate environments are allowed. `_reset_episode` is optional.
+
+Warnings refresh when resources (including nested Dict entries) or scripts change,
+and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
+inspect inherited script metadata; gameplay scripts do not need `@tool`.
+`get_configuration_errors()` checks resources and scene configuration; the editor
+adds missing-hook warnings. Runtime adapter calls still validate required hooks
+before invoking them.
 
 ### Episode endings
 
@@ -151,6 +178,11 @@ godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
 Use the platform appropriate to your machine. Normal builds omit the driver;
 the adapter suite is skipped when it is unavailable.
 
+The driver is a test-only bridge, not a production training host. Running an
+ordinary scene does not automatically initialize, reset, or step its environments.
+The current `examples/basic_environment/` scene is a registration probe; the
+production example and its lifecycle-host integration remain work for US5 and US4.
+
 ### Editor and runtime monitor
 
 The **AMD Schola** editor plugin uses GDScript and works in standard Godot without .NET. It is enabled in this project. Reopen the project after updating, or enable it in **Project → Project Settings → Plugins**.
@@ -159,7 +191,7 @@ The **AMD Schola** editor plugin uses GDScript and works in standard Godot witho
 - Use **Add monitor to current scene** to insert a `CanvasLayer` and `ScholaMonitor`, with editor undo/redo support. You can also search for **ScholaMonitor** in Add Node. Its title and history limit are editable in the Inspector.
 - Use **Open interactive UI preview**, then **F6**, to inspect the runtime panel. Alternatively open `res://examples/ui_preview/main.tscn` directly. Next step, auto play/pause, new episode, terminate, and truncate operate on explicitly synthetic telemetry. This preview does not run a trainer or implement an RL environment.
 
-The runtime monitor displays episode and step counts, cumulative reward history, per-agent rewards and returns, and termination/truncation state. It does not depend on the unfinished native environment bindings. Feed it real data from your lifecycle code on the Godot main thread:
+The runtime monitor displays episode and step counts, cumulative reward history, per-agent rewards and returns, and termination/truncation state. Feed it real data from the component that owns the lifecycle, on the Godot main thread:
 
 ```gdscript
 @onready var monitor: ScholaMonitor = $ScholaHUD/ScholaMonitor
