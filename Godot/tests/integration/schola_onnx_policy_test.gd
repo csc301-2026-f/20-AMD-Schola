@@ -42,6 +42,7 @@ func test_load_reports_a_missing_file() -> void:
 func test_load_reports_an_invalid_model() -> void:
 	var policy := _policy("bad_state_int.onnx")
 	assert_int(policy.load()).is_equal(ERR_INVALID_DATA)
+	assert_str(policy.get_last_error()).starts_with("ScholaOnnxPolicy.load: ")
 	assert_str(policy.get_last_error()).contains("must be float")
 
 
@@ -49,3 +50,4 @@ func test_create_state_needs_an_initialized_policy() -> void:
 	var policy := _policy("box_scale.onnx")
 	assert_int(policy.load()).is_equal(OK)
 	assert_object(policy.create_state()).is_null()
+	assert_str(policy.get_last_error()).starts_with("ScholaOnnxPolicy.create_state: ")
