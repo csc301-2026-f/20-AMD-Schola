@@ -30,7 +30,9 @@ const char *kind_name(SpaceKind p_kind) {
 	return "Unknown";
 }
 
-// [low, high_exclusive) keeps 64-bit limits exact in double. text is for error messages.
+// numpy casts Box bounds and values to dtype, truncating fractions and wrapping out-of-range
+// values, so integer and bool dtypes need whole numbers in range. Limits come from numeric_limits;
+// the exclusive 2^digits upper limit stays exact in double, unlike max() for 64-bit types.
 struct WholeRange {
 	double low;
 	double high_exclusive;
