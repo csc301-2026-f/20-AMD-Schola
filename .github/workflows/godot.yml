@@ -74,6 +74,8 @@ jobs:
     if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
+    env:
+      SCONS_CACHE: ${{ runner.temp }}/schola-scons-cache
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -96,6 +98,18 @@ jobs:
 
       - name: Install ONNX Runtime
         run: python Godot/tools/setup_onnxruntime.py
+
+      - name: Identify compiler for build cache
+        id: compiler
+        run: echo "hash=$(g++ --version | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache SCons build outputs
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ env.SCONS_CACHE }}
+          key: scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-${{ github.sha }}
+          restore-keys: |
+            scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-
 
       - name: Build debug extensions
         run: scons -C Godot platform=linux target=template_debug -j2
