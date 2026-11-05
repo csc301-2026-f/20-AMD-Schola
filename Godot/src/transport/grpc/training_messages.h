@@ -42,11 +42,16 @@ void to_proto(const TrainingDefinition &p_definition, ::Schola::TrainingDefiniti
  */
 Status from_proto(const ::Schola::StateUpdate &p_message, ConnectorUpdate &r_update);
 
-/** UpdateState reply after a reset. */
-void to_proto(const InitialState &p_initial_state, ::Schola::State &r_message);
+/**
+ * UpdateState reply after a reset. Uses each agent's declared observation space
+ * for Box shape and dtype, including nested Dict points.
+ * Out: INVALID_DATA for an environment or agent absent from p_definition;
+ *      r_message is unchanged on failure.
+ */
+Status to_proto(const InitialState &p_initial_state, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
-/** UpdateState reply after a step. */
-void to_proto(const StepResult &p_result, ::Schola::State &r_message);
+/** UpdateState reply after a step, with the same definition/error contract as reset. */
+Status to_proto(const StepResult &p_result, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
 /**
  * Converts a Status into the gRPC status Python receives, prefixing the
