@@ -169,5 +169,12 @@ func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
 	assert_str(wide.get_validation_error([16777217])).contains("float32 cannot represent exactly")
 	assert_str(wide.get_validation_error([16777216])).is_empty()
 
+	# Above 2^53 an int would already round when converted to double
+	var huge := _box(PackedFloat32Array([float(1 << 60)]), PackedFloat32Array([float(1 << 60)]), PackedInt32Array([1]))
+	huge.dtype = 8 # int64
+	assert_str(huge.get_validation_error([1 << 60])).is_empty()
+	assert_str(huge.get_validation_error([(1 << 60) + 1])).contains("float32 cannot represent exactly")
+	assert_str(huge.get_validation_error([9223372036854775807])).contains("float32 cannot represent exactly")
+
 	space.dtype = 0 # float32
 	assert_str(space.get_validation_error([0, 1.00000001])).is_empty()

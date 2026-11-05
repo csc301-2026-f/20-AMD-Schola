@@ -102,13 +102,29 @@ Status wrong_value(const std::string &p_path, const char *p_expected, int64_t p_
 	return invalid(p_path, message);
 }
 
+std::string narrowing_error(int64_t p_index, const std::string &p_value, bool p_whole, DType p_dtype) {
+	const std::string prefix = "Box value at index " + std::to_string(p_index) + " is " + p_value;
+	return p_whole ? prefix + ", which float32 cannot represent exactly" : prefix + " but dtype " + dtype_name(p_dtype) + " needs a whole number";
+}
+
 // Narrows to float32, the wire type. Integer and bool dtypes reject values that narrowing would change,
 // because validate() only sees the float and would accept 1.00000001 as 1.
 bool push_float(double p_value, int64_t p_index, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
 	const float value = static_cast<float>(p_value);
 	if (is_whole_dtype(p_dtype) && !std::isnan(p_value) && static_cast<double>(value) != p_value) {
-		const std::string prefix = "Box value at index " + std::to_string(p_index) + " is " + to_std_string(godot::String::num(p_value));
-		r_error = std::floor(p_value) == p_value ? prefix + ", which float32 cannot represent exactly" : prefix + " but dtype " + dtype_name(p_dtype) + " needs a whole number";
+		r_error = narrowing_error(p_index, to_std_string(godot::String::num(p_value)), std::floor(p_value) == p_value, p_dtype);
+		return false;
+	}
+	r_values.push_back(value);
+	return true;
+}
+
+// Like push_float, but compares against the int64_t itself, since a double rounds integers above 2^53.
+bool push_int(int64_t p_value, int64_t p_index, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
+	const float value = static_cast<float>(p_value);
+	// 2^63 is the smallest float above INT64_MAX; casting it back to int64_t would overflow
+	if (is_whole_dtype(p_dtype) && (value >= std::ldexp(1.0f, 63) || static_cast<int64_t>(value) != p_value)) {
+		r_error = narrowing_error(p_index, std::to_string(p_value), true, p_dtype);
 		return false;
 	}
 	r_values.push_back(value);
@@ -141,7 +157,8 @@ bool read_floats(const godot::Variant &p_value, DType p_dtype, std::vector<float
 					r_error = "Array element " + std::to_string(i) + " is " + type_name(value) + " but must be a number";
 					return false;
 				}
-				if (!push_float(value, i, p_dtype, r_values, r_error)) {
+				const bool pushed = value.get_type() == godot::Variant::INT ? push_int(value, i, p_dtype, r_values, r_error) : push_float(value, i, p_dtype, r_values, r_error);
+				if (!pushed) {
 					return false;
 				}
 			}
