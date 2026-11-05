@@ -73,7 +73,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    # A cold gRPC build takes most of this; cached runs finish in about 15 minutes.
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -97,6 +98,31 @@ jobs:
       - name: Install ONNX Runtime
         run: python Godot/tools/setup_onnxruntime.py
 
+      - name: Compute gRPC cache key
+        id: grpc-key
+        run: |
+          pins=$(jq -c '{grpc, protobuf}' Godot/dependencies.lock.json | sha256sum | cut -c1-16)
+          echo "key=grpc-${{ runner.os }}-${{ runner.arch }}-${pins}-${{ hashFiles('Godot/tools/setup_grpc.py') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore gRPC
+        id: grpc-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Godot/thirdparty/grpc
+          key: ${{ steps.grpc-key.outputs.key }}
+
+      - name: Build gRPC
+        if: steps.grpc-cache.outputs.cache-hit != 'true'
+        run: python Godot/tools/setup_grpc.py
+
+      # Saved right away so a later failing step does not force another cold build.
+      - name: Save gRPC
+        if: steps.grpc-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Godot/thirdparty/grpc
+          key: ${{ steps.grpc-key.outputs.key }}
+
       - name: Build debug extensions
         run: scons -C Godot platform=linux target=template_debug -j2
 
@@ -109,6 +135,11 @@ jobs:
         run: |
           scons -C Godot inference_tests platform=linux target=template_debug -j2
           ./Godot/build/tests/schola_inference_tests
+
+      - name: Build and run transport tests
+        run: |
+          scons -C Godot transport_tests platform=linux target=template_debug -j2
+          ./Godot/build/tests/schola_transport_tests
 
       - name: Upload extensions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
