@@ -74,8 +74,6 @@ jobs:
     if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
-    env:
-      SCONS_CACHE: ${{ runner.temp }}/schola-scons-cache
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -101,7 +99,9 @@ jobs:
 
       - name: Identify compiler for build cache
         id: compiler
-        run: echo "hash=$(g++ --version | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "SCONS_CACHE=$RUNNER_TEMP/schola-scons-cache" >> "$GITHUB_ENV"
+          echo "hash=$(g++ --version | sha256sum | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
 
       - name: Cache SCons build outputs
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
