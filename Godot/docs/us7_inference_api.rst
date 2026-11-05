@@ -251,6 +251,9 @@ batch dimension.
 Every non-state model input and output must match a space, and every space must match a tensor.
 Otherwise ``initialize()`` fails and names the mismatched tensor.
 
+Box actions are clamped to the action space, because trained models can output values past its
+bounds. A Discrete or MultiDiscrete action outside its space fails the inference instead.
+
 
 Errors
 ------

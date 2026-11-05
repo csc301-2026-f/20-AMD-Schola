@@ -233,6 +233,8 @@ struct Binding {
 	std::vector<int64_t> shape;
 	size_t element_count = 0;
 	std::vector<int32_t> bounds;
+	std::vector<float> low;
+	std::vector<float> high;
 	std::vector<uint8_t> buffer;
 	OrtPtr<OrtValue> value;
 
@@ -246,6 +248,8 @@ namespace {
 bool leaf_shape(const Space &p_space, Binding &r_binding, std::vector<int64_t> &r_dimensions) {
 	if (const BoxSpace *box = p_space.get_if<BoxSpace>()) {
 		r_binding.kind = SpaceKind::BOX;
+		r_binding.low = box->low;
+		r_binding.high = box->high;
 		r_dimensions.assign(box->shape.begin(), box->shape.end());
 	} else if (const DiscreteSpace *discrete = p_space.get_if<DiscreteSpace>()) {
 		r_binding.kind = SpaceKind::DISCRETE;
@@ -324,7 +328,9 @@ Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) 
 Status read_action(const Binding &p_binding, Point &r_point) {
 	if (BoxPoint *box = r_point.get_if<BoxPoint>(); box && p_binding.kind == SpaceKind::BOX && box->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < box->values.size(); ++i) {
-			box->values[i] = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
+			const float value = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
+			// Training clips actions, so trained models can output past the bounds. NaN stays NaN.
+			box->values[i] = value < p_binding.low[i] ? p_binding.low[i] : (value > p_binding.high[i] ? p_binding.high[i] : value);
 		}
 		return Status::ok();
 	}

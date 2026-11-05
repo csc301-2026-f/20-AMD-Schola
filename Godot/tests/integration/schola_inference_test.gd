@@ -129,6 +129,19 @@ func test_stepper_drives_its_agents_every_step() -> void:
 	assert_array(_values(agent.actions[0])).contains_exactly([2.0, 4.0, 6.0])
 
 
+func test_stepper_clamps_a_box_action_to_the_agent_space() -> void:
+	var agent := _agent(3, 3, PackedFloat32Array([9.0, 1.0, -9.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(agent.actions[0])).contains_exactly([10.0, 2.0, -10.0])
+	assert_array(_values(stepper.policy.infer(agent.observation))).contains_exactly([10.0, 2.0, -10.0])
+
+
 func test_stepper_adds_the_agents_from_the_inspector_list() -> void:
 	var agent := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))
 	agent.name = "InspectorAgent"

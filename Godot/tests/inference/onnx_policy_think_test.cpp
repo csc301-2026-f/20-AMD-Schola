@@ -9,6 +9,7 @@
 
 #include <catch_amalgamated.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <iterator>
@@ -187,6 +188,17 @@ TEST_CASE("think rejects a state created before the model was reloaded", "[infer
 	Status status = fixture.think(Point(BoxPoint{ { 0.0f } }));
 	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
 	REQUIRE_THAT(status.get_message(), ContainsSubstring("create a new state after reloading"));
+}
+
+TEST_CASE("think clamps a Box action to its space", "[inference]") {
+	Space action(BoxSpace{ { -1.0f, -1.0f, -1.0f }, { 1.0f, 2.0f, 1.0f }, { 3 } });
+	Fixture fixture("box_scale.onnx", definition(box(3), action));
+
+	REQUIRE(fixture.think(Point(BoxPoint{ { 3.0f, 0.25f, -3.0f } })).is_ok());
+	REQUIRE(box_values(fixture.action) == std::vector<float>{ 1.0f, 0.5f, -1.0f });
+
+	REQUIRE(fixture.think(Point(BoxPoint{ { std::nanf(""), 0.0f, 0.0f } })).is_ok());
+	REQUIRE(std::isnan(box_values(fixture.action)[0]));
 }
 
 TEST_CASE("think rejects a Discrete action outside its space", "[inference]") {
