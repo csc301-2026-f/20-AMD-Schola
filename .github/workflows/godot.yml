@@ -146,6 +146,11 @@ jobs:
           scons -C Godot inference_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_inference_tests
 
+      - name: Build and run transport tests
+        run: |
+          scons -C Godot transport_tests platform=linux target=template_debug integration_tests=yes -j2
+          ./Godot/build/tests/schola_transport_tests
+
       - name: Upload extensions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

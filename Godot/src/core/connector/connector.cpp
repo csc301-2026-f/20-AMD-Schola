@@ -52,8 +52,6 @@ Status ConnectorLoop::start(Connector &p_connector, TrainingBackend &p_backend, 
 	if (!status.is_ok()) {
 		return end_session(status);
 	}
-
-	last_update = std::chrono::steady_clock::now();
 	return Status::ok();
 }
 
@@ -68,30 +66,6 @@ Status ConnectorLoop::tick(std::chrono::milliseconds p_update_timeout) {
 	}
 	if (status.get_code() == StatusCode::CLOSED) {
 		// Python is already gone, so there is no pending call to answer.
-		stop();
-		return status;
-	}
-	return end_session(status);
-}
-
-Status ConnectorLoop::poll_tick(std::chrono::milliseconds p_update_timeout) {
-	if (!is_running()) {
-		return not_running("ConnectorLoop::poll_tick()");
-	}
-	ConnectorUpdate update;
-	Status status = connector->poll_update(update);
-	if (status.is_ok()) {
-		return run_update(update);
-	}
-	if (status.get_code() == StatusCode::NOT_FOUND) {
-		if (p_update_timeout.count() > 0 && std::chrono::steady_clock::now() - last_update >= p_update_timeout) {
-			return end_session(Status::error(StatusCode::TIMEOUT,
-					"No message from Python for " + std::to_string(p_update_timeout.count()) +
-							" ms; the training process may have stopped. Increase the step timeout if steps are expected to take longer."));
-		}
-		return status;
-	}
-	if (status.get_code() == StatusCode::CLOSED) {
 		stop();
 		return status;
 	}
@@ -145,7 +119,6 @@ Status ConnectorLoop::run_update(const ConnectorUpdate &p_update) {
 			stop();
 			return Status::error(StatusCode::CLOSED, "Python closed the training session.");
 	}
-	last_update = std::chrono::steady_clock::now();
 	return Status::ok();
 }
 

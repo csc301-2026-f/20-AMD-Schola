@@ -5,6 +5,7 @@
 
 #include "transport/grpc/space_conversion.h"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -86,7 +87,7 @@ Status from_space_message(const ::Schola::Space &p_message, const std::string &p
 	return error_at(StatusCode::INVALID_DATA, p_path, "space has no definition");
 }
 
-Status from_point_message(const ::Schola::Point &p_message, const Space &p_space, const std::string &p_path, Point &r_point) {
+Status from_point_message(const ::Schola::Point &p_message, const Space &p_space, const std::string &p_path, Point &r_point, bool p_without_space = false) {
 	switch (p_message.point_case()) {
 		case ::Schola::Point::kBoxPoint: {
 			const auto &values = p_message.box_point().values();
@@ -107,6 +108,20 @@ Status from_point_message(const ::Schola::Point &p_message, const Space &p_space
 			return Status::ok();
 		}
 		case ::Schola::Point::kDictPoint: {
+			if (p_without_space) {
+				DictPoint point;
+				for (const auto &entry : p_message.dict_point().values()) {
+					Point value;
+					Status status = from_point_message(entry.second, empty_space(), join_path(p_path, entry.first), value, true);
+					if (!status.is_ok()) {
+						return status;
+					}
+					point.entries.emplace_back(entry.first, std::move(value));
+				}
+				std::sort(point.entries.begin(), point.entries.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+				r_point = Point(std::move(point));
+				return Status::ok();
+			}
 			const DictSpace *dict = p_space.get_if<DictSpace>();
 			if (dict == nullptr) {
 				return error_at(StatusCode::INVALID_ARGUMENT, p_path, "expected a point for " + p_space.to_string() + " but got a Dict point");
@@ -234,6 +249,15 @@ Status proto_to_point(const ::Schola::Point &p_message, const Space &p_space, Po
 		return status;
 	}
 	status = p_space.validate(point);
+	if (status.is_ok()) {
+		r_point = std::move(point);
+	}
+	return status;
+}
+
+Status proto_to_point(const ::Schola::Point &p_message, Point &r_point) {
+	Point point;
+	Status status = from_point_message(p_message, empty_space(), {}, point, true);
 	if (status.is_ok()) {
 		r_point = std::move(point);
 	}

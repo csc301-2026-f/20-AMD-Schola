@@ -15,11 +15,8 @@
  * Created in code by the US4-owned ScholaTrainingHost when training is
  * requested. It is never placed in a scene, so its settings come from project
  * settings rather than the Inspector. _ready() starts the session; each
- * physics frame runs one Python update.
- *
- * Headless games block each frame until Python's next message. Windowed
- * games poll instead and pause the scene tree while waiting, so the window
- * stays responsive.
+ * physics frame blocks until Python's next update and runs it, so an action
+ * and its reward always land on the same frame.
  */
 class ScholaTrainingConnector : public godot::Node {
 	GDCLASS(ScholaTrainingConnector, godot::Node)

@@ -48,10 +48,10 @@ Engine-independent modules use the shared `schola::Status` and `StatusCode` decl
 - Engine-specific generated bindings remain separate: Unreal's generated C++ is under `Source/ScholaProtobuf/`, Python's generated bindings are under `Resources/python/schola/generated/`, and Godot's generated C++ uses the path below.
 - `Godot/generated/proto/` is reserved for generated Godot C++ Protocol Buffer and gRPC sources. Generated output is build state, is ignored by Git, and must not be edited manually.
 - Handwritten conversion and transport code belongs under `src/transport/grpc/`, outside the generated directory.
-- A focused compatibility spike will select compatible gRPC, Protocol Buffers, and generator versions together. Until that decision is reviewed, feature branches must not add their own generator or dependency versions.
-- Once selected, generation must be deterministic and exposed through the shared build rather than requiring developers to run undocumented commands.
+- gRPC, Protocol Buffers, `protoc`, and `grpc_cpp_plugin` are pinned together in `dependencies.lock.json` and built from one source tree by `tools/setup_grpc.py`, so generated code always matches the linked runtime. The selected versions match Unreal Schola and await AMD confirmation. Feature branches must not add their own generator or dependency versions; changing them is a focused shared-infrastructure change.
+- SCons generates the bindings deterministically as part of the shared build; developers do not run `protoc` by hand.
 
-These rules assign ownership and paths without choosing the transport API or resolving the versions that remain under investigation with AMD.
+These rules assign ownership and paths without choosing the transport API.
 
 ## Shared-file policy
 
