@@ -7,8 +7,7 @@
 
 namespace schola {
 
-OnnxPolicyState::OnnxPolicyState(const OnnxPolicy *p_owner, const std::vector<BufferLayout> &p_layouts) :
-		owner(p_owner) {
+OnnxPolicyState::OnnxPolicyState(const std::vector<BufferLayout> &p_layouts) {
 	buffers.reserve(p_layouts.size());
 	for (const BufferLayout &layout : p_layouts) {
 		Buffer buffer;
@@ -61,10 +60,6 @@ std::string OnnxPolicyState::to_string() const {
 		text += (i == 0 ? "" : ", ") + buffers[i].name + ": " + std::to_string(buffers[i].sequence_length) + "x" + std::to_string(buffers[i].state_size);
 	}
 	return text + ")";
-}
-
-const OnnxPolicy *OnnxPolicyState::get_owner() const {
-	return owner;
 }
 
 std::vector<OnnxPolicyState::Buffer> &OnnxPolicyState::get_buffers() {

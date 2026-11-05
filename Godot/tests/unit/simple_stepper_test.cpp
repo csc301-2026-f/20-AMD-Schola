@@ -228,21 +228,25 @@ TEST_CASE("init leaves no entries when one agent fails", "[stepper]") {
 	REQUIRE(stepper.get_agent_count() == 0);
 }
 
-TEST_CASE("an observe failure stops the step before thinking", "[stepper]") {
+TEST_CASE("an observe failure reuses the last observation and every agent still acts", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);
-	second.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor broke");
 	FakePolicy policy = make_policy();
 	SimpleStepper stepper;
 	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	REQUIRE(stepper.step().is_ok());
 
+	second.observation = Point(BoxPoint{ { 9.0f } });
+	second.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor broke");
 	Status status = stepper.step();
 
 	REQUIRE(status.get_code() == StatusCode::RUNTIME_FAILURE);
 	REQUIRE_THAT(status.get_message(), ContainsSubstring("agent 1: observe: sensor broke"));
-	REQUIRE(policy.observations.empty());
-	REQUIRE(first.actions.empty());
-	REQUIRE(count_at(stepper, 0) == 0);
+	REQUIRE(policy.observations.size() == 4);
+	REQUIRE(box_value(policy.observations[3]) == 2.0f);
+	REQUIRE(first.actions.size() == 2);
+	REQUIRE(second.actions.size() == 2);
+	REQUIRE(count_at(stepper, 1) == 2);
 }
 
 TEST_CASE("a think failure means no agent acts", "[stepper]") {

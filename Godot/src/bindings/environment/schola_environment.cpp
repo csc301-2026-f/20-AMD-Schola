@@ -41,15 +41,6 @@ ScholaEnvironment::ScholaEnvironment() {
 // GodotEnvironmentAdapter definition, which the header only forward-declares.
 ScholaEnvironment::~ScholaEnvironment() = default;
 
-void ScholaEnvironment::set_max_episode_steps(int32_t p_max_episode_steps) {
-	max_episode_steps = p_max_episode_steps;
-	update_configuration_warnings();
-}
-
-int32_t ScholaEnvironment::get_max_episode_steps() const {
-	return max_episode_steps;
-}
-
 int64_t ScholaEnvironment::get_episode_step() const {
 	// The adapter does the stepping, so it keeps the count. Before anything
 	// has asked for the adapter, no episode has run.
@@ -90,9 +81,6 @@ godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 
 godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	godot::PackedStringArray errors;
-	if (max_episode_steps < 0) {
-		errors.append("max_episode_steps must be zero or greater");
-	}
 	const godot::TypedArray<ScholaAgent> agents = get_agents();
 	if (agents.is_empty()) {
 		errors.append("Add a ScholaAgent node below this environment.");
@@ -117,8 +105,6 @@ godot::PackedStringArray ScholaEnvironment::_get_configuration_warnings() const 
 }
 
 void ScholaEnvironment::_bind_methods() {
-	godot::ClassDB::bind_method(godot::D_METHOD("set_max_episode_steps", "max_episode_steps"), &ScholaEnvironment::set_max_episode_steps);
-	godot::ClassDB::bind_method(godot::D_METHOD("get_max_episode_steps"), &ScholaEnvironment::get_max_episode_steps);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_agents"), &ScholaEnvironment::get_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaEnvironment::get_configuration_errors);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_episode_step"), &ScholaEnvironment::get_episode_step);
@@ -130,5 +116,4 @@ void ScholaEnvironment::_bind_methods() {
 	GDVIRTUAL_BIND(_is_terminated, "agent");
 	GDVIRTUAL_BIND(_is_truncated, "agent");
 	GDVIRTUAL_BIND(_get_info, "agent");
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "max_episode_steps"), "set_max_episode_steps", "get_max_episode_steps");
 }

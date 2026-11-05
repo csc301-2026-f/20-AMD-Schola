@@ -1,8 +1,8 @@
 # US2: Declare observation and action spaces
 
 - **Owner:** Jimmy
-- **Status:** Implemented; final integration work remains
-- **Last updated:** Oct. 30, 2026
+- **Status:** Core and Godot resources complete; protobuf round-trip verification awaits US3 bindings
+- **Last updated:** Nov. 4, 2026
 
 ## Story
 
@@ -21,4 +21,6 @@ As a Godot developer, I want to define observation and action spaces using reusa
 
 - The current union-type approach was compared with the alternative proposed at the Oct. 23 partner meeting.
 - The team confirmed the union-type approach because it avoids unnecessary complexity.
-- The core spaces-and-points implementation is complete; remaining work is limited to final integration and edge-case validation.
+- Core spaces, points, and Inspector resources are implemented and merged in #30, including Box, Discrete, MultiDiscrete, MultiBinary, and Dict.
+- Passing core and Godot integration tests cover definitions, shape and bounds validation, unbounded Box dimensions, invalid values, and nested Dict resources.
+- Protobuf conversion code and round-trip tests exist for spaces, points, interaction definitions, and agent states. Those tests are guarded by the availability of `Spaces.pb.h` and cannot run until US3 supplies generated bindings. Their execution remains unverified; it does not require further core-space implementation.

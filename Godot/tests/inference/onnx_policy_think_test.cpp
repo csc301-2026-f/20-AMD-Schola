@@ -9,6 +9,7 @@
 
 #include <catch_amalgamated.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <fstream>
 #include <iterator>
@@ -167,14 +168,12 @@ TEST_CASE("think slides a state sequence of the configured length", "[inference]
 	REQUIRE(fixture.policy.set_max_state_sequence_length(5).get_code() == StatusCode::FAILED_PRECONDITION);
 }
 
-TEST_CASE("think rejects a state from another policy", "[inference]") {
+TEST_CASE("think accepts any state that fits the model", "[inference]") {
 	Fixture first("counter.onnx", definition(box(1), box(2)));
 	Fixture second("counter.onnx", definition(box(1), box(2)));
 	const Point observation(BoxPoint{ { 0.0f } });
 
-	Status status = first.policy.think(observation, *second.state, first.action);
-	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
-	REQUIRE_THAT(status.get_message(), ContainsSubstring("not created by this policy"));
+	REQUIRE(first.policy.think(observation, *second.state, first.action).is_ok());
 
 	EmptyPolicyState empty;
 	REQUIRE(first.policy.think(observation, empty, first.action).get_code() == StatusCode::INVALID_ARGUMENT);
@@ -191,11 +190,47 @@ TEST_CASE("think rejects a state created before the model was reloaded", "[infer
 	REQUIRE_THAT(status.get_message(), ContainsSubstring("create a new state after reloading"));
 }
 
-TEST_CASE("think rejects a Discrete action outside its space", "[inference]") {
-	Fixture fixture("discrete.onnx", definition(box(4), Space(DiscreteSpace{ 2 })));
-	Status status = fixture.think(Point(BoxPoint{ { 0.0f, 0.0f, 0.0f, 9.0f } }));
-	REQUIRE(status.get_code() == StatusCode::RUNTIME_FAILURE);
-	REQUIRE_THAT(status.get_message(), ContainsSubstring("returned 3 for action, outside [0, 2)"));
+TEST_CASE("think clamps a Box action to its space", "[inference]") {
+	Space action(BoxSpace{ { -1.0f, -1.0f, -1.0f }, { 1.0f, 2.0f, 1.0f }, { 3 } });
+	Fixture fixture("box_scale.onnx", definition(box(3), action));
+
+	REQUIRE(fixture.think(Point(BoxPoint{ { 3.0f, 0.25f, -3.0f } })).is_ok());
+	REQUIRE(box_values(fixture.action) == std::vector<float>{ 1.0f, 0.5f, -1.0f });
+
+	REQUIRE(fixture.think(Point(BoxPoint{ { std::nanf(""), 0.0f, 0.0f } })).is_ok());
+	REQUIRE(std::isnan(box_values(fixture.action)[0]));
+}
+
+TEST_CASE("think passes on a Discrete action outside its space", "[inference]") {
+	SECTION("Discrete") {
+		Fixture fixture("discrete.onnx", definition(box(4), Space(DiscreteSpace{ 2 })));
+		REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f, 0.0f, 0.0f, 9.0f } })).is_ok());
+		REQUIRE(fixture.action.get_if<DiscretePoint>()->value == 3);
+	}
+	SECTION("MultiDiscrete") {
+		Space observation(MultiDiscreteSpace{ { 4, 4 } });
+		Fixture fixture("multi_discrete.onnx", definition(observation, Space(MultiDiscreteSpace{ { 2, 2 } })));
+		REQUIRE(fixture.think(Point(MultiDiscretePoint{ { 3, 1 } })).is_ok());
+		REQUIRE(fixture.action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ 3, 1 });
+	}
+}
+
+TEST_CASE("think rejects a Discrete observation outside its space", "[inference]") {
+	SECTION("Discrete") {
+		Space observation(DictSpace{ { { "b", Space(DiscreteSpace{ 5 }) }, { "a", box(2) } } });
+		Fixture fixture("dict_obs.onnx", definition(observation, box(3)));
+		DictPoint point{ { { "a", Point(BoxPoint{ { 1.0f, 2.0f } }) }, { "b", Point(DiscretePoint{ 5 }) } } };
+		Status status = fixture.think(Point(point));
+		REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+		REQUIRE_THAT(status.get_message(), ContainsSubstring("observation 'b' value 5 is outside [0, 5)"));
+	}
+	SECTION("MultiDiscrete") {
+		Space space(MultiDiscreteSpace{ { 4, 4 } });
+		Fixture fixture("multi_discrete.onnx", definition(space, space));
+		Status status = fixture.think(Point(MultiDiscretePoint{ { 3, 4 } }));
+		REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+		REQUIRE_THAT(status.get_message(), ContainsSubstring("observation value 4 is outside [0, 4)"));
+	}
 }
 
 TEST_CASE("batched_think advances every entry's own state", "[inference]") {
