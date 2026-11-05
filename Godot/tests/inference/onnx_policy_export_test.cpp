@@ -43,6 +43,26 @@ Expected read_expected(const std::string &p_name) {
 	return expected;
 }
 
+std::vector<Expected> read_expected_steps(const std::string &p_name) {
+	std::ifstream file(std::string(SCHOLA_TEST_FIXTURES_DIR) + "/" + p_name + ".expected.txt");
+	REQUIRE(file.is_open());
+	std::vector<Expected> steps;
+	std::string line;
+	while (std::getline(file, line)) {
+		std::istringstream words(line);
+		std::string label;
+		words >> label;
+		if (label == "observation") {
+			steps.emplace_back();
+		}
+		std::vector<float> &values = label == "observation" ? steps.back().observation : steps.back().action;
+		for (float value; words >> value;) {
+			values.push_back(value);
+		}
+	}
+	return steps;
+}
+
 void load_and_init(OnnxPolicy &r_policy, const std::string &p_name, Space p_observation, Space p_action) {
 	std::ifstream file(std::string(SCHOLA_TEST_FIXTURES_DIR) + "/" + p_name + ".onnx", std::ios::binary);
 	REQUIRE(file.is_open());
@@ -95,6 +115,35 @@ TEST_CASE("an exported PPO policy with a Box action matches Python", "[inference
 	for (size_t i = 0; i < values.size(); ++i) {
 		REQUIRE(values[i] == Catch::Approx(expected.action[i]).margin(1e-6));
 	}
+}
+
+TEST_CASE("an exported RLlib LSTM policy matches Python across steps", "[inference]") {
+	const std::vector<Expected> steps = read_expected_steps("schola_rllib_lstm");
+	REQUIRE(steps.size() == 6);
+	OnnxPolicy policy;
+	const Space action_space = box(2);
+	load_and_init(policy, "schola_rllib_lstm", box(4), action_space);
+	REQUIRE(policy.is_recurrent());
+
+	std::unique_ptr<PolicyState> state;
+	REQUIRE(policy.create_initial_state(state).is_ok());
+	Point action = action_space.make_point();
+	const auto require_action = [&](const Expected &p_step) {
+		Status status = policy.think(Point(BoxPoint{ p_step.observation }), *state, action);
+		INFO(status.get_message());
+		REQUIRE(status.is_ok());
+		const std::vector<float> &values = action.get_if<BoxPoint>()->values;
+		REQUIRE(values.size() == p_step.action.size());
+		for (size_t i = 0; i < values.size(); ++i) {
+			REQUIRE(values[i] == Catch::Approx(p_step.action[i]).margin(1e-5));
+		}
+	};
+
+	for (const Expected &step : steps) {
+		require_action(step);
+	}
+	state->reset();
+	require_action(steps[0]);
 }
 
 TEST_CASE("an exported PPO policy with a Dict observation matches Python", "[inference]") {

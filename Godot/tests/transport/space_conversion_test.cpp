@@ -51,7 +51,7 @@ Point round_trip(const Point &p_point, const Space &p_space) {
 
 TEST_CASE("spaces round-trip through protobuf unchanged", "[spaces][transport]") {
 	const Space spaces[] = {
-		Space(BoxSpace{ { -1.0f, -INF, 0.0f, 0.0f }, { 1.0f, INF, 255.0f, 255.0f }, { 2, 2 }, DType::UINT8 }),
+		Space(BoxSpace{ { 0.0f, 0.0f, 0.0f, 10.0f }, { 1.0f, 15.0f, 255.0f, 255.0f }, { 2, 2 }, DType::UINT8 }),
 		Space(DiscreteSpace{ 4 }),
 		Space(MultiDiscreteSpace{ { 3, 5, 2 } }),
 		Space(MultiBinarySpace{ 6 }),

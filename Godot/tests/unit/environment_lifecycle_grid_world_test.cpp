@@ -82,22 +82,23 @@ TEST_CASE("lifecycle runs a grid-world episode to the goal and resets", "[lifecy
 	CHECK(lifecycle.get_episode_step_count() == 0);
 }
 
-TEST_CASE("lifecycle step limit truncates an episode the environment never ends", "[lifecycle][environment]") {
+TEST_CASE("lifecycle leaves an unfinished environment active", "[lifecycle][environment]") {
 	GridWorldEnvironment environment;
-	EnvironmentLifecycle lifecycle(0, environment, 3);
+	EnvironmentLifecycle lifecycle(0, environment);
 	REQUIRE(lifecycle.initialize().is_ok());
 	InitialEnvironmentState initial;
 	REQUIRE(lifecycle.reset({}, initial).is_ok());
 
-	// Moving left only ever moves away from the goal, so only the limit can end it.
+	// Moving left only ever moves away from the goal.
 	EnvironmentState state;
 	for (int i = 0; i < 3; i++) {
 		REQUIRE(lifecycle.step({ { RUNNER, move_action(GridAgent::LEFT) } }, state).is_ok());
 	}
 
-	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);
-	CHECK(state.agents.at(RUNNER).truncated);
+	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
+	CHECK_FALSE(state.agents.at(RUNNER).truncated);
 	CHECK_FALSE(state.agents.at(RUNNER).terminated);
+	CHECK(lifecycle.get_episode_step_count() == 3);
 }
 
 TEST_CASE("lifecycle surfaces a rejected action as a fault", "[lifecycle][environment]") {

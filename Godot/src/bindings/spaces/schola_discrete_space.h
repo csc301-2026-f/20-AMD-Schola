@@ -6,12 +6,12 @@
 
 #include <cstdint>
 
-// Inspector resource for a US2 Discrete space
+// Inspector resource for a Discrete space
 class ScholaDiscreteSpace : public ScholaSpace {
 	GDCLASS(ScholaDiscreteSpace, ScholaSpace)
 
 public:
-	// Number of available choices; values are in [0, n)
+	// Values are in [0, n)
 	void set_n(int32_t p_n);
 	int32_t get_n() const;
 

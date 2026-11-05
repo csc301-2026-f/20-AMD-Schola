@@ -2,59 +2,35 @@
 
 #include "bindings/inference/schola_onnx_policy.h"
 
-#include "bindings/spaces/schola_space.h"
+#include "bindings/environment/schola_agent.h"
+#include "core/environment/agent.h"
 #include "core/environment/interaction_definition.h"
 #include "core/policy/policy_state.h"
 #include "inference/onnx_policy.h"
+#include "interop/godot_status.h"
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <string>
 #include <vector>
 
 namespace {
 
-godot::Error to_error(const schola::Status &p_status) {
-	switch (p_status.get_code()) {
-		case schola::StatusCode::OK:
-			return godot::OK;
-		case schola::StatusCode::INVALID_ARGUMENT:
-			return godot::ERR_INVALID_PARAMETER;
-		case schola::StatusCode::NOT_FOUND:
-			return godot::ERR_DOES_NOT_EXIST;
-		case schola::StatusCode::INVALID_DATA:
-		case schola::StatusCode::INCOMPATIBLE:
-			return godot::ERR_INVALID_DATA;
-		case schola::StatusCode::FAILED_PRECONDITION:
-			return godot::ERR_UNCONFIGURED;
-		case schola::StatusCode::TIMEOUT:
-			return godot::ERR_TIMEOUT;
-		case schola::StatusCode::CLOSED:
-			return godot::ERR_CONNECTION_ERROR;
-		default:
-			return godot::FAILED;
-	}
-}
-
-godot::String to_godot(const std::string &p_text) {
-	return godot::String::utf8(p_text.c_str());
-}
-
-godot::PackedStringArray to_godot(const std::vector<std::string> &p_names) {
+godot::PackedStringArray to_godot_names(const std::vector<std::string> &p_names) {
 	godot::PackedStringArray names;
 	for (const std::string &name : p_names) {
-		names.push_back(to_godot(name));
+		names.push_back(to_godot_string(name));
 	}
 	return names;
 }
 
 } // namespace
 
-ScholaOnnxPolicy::ScholaOnnxPolicy() = default;
+ScholaOnnxPolicy::ScholaOnnxPolicy() :
+		policy(std::make_unique<schola::OnnxPolicy>()) {}
 
 ScholaOnnxPolicy::~ScholaOnnxPolicy() = default;
 
@@ -75,7 +51,7 @@ int32_t ScholaOnnxPolicy::get_max_state_sequence_length() const {
 }
 
 godot::Error ScholaOnnxPolicy::load() {
-	policy.reset();
+	policy->unload_model();
 	definition.reset();
 	stateless_state.reset();
 	last_error = godot::String();
@@ -83,29 +59,26 @@ godot::Error ScholaOnnxPolicy::load() {
 	const godot::PackedByteArray bytes = godot::FileAccess::get_file_as_bytes(model_path);
 	if (bytes.is_empty()) {
 		const godot::Error error = godot::FileAccess::get_open_error();
-		fail("ScholaOnnxPolicy.load: cannot read '" + model_path + "'");
-		return error == godot::OK ? godot::ERR_FILE_CORRUPT : error;
+		return report_failure("ScholaOnnxPolicy.load: cannot read '" + model_path + "'", error == godot::OK ? godot::ERR_FILE_CORRUPT : error, &last_error);
 	}
 
-	auto loaded = std::make_unique<schola::OnnxPolicy>();
-	schola::Status status = loaded->set_max_state_sequence_length(max_state_sequence_length);
+	schola::Status status = policy->set_max_state_sequence_length(max_state_sequence_length);
 	if (status.is_ok()) {
-		status = loaded->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
+		status = policy->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
 	}
 	if (!status.is_ok()) {
-		fail(to_godot(status.get_message()));
-		return to_error(status);
+		return report_failure("ScholaOnnxPolicy.load", status, &last_error);
 	}
-	policy = std::move(loaded);
+	loaded_path = model_path;
 	return godot::OK;
 }
 
 bool ScholaOnnxPolicy::is_loaded() const {
-	return policy != nullptr;
+	return policy->is_loaded();
 }
 
 bool ScholaOnnxPolicy::is_recurrent() const {
-	return policy != nullptr && policy->is_recurrent();
+	return policy->is_recurrent();
 }
 
 godot::String ScholaOnnxPolicy::get_last_error() const {
@@ -113,37 +86,39 @@ godot::String ScholaOnnxPolicy::get_last_error() const {
 }
 
 godot::PackedStringArray ScholaOnnxPolicy::get_input_names() const {
-	return policy == nullptr ? godot::PackedStringArray() : to_godot(policy->get_input_names());
+	return to_godot_names(policy->get_input_names());
 }
 
 godot::PackedStringArray ScholaOnnxPolicy::get_output_names() const {
-	return policy == nullptr ? godot::PackedStringArray() : to_godot(policy->get_output_names());
+	return to_godot_names(policy->get_output_names());
 }
 
-godot::Error ScholaOnnxPolicy::initialize_spaces(const godot::Ref<ScholaSpace> &p_observation_space, const godot::Ref<ScholaSpace> &p_action_space) {
-	if (policy == nullptr) {
-		fail("ScholaOnnxPolicy.initialize_spaces: call load() first");
-		return godot::ERR_UNCONFIGURED;
+godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
+	last_error = godot::String();
+	if (!is_loaded() || loaded_path != model_path || policy->get_max_state_sequence_length() != max_state_sequence_length) {
+		const godot::Error error = load();
+		if (error != godot::OK) {
+			return error;
+		}
 	}
-	if (p_observation_space.is_null() || p_action_space.is_null()) {
-		fail("ScholaOnnxPolicy.initialize_spaces: both spaces are required");
-		return godot::ERR_INVALID_PARAMETER;
+	if (p_agent == nullptr) {
+		return report_failure("ScholaOnnxPolicy.initialize: the agent must be a ScholaAgent", godot::ERR_INVALID_PARAMETER, &last_error);
 	}
 
-	auto spaces = std::make_unique<schola::InteractionDefinition>();
-	spaces->observation_space = p_observation_space->to_space();
-	spaces->action_space = p_action_space->to_space();
-	schola::Status status = policy->init(*spaces);
+	auto agent_definition = std::make_unique<schola::InteractionDefinition>();
+	schola::Status status = p_agent->get_agent()->define(*agent_definition);
+	if (status.is_ok()) {
+		status = policy->init(*agent_definition);
+	}
 	std::unique_ptr<schola::PolicyState> state;
 	if (status.is_ok() && !policy->is_recurrent()) {
 		status = policy->create_initial_state(state);
 	}
 	if (!status.is_ok()) {
 		definition.reset();
-		fail(to_godot(status.get_message()));
-		return to_error(status);
+		return report_failure("ScholaOnnxPolicy.initialize", status, &last_error);
 	}
-	definition = std::move(spaces);
+	definition = std::move(agent_definition);
 	stateless_state = std::move(state);
 	return godot::OK;
 }
@@ -152,13 +127,16 @@ bool ScholaOnnxPolicy::is_initialized() const {
 	return definition != nullptr;
 }
 
-godot::Ref<ScholaPolicyState> ScholaOnnxPolicy::create_state() const {
+godot::Ref<ScholaPolicyState> ScholaOnnxPolicy::create_state() {
+	last_error = godot::String();
+	if (!is_initialized()) {
+		report_failure("ScholaOnnxPolicy.create_state: call initialize() first", godot::ERR_UNCONFIGURED, &last_error);
+		return godot::Ref<ScholaPolicyState>();
+	}
 	std::unique_ptr<schola::PolicyState> state;
-	schola::Status status = !is_initialized()
-			? schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, "ScholaOnnxPolicy.create_state: call load() and initialize_spaces() first")
-			: policy->create_initial_state(state);
+	schola::Status status = policy->create_initial_state(state);
 	if (!status.is_ok()) {
-		godot::UtilityFunctions::push_error(to_godot(status.get_message()));
+		report_failure("ScholaOnnxPolicy.create_state", status, &last_error);
 		return godot::Ref<ScholaPolicyState>();
 	}
 	godot::Ref<ScholaPolicyState> result;
@@ -168,13 +146,14 @@ godot::Ref<ScholaPolicyState> ScholaOnnxPolicy::create_state() const {
 }
 
 godot::Variant ScholaOnnxPolicy::infer(const godot::Variant &p_observation, const godot::Ref<ScholaPolicyState> &p_state) {
+	last_error = godot::String();
 	if (!is_initialized()) {
-		fail("ScholaOnnxPolicy.infer: call load() and initialize_spaces() first");
+		report_failure("ScholaOnnxPolicy.infer: call initialize() first", godot::ERR_UNCONFIGURED, &last_error);
 		return godot::Variant();
 	}
 	schola::PolicyState *state = p_state.is_valid() ? p_state->get_state() : stateless_state.get();
 	if (state == nullptr) {
-		fail("ScholaOnnxPolicy.infer: this model has memory; pass a state from create_state()");
+		report_failure("ScholaOnnxPolicy.infer: this model has memory; pass a state from create_state()", godot::ERR_INVALID_PARAMETER, &last_error);
 		return godot::Variant();
 	}
 
@@ -185,7 +164,7 @@ godot::Variant ScholaOnnxPolicy::infer(const godot::Variant &p_observation, cons
 		status = policy->think(observation, *state, action);
 	}
 	if (!status.is_ok()) {
-		fail(to_godot(status.get_message()));
+		report_failure("ScholaOnnxPolicy.infer", status, &last_error);
 		return godot::Variant();
 	}
 	return schola::point_to_variant(action);
@@ -193,11 +172,6 @@ godot::Variant ScholaOnnxPolicy::infer(const godot::Variant &p_observation, cons
 
 schola::OnnxPolicy *ScholaOnnxPolicy::get_policy() const {
 	return policy.get();
-}
-
-void ScholaOnnxPolicy::fail(const godot::String &p_message) {
-	last_error = p_message;
-	godot::UtilityFunctions::push_error(p_message);
 }
 
 void ScholaOnnxPolicy::_bind_methods() {
@@ -211,7 +185,7 @@ void ScholaOnnxPolicy::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("get_last_error"), &ScholaOnnxPolicy::get_last_error);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_input_names"), &ScholaOnnxPolicy::get_input_names);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_output_names"), &ScholaOnnxPolicy::get_output_names);
-	godot::ClassDB::bind_method(godot::D_METHOD("initialize_spaces", "observation_space", "action_space"), &ScholaOnnxPolicy::initialize_spaces);
+	godot::ClassDB::bind_method(godot::D_METHOD("initialize", "agent"), &ScholaOnnxPolicy::initialize);
 	godot::ClassDB::bind_method(godot::D_METHOD("is_initialized"), &ScholaOnnxPolicy::is_initialized);
 	godot::ClassDB::bind_method(godot::D_METHOD("create_state"), &ScholaOnnxPolicy::create_state);
 	godot::ClassDB::bind_method(godot::D_METHOD("infer", "observation", "state"), &ScholaOnnxPolicy::infer, DEFVAL(godot::Ref<ScholaPolicyState>()));

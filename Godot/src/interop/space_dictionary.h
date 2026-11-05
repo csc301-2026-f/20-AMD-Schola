@@ -7,7 +7,7 @@
 namespace schola {
 class Space;
 
-// Converts a space into a gymnasium-style Dictionary; infinite Box bounds become null for JSON
+// Gymnasium-style Dictionary; infinite Box bounds become null for JSON
 godot::Dictionary space_to_dictionary(const Space &p_space);
 
 } // namespace schola

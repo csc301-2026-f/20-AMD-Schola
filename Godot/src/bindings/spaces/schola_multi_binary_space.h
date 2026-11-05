@@ -6,12 +6,12 @@
 
 #include <cstdint>
 
-// Inspector resource for a US2 MultiBinary space
+// Inspector resource for a MultiBinary space
 class ScholaMultiBinarySpace : public ScholaSpace {
 	GDCLASS(ScholaMultiBinarySpace, ScholaSpace)
 
 public:
-	// Number of independent binary values
+	// Number of binary values
 	void set_n(int32_t p_n);
 	int32_t get_n() const;
 

@@ -22,7 +22,6 @@ public:
 	virtual Status think(const Point &p_observation, PolicyState &p_state, Point &r_action) = 0;
 	virtual Status batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions);
 	virtual bool is_recurrent() const { return false; }
-	virtual bool is_busy() const { return false; }
 };
 
 } // namespace schola
