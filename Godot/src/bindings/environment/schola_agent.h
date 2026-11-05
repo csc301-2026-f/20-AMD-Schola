@@ -6,6 +6,7 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
@@ -13,6 +14,7 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <memory>
+#include <vector>
 
 class ScholaSpace;
 
@@ -24,18 +26,31 @@ class ScholaAgent : public godot::Node {
 	GDCLASS(ScholaAgent, godot::Node)
 
 public:
+	ScholaAgent();
+	~ScholaAgent() override;
+
 	// IDs must be unique within one environment
 	// empty agent_id : use the godot node name
 	// nonempty id : use configured value
 	void set_agent_id(const godot::String &p_agent_id);
+	// Returns the configured Inspector value, including an empty fallback setting.
 	godot::String get_agent_id() const;
+	/**
+	 * Returns the explicit ID, or this node's current name when the ID is empty.
+	 * Uses neither the scene path nor an object ID, so replicated environments can
+	 * retain matching agent IDs. Callers must check uniqueness within each environment.
+	 */
+	godot::String get_resolved_agent_id() const;
 
 	// Agents with the same nonempty type may share a training policy
 	// empty agent_type : use this agent's resolved ID as its type
 	// nonempty type : use configured value
 	void set_agent_type(const godot::String &p_agent_type);
+	// Returns the configured Inspector value, including an empty fallback setting
 	godot::String get_agent_type() const;
-	// US1 copies this value into InteractionDefinition::agent_type
+	/** Returns the explicit type, or the resolved agent ID when the type is empty */
+	godot::String get_resolved_agent_type() const;
+	// US1 should copy the resolved type into InteractionDefinition::agent_type.
 
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource
@@ -75,10 +90,9 @@ public:
 
 	// === End US1 Additions ===
 
-	// returns the US1 core adapter, created on the first call and owned by this node
+	// returns the US1 core adapter while this node is in the scene tree
 	// (ScholaAgent is the godot wrapper, schola::Agent is abstraction owned by US1)
 	// the adapter is the same whether or not a ScholaEnvironment registers this agent for training
-	// the pointer is non-owning and stays valid for as long as this node exists
 	schola::Agent *get_agent();
 	const schola::Agent *get_agent() const;
 
@@ -86,24 +100,25 @@ public:
 	// Reports missing observation or action spaces and invalid US2 space definitions
 	// Space errors name the observation or action property and include the US2 validation reason
 	godot::PackedStringArray get_configuration_errors() const;
-	// Returns get_configuration_errors() so Godot displays Inspector warning icons
+	// Adds missing behavior hooks to resource errors for Godot's warning icons.
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 private:
+	void on_script_changed();
+	void disconnect_space_signals();
+	void connect_space_signals();
+	void refresh_configuration_warnings();
+
+	// Stores the Inspector value; an empty ID means use this node's name
 	godot::String agent_id;
-	// optional training-policy grouping label
+	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
-
-	// === US1 Addition Below ===
-
-	// The GodotAgentAdapter behind get_agent(). Stored as the core type so this
-	// header doesn't need the adapter's definition.
 	std::unique_ptr<schola::Agent> agent_adapter;
-
-	// === End US1 Addition ===
+	std::vector<godot::Ref<godot::Script>> watched_scripts;
 };

@@ -82,14 +82,14 @@ TEST_CASE("lifecycle runs a grid-world episode to the goal and resets", "[lifecy
 	CHECK(lifecycle.get_episode_step_count() == 0);
 }
 
-TEST_CASE("lifecycle leaves an unfinished environment active", "[lifecycle][environment]") {
+TEST_CASE("lifecycle leaves an episode active when the environment does not end it", "[lifecycle][environment]") {
 	GridWorldEnvironment environment;
 	EnvironmentLifecycle lifecycle(0, environment);
 	REQUIRE(lifecycle.initialize().is_ok());
 	InitialEnvironmentState initial;
 	REQUIRE(lifecycle.reset({}, initial).is_ok());
 
-	// Moving left only ever moves away from the goal.
+	// Moving left never reaches the goal; the lifecycle must not invent a cutoff.
 	EnvironmentState state;
 	for (int i = 0; i < 3; i++) {
 		REQUIRE(lifecycle.step({ { RUNNER, move_action(GridAgent::LEFT) } }, state).is_ok());

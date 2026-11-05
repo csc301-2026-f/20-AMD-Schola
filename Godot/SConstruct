@@ -28,6 +28,10 @@ environment = SConscript(
 )
 environment.Append(CPPPATH=["src"])
 
+# Opt-in native driver for GdUnit4 adapter tests; omitted from shipped builds.
+if ARGUMENTS.get("integration_tests", "no") == "yes":
+    environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
+
 
 def sources_under(*directories):
     sources = []
@@ -74,9 +78,12 @@ def build_extension(name, source_directories, addon_directory, configure=None):
         suffix,
         extension_environment.subst("$SHLIBSUFFIX"),
     )
+    sources = sources_under(*source_directories)
+    if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+        sources += sources_under("tests/integration/native")
     library = extension_environment.SharedLibrary(
         f"build/{extension_environment['platform']}/{library_filename}",
-        source=sources_under(*source_directories),
+        source=sources,
     )
     installed_library = extension_environment.Install(install_directory, library)
     return [library, installed_library] + list(extra_targets)

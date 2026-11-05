@@ -47,7 +47,7 @@ private:
 //
 // Follows every rule in core/environment/environment.h with no Godot types, so
 // US4's lifecycle and US3's connector can be exercised against real behavior
-// instead of canned answers. This environment terminates only when its goal is reached.
+// instead of canned answers. This reference environment imposes no truncation.
 class GridWorldEnvironment final : public Environment {
 public:
 	static constexpr const char *AGENT_ID = "runner";

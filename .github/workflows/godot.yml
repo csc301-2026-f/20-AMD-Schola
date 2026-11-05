@@ -116,16 +116,17 @@ jobs:
             scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-
 
       - name: Build debug extensions
-        run: scons -C Godot platform=linux target=template_debug -j2
+        run: scons -C Godot platform=linux target=template_debug integration_tests=yes -j2
 
       - name: Build and run core unit tests
         run: |
-          scons -C Godot unit_tests platform=linux target=template_debug -j2
+          # Keep compile options consistent with the extension build to reuse objects.
+          scons -C Godot unit_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_core_tests
 
       - name: Build and run inference tests
         run: |
-          scons -C Godot inference_tests platform=linux target=template_debug -j2
+          scons -C Godot inference_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_inference_tests
 
       - name: Upload extensions

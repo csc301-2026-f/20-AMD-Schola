@@ -161,14 +161,33 @@ func test_close_is_idempotent_and_rejects_later_work() -> void:
 	assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
 
 
-func test_partial_definition_failure_does_not_leave_a_usable_session() -> void:
+func test_duplicate_ids_fail_during_session_initialization() -> void:
 	var root := _test_root()
 	_add_environment(root, "FirstEnvironment", "first_agent")
 	var invalid := _add_environment(root, "InvalidEnvironment", "duplicate")
 	_add_agent(invalid, "SecondDuplicate", "duplicate")
 	var host := _add_host(root)
+
+	var result := host.initialize_session()
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_str(_status_message(result)).contains("InvalidEnvironment")
+	assert_str(_status_message(result)).contains("Duplicate agent ID")
+	assert_object(result["value"]).is_null()
+	assert_int(_status_code(host.define())).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+
+
+func test_partial_definition_failure_does_not_leave_a_usable_session() -> void:
+	var root := _test_root()
+	_add_environment(root, "FirstEnvironment", "first_agent")
+	var invalid := _add_environment(root, "InvalidEnvironment", "duplicate")
+	var host := _add_host(root)
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.set_autoreset_mode(AUTORESET_DISABLED))).is_equal(STATUS_OK)
+	# Introduce the conflict after preflight to exercise cleanup during define().
+	_add_agent(invalid, "SecondDuplicate", "duplicate")
 
 	var result := host.define()
 
@@ -229,7 +248,9 @@ func test_multiple_environments_run_repeated_episodes_without_state_leakage() ->
 
 	var actions := {"actions": [{"first_agent": 1}, {"second_agent": 2}]}
 	var first_step := host.step(actions)
-	assert_int(_status_code(first_step)).is_equal(STATUS_OK)
+	assert_int(_status_code(first_step)).override_failure_message(_status_message(first_step)).is_equal(STATUS_OK)
+	if _status_code(first_step) != STATUS_OK:
+		return
 	assert_float(first_step["value"]["state"][0]["first_agent"]["reward"]).is_equal(1.0)
 	assert_int(first.reset_count).is_equal(1)
 	assert_int(second.reset_count).is_equal(1)
