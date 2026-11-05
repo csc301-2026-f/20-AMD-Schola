@@ -70,7 +70,7 @@ The extension entry points are stable composition roots. Runtime bindings and in
 
 A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
 
-Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
 
 ## Directory structure
 

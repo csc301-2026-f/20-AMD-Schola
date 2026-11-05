@@ -24,9 +24,11 @@ ONNX Runtime is not committed to the repository. Download the pinned package onc
 
     python Godot/tools/setup_onnxruntime.py
     scons -C Godot platform=<PLATFORM> target=template_debug
+    scons -C Godot platform=<PLATFORM> target=template_release
 
-The script reads ``Godot/dependencies.lock.json``, downloads Microsoft's prebuilt package for your
-platform, verifies its SHA-256 checksum, and unpacks it into the git-ignored
+The ``template_release`` build is only needed for release exports. The script reads
+``Godot/dependencies.lock.json``, downloads Microsoft's prebuilt package for your platform, verifies
+its SHA-256 checksum, and unpacks it into the git-ignored
 ``Godot/thirdparty/onnxruntime/``. The build links ONNX Runtime into the ``schola`` runtime extension
 only and copies its library next to ``schola`` in ``addons/schola/bin/<PLATFORM>/``. The training
 extension never links it.
@@ -122,6 +124,17 @@ Agents can also be added and removed while the game runs, for example when enemi
 The same agent can be added more than once; each entry gets its own state, and ``remove_agent()``
 and ``reset_state()`` affect every entry of that agent.
 
+A few rules keep this safe:
+
+- The ``agents`` list is only read when the game starts. After that, use ``add_agent()``.
+- Add an agent to the scene before calling ``add_agent()``.
+- To remove an agent inside ``_observe()`` or ``_act()``, use ``queue_free()``. Removing it
+  immediately can skip an agent or give one the wrong action for that frame.
+- ``remove_child()`` and ``reparent()`` also remove the agent from the stepper. Call ``add_agent()``
+  again afterwards.
+- Do not call ``free()`` on the stepper or its parent from an agent's ``_observe()`` or ``_act()``.
+  Use ``queue_free()``.
+
 
 Using a Policy Without a Stepper
 --------------------------------
@@ -186,6 +199,8 @@ If a state input has a dynamic sequence dimension right after the batch dimensio
 a history of ``max_state_sequence_length`` entries. Each step drops the oldest entry and appends the
 newest one. ONNX Runtime cannot read the ``max_seq_len`` metadata that the exporter attaches to each
 state input, so set ``max_state_sequence_length`` to the value used in training. The default is one.
+A wrong value gives wrong actions with no error. RLlib LSTM exports have no sequence dimension, so
+they do not use this setting.
 
 Call ``reset_state(agent)`` or ``reset_states()`` on the stepper, or ``reset()`` on a
 :cpp:class:`ScholaPolicyState`, when an agent's episode restarts.
@@ -256,6 +271,11 @@ Box actions are clamped to the action space, because trained models can output v
 bounds. A Discrete or MultiDiscrete action outside its space is not changed: the stepper rejects it
 for that agent only, and ``infer()`` returns it as it is.
 
+.. note::
+
+    With RLlib's default ``normalize_actions``, training rescales Box actions to the bounds, but the
+    exported model does not. Use Box action bounds of -1 to 1 with RLlib.
+
 
 Errors
 ------
@@ -265,17 +285,22 @@ Errors never stop the game:
 - Methods that can fail return a Godot ``Error``. ``infer()`` and ``create_state()`` return
   ``null`` instead.
 - Every failure is printed with ``push_error()``, prefixed with the class and method, such as
-  ``ScholaOnnxPolicy.load: cannot read 'res://enemy.onnx'``.
+  ``ScholaOnnxPolicy.load: cannot read 'res://enemy.onnx'``. The stepper prints a repeated failure
+  only once, until a step succeeds or the message changes.
 - :cpp:class:`ScholaOnnxPolicy` and :cpp:class:`ScholaPolicyState` keep the message of the last
   failed call in ``get_last_error()``. Each call that can fail clears it first, so read it right
   after the call.
 - :cpp:class:`ScholaInferenceStepper` runs on its own, so it also emits
   ``inference_failed(message)``. If one agent's ``_observe()`` or ``_act()`` fails, the other agents
-  still act, and an agent whose ``_observe()`` failed reuses its last observation.
+  still act, and an agent whose ``_observe()`` failed reuses its last observation. Errors during the
+  stepper's startup fire before a parent's ``_ready()`` runs, so connect the signal in the Inspector
+  to catch them.
 - If the stepper's ``policy`` is replaced, the stepper removes its agents and reports an error; add
   the agents again. During a step, inside ``_observe()`` or ``_act()``, the change is rejected with
-  an error; use ``set_deferred("policy", value)`` instead. If the policy is reloaded with ``load()``, every step fails until each agent is
-  removed and added again. An agent that leaves the scene tree is removed automatically.
+  an error; use ``set_deferred("policy", value)`` instead.
+- If the policy is reloaded with ``load()``, every step fails until you call ``initialize()`` again,
+  or remove all agents and add them back. If the spaces changed, remove all agents first.
+- An agent that leaves the scene tree is removed automatically.
 - The Inspector shows a warning on a :cpp:class:`ScholaInferenceStepper` without a policy, with an
   empty ``model_path``, or with an agent path that is not a :cpp:class:`ScholaAgent`.
 
@@ -285,13 +310,20 @@ Errors never stop the game:
     * - Error
       - Meaning
     * - ``ERR_FILE_NOT_FOUND``
-      - ``model_path`` cannot be read
+      - The file at ``model_path`` does not exist
+    * - ``ERR_FILE_CANT_OPEN``
+      - ``model_path`` is empty or cannot be opened, such as a folder
+    * - ``ERR_FILE_CORRUPT``
+      - The file at ``model_path`` is empty
     * - ``ERR_INVALID_DATA``
-      - The file is not a valid model, or the model does not fit the agent's spaces
+      - The file is not a valid model, the model does not fit the agent's spaces, or an agent's spaces
+        differ from the other agents in the stepper
     * - ``ERR_INVALID_PARAMETER``
       - A value does not match its space, or a state does not fit the model
     * - ``ERR_UNCONFIGURED``
       - A required step was skipped, such as ``initialize()`` before ``infer()``
+    * - ``FAILED``
+      - The model failed to run
 
 
 Exporting Your Game
@@ -308,6 +340,8 @@ export preset settings are required under **Project > Export > Resources**:
 
 ``ScholaOnnxPolicy.load()`` reads the model with ``FileAccess``, so ``res://`` paths work inside the
 exported ``.pck``. Paths such as ``user://`` or an absolute file path also work.
+
+Release exports need the ``template_release`` build of the extension; without it, the export fails.
 
 
 Differences from Unreal Schola
