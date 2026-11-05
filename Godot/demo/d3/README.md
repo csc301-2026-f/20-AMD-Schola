@@ -11,10 +11,10 @@ D2 used GDScript stand-ins for most of the environment and lifecycle. D3 replace
 
 | Area | D2 | D3 |
 | --- | --- | --- |
-| US1 environment and agent | `ScholaDemoEnvironment` and `ScholaDemoAgent` scripts with their own `step()` and `reset_episode()` | `GridEnvironment` and `GridAgent` extend the native `ScholaEnvironment` and `ScholaAgent` directly and implement only the US1 hooks (`_reset_episode`, `_get_reward`, `_is_terminated`, `_is_truncated`, `_get_info`, `_observe`, `_act`) |
+| US1 environment and agent | `ScholaDemoEnvironment` and `ScholaDemoAgent` scripts with their own `step()` and `reset_episode()` | `GridEnvironment` and `GridAgent` extend the native `ScholaEnvironment` and `ScholaAgent` directly and implement only the US1 hooks (`_reset_episode`, `_get_step_result`, `_observe`, `_act`) |
 | US4 episode lifecycle | `demo_runner.gd` stepped the environment itself | One native `ScholaTrainingHost` session runs every reset and step, whether the action comes from the keyboard, Python or the ONNX policy |
 | Seeding | The demo seeded its own RNG | The US1 adapter seeds `get_rng()` from the reset request |
-| Truncation | `max_episode_steps` on the environment node | An exported `max_episode_steps` used by `_is_truncated()` with `get_episode_step()`, as US5 specifies |
+| Truncation | `max_episode_steps` on the environment node | An exported `max_episode_steps` used by `_get_step_result()` with `get_episode_step()`, as US5 specifies |
 | US7 inference | `initialize_spaces()` and stateless `infer()`, plus a GDScript Q-table reader | `ScholaOnnxPolicy` resource on the `Runner` with `initialize(agent)`, a `ScholaPolicyState` per agent that resets each episode, and `infer(observation, state)`. The GDScript Q-table reader is gone |
 | Export | Included the Q-table JSON | Exports only `*.onnx` and excludes `addons/schola_training/*`, as the US7 guide requires |
 

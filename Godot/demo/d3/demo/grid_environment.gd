@@ -18,7 +18,7 @@ const TIMEOUT := "timeout"
 const MAP_PATH := "user://d3_map.json"
 
 @export_group("Episode")
-## Truncates the episode after this many steps; 0 disables the limit. Implemented in _is_truncated()
+## Truncates the episode after this many steps; 0 disables the limit. Implemented in _get_step_result()
 ## rather than a separate node, as US5 specifies.
 @export_range(0, 1000) var max_episode_steps := 40
 @export_group("Rewards")
@@ -60,26 +60,13 @@ func _reset_episode(_seed: Variant, _options: Dictionary) -> void:
 		(agent as GridAgent).player.place(cell)
 
 
-func _get_reward(agent: ScholaAgent) -> float:
-	var kind := _cell_kind(agent)
-	if kind == GridArena.GOAL:
-		return step_penalty + goal_reward
-	if kind == GridArena.HAZARD:
-		return step_penalty + failure_penalty
-	return step_penalty
-
-
-func _is_terminated(agent: ScholaAgent) -> bool:
-	return _cell_kind(agent) != GridArena.FLOOR
-
-
-func _is_truncated(agent: ScholaAgent) -> bool:
-	# The current step is not counted yet while the hooks run.
-	return max_episode_steps > 0 and get_episode_step() + 1 >= max_episode_steps and not _is_terminated(agent)
-
-
-func _get_info(agent: ScholaAgent) -> Dictionary:
-	return {"outcome": get_outcome(agent)}
+func _get_step_result(agent: ScholaAgent) -> Variant:
+	return {
+		"reward": _reward(agent),
+		"terminated": _reached_end(agent),
+		"truncated": _timed_out(agent),
+		"info": {"outcome": get_outcome(agent)},
+	}
 
 
 func get_outcome(agent: ScholaAgent) -> String:
@@ -88,7 +75,7 @@ func get_outcome(agent: ScholaAgent) -> String:
 		return SUCCESS
 	if kind == GridArena.HAZARD:
 		return FAILURE
-	if _is_truncated(agent):
+	if _timed_out(agent):
 		return TIMEOUT
 	return RUNNING
 
@@ -238,6 +225,24 @@ func _fixed_start_cell() -> Vector2i:
 			if arena.get_cell_kind(Vector2i(x, y)) == GridArena.FLOOR:
 				return Vector2i(x, y)
 	return Vector2i.ZERO
+
+
+func _reward(agent: ScholaAgent) -> float:
+	var kind := _cell_kind(agent)
+	if kind == GridArena.GOAL:
+		return step_penalty + goal_reward
+	if kind == GridArena.HAZARD:
+		return step_penalty + failure_penalty
+	return step_penalty
+
+
+func _reached_end(agent: ScholaAgent) -> bool:
+	return _cell_kind(agent) != GridArena.FLOOR
+
+
+func _timed_out(agent: ScholaAgent) -> bool:
+	# The current step is not counted yet while _get_step_result() runs.
+	return max_episode_steps > 0 and get_episode_step() + 1 >= max_episode_steps and not _reached_end(agent)
 
 
 func _cell_kind(agent: ScholaAgent) -> String:

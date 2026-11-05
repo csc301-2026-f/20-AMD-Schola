@@ -8,6 +8,8 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/array.hpp>
 
+#include <algorithm>
+
 namespace {
 
 godot::String at_path(const godot::String &p_path, const godot::String &p_message) {
@@ -16,9 +18,52 @@ godot::String at_path(const godot::String &p_path, const godot::String &p_messag
 
 } // namespace
 
-void ScholaDictSpace::set_spaces(const godot::Dictionary &p_spaces) {
-	spaces = p_spaces;
+ScholaDictSpace::~ScholaDictSpace() {
+	disconnect_child_signals();
+}
+
+void ScholaDictSpace::disconnect_child_signals() {
+	const godot::Callable callback = callable_mp(this, &ScholaDictSpace::on_child_changed);
+	for (godot::ObjectID id : connected_children) {
+		godot::Object *child = godot::ObjectDB::get_instance(static_cast<uint64_t>(id));
+		if (child != nullptr && child->is_connected("changed", callback)) {
+			child->disconnect("changed", callback);
+		}
+	}
+	connected_children.clear();
+}
+
+void ScholaDictSpace::on_child_changed() {
+	// Invalid cyclic Dict graphs must not cause recursive signal emission.
+	if (forwarding_change) {
+		return;
+	}
+	forwarding_change = true;
 	emit_changed();
+	forwarding_change = false;
+}
+
+void ScholaDictSpace::set_spaces(const godot::Dictionary &p_spaces) {
+	disconnect_child_signals();
+	spaces = p_spaces;
+	const godot::Callable callback = callable_mp(this, &ScholaDictSpace::on_child_changed);
+	const godot::Array values = spaces.values();
+	for (int64_t index = 0; index < values.size(); ++index) {
+		const godot::Variant value = values[index];
+		if (value.get_type() != godot::Variant::OBJECT) {
+			continue;
+		}
+		ScholaSpace *child = godot::Object::cast_to<ScholaSpace>(value);
+		if (child == nullptr || child == this) {
+			continue;
+		}
+		const godot::ObjectID id(child->get_instance_id());
+		if (std::find(connected_children.begin(), connected_children.end(), id) == connected_children.end()) {
+			child->connect("changed", callback);
+			connected_children.push_back(id);
+		}
+	}
+	on_child_changed();
 }
 
 godot::Dictionary ScholaDictSpace::get_spaces() const {

@@ -16,7 +16,7 @@ namespace {
 
 // Prefixes every message with the agent's ID so failures say which agent broke.
 schola::Status agent_error(const ScholaAgent *p_node, schola::StatusCode p_code, const std::string &p_message) {
-	const std::string id = p_node->get_agent_id().utf8().get_data();
+	const std::string id = p_node->get_resolved_agent_id().utf8().get_data();
 	return schola::Status::error(p_code, "Agent '" + id + "': " + p_message);
 }
 
@@ -61,7 +61,7 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 	// converted to a std::string the same way as the agent ID.
 	r_definition.observation_space = new_observation_space;
 	r_definition.action_space = new_action_space;
-	r_definition.agent_type = node->get_agent_type().utf8().get_data();
+	r_definition.agent_type = node->get_resolved_agent_type().utf8().get_data();
 	return schola::Status::ok();
 }
 
