@@ -73,7 +73,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,12 +116,13 @@ jobs:
 
       - name: Build and run core unit tests
         run: |
-          scons -C Godot unit_tests platform=linux target=template_debug -j2
+          # Keep compile options consistent with the extension build to reuse objects.
+          scons -C Godot unit_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_core_tests
 
       - name: Build and run inference tests
         run: |
-          scons -C Godot inference_tests platform=linux target=template_debug -j2
+          scons -C Godot inference_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_inference_tests
 
       - name: Upload extensions
