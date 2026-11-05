@@ -49,7 +49,7 @@ func _add_environment(root: Node, environment_name: String, agent_id: String) ->
 	return environment
 
 
-func _add_agent(environment: ScholaEnvironment, node_name: String, agent_id: String) -> ScholaAgent:
+func _add_agent(environment: Node, node_name: String, agent_id: String) -> ScholaAgent:
 	var agent := TestAgent.new() as ScholaAgent
 	agent.name = node_name
 	agent.agent_id = agent_id
@@ -281,3 +281,116 @@ func test_disabled_autoreset_preserves_terminal_state() -> void:
 	assert_bool(terminal["value"]["state"][0]["agent"]["terminated"]).is_true()
 	assert_bool(retained["value"]["state"][0]["agent"]["terminated"]).is_true()
 	assert_int(environment.reset_count).is_equal(1)
+
+
+func _dynamic_environment(root: Node) -> ScholaEnvironment:
+	var environment = load("res://tests/integration/support/us4_dynamic_environment.gd").new()
+	var templates := auto_free(Node.new()) as Node
+	for id in ["a", "b", "c"]:
+		environment.definitions.append(_add_agent(templates, id, id))
+	_add_agent(environment, "a", "a")
+	root.add_child(environment)
+	environment.episode_length = 100
+	return environment
+
+
+func test_agent_can_spawn_a_copy_and_die_in_the_same_step() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	var original = environment.get_agents()[0]
+	original.on_action = func():
+		_add_agent(environment, "b", "b")
+		original.queue_free()
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var initial := host.reset({})
+	assert_array(initial["value"][0].keys()).contains_exactly(["a"])
+	var result := host.step({"actions": [{"a": 1}]})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	var agents: Dictionary = result["value"]["state"][0]
+	assert_bool(agents["a"]["terminated"]).is_true()
+	assert_bool(agents["b"]["terminated"]).is_false()
+	assert_float(agents["b"]["reward"]).is_equal(0.0)
+	assert_int(_status_code(host.step({"actions": [{"b": 2}]}))).is_equal(STATUS_OK)
+
+
+func test_removed_agent_gets_final_transition_and_reset_rebinds_new_nodes() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	_add_agent(environment, "b", "b")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	environment.get_agents()[0].free()
+	var result := host.step({"actions": [{"a": 1, "b": 2}]})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_bool(result["value"]["state"][0]["a"]["terminated"]).is_true()
+	assert_int(_status_code(host.step({"actions": [{"b": 1}]}))).is_equal(STATUS_OK)
+	for agent in environment.get_agents():
+		agent.free()
+	_add_agent(environment, "a", "a")
+	var initial := host.reset({})
+	assert_int(_status_code(initial)).is_equal(STATUS_OK)
+	assert_array(initial["value"][0].keys()).contains_exactly(["a"])
+	assert_int(_status_code(host.step({"actions": [{"a": 2}]}))).is_equal(STATUS_OK)
+
+
+func test_spawned_agent_must_match_declared_id_and_spaces() -> void:
+	for invalid_id in [false, true]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var spawned := _add_agent(environment, "spawned", "unknown" if invalid_id else "b")
+		if not invalid_id:
+			var incompatible := ScholaDiscreteSpace.new()
+			incompatible.n = 5
+			spawned.action_space = incompatible
+		var result := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(result)).is_not_equal(STATUS_OK)
+		assert_object(result["value"]).is_null()
+
+
+func test_empty_initial_population_can_discover_a_later_birth() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	environment.get_agents()[0].free()
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var initial := host.reset({})
+	assert_int(_status_code(initial)).is_equal(STATUS_OK)
+	assert_dict(initial["value"][0]).is_empty()
+	_add_agent(environment, "c", "c")
+	var result := host.step({"actions": [{}]})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_array(result["value"]["state"][0].keys()).contains_exactly(["c"])
+	assert_int(_status_code(host.step({"actions": [{"c": 1}]}))).is_equal(STATUS_OK)
+
+
+func test_dynamic_population_completion_obeys_all_autoreset_modes() -> void:
+	for mode in [AUTORESET_DISABLED, AUTORESET_SAME_STEP, AUTORESET_NEXT_STEP]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var original = environment.get_agents()[0]
+		original.on_action = func():
+			_add_agent(environment, "b", "b")
+			original.queue_free()
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host, mode))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.step({"actions": [{"a": 1}]}))).is_equal(STATUS_OK)
+		environment.episode_length = 1
+		var terminal := host.step({"actions": [{"b": 2}]})
+		assert_int(_status_code(terminal)).is_equal(STATUS_OK)
+		assert_bool(terminal["value"]["state"][0]["b"]["terminated"]).is_true()
+		if mode == AUTORESET_SAME_STEP:
+			assert_array(terminal["value"]["initial_state"][0].keys()).contains_exactly(["b"])
+		else:
+			var following := host.step({"actions": [{}]})
+			assert_int(_status_code(following)).is_equal(STATUS_OK)
+			if mode == AUTORESET_NEXT_STEP:
+				assert_array(following["value"]["state"][0].keys()).contains_exactly(["b"])
+				assert_bool(following["value"]["state"][0]["b"]["terminated"]).is_false()
+			else:
+				assert_bool(following["value"]["state"][0]["b"]["terminated"]).is_true()

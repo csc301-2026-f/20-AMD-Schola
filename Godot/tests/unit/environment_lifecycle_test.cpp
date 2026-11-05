@@ -697,14 +697,6 @@ TEST_CASE("malformed successful environment responses fault without publishing p
 	testing::FakeEnvironment environment;
 	EnvironmentLifecycle lifecycle(0, environment);
 	start_active(lifecycle, environment, { "agent_0", "agent_1" });
-	SECTION("reset misses an agent") {
-		environment.reset_states.erase("agent_1");
-		InitialEnvironmentState output;
-		output.agents.emplace("sentinel", make_initial_state(3, "sentinel"));
-		CHECK(lifecycle.reset({}, output).get_code() == StatusCode::INVALID_DATA);
-		REQUIRE(output.agents.size() == 1);
-		CHECK(output.agents.at("sentinel").observation == make_point(3));
-	}
 	SECTION("reset substitutes an unknown agent") {
 		environment.reset_states.erase("agent_1");
 		environment.reset_states.emplace("unknown", make_initial_state(0, "invalid"));
@@ -759,4 +751,44 @@ TEST_CASE("lifecycle forwards point contents without space validation", "[lifecy
 	REQUIRE(lifecycle.step({ { "agent_0", make_point(999) } }, output).is_ok());
 	CHECK(environment.last_actions.at("agent_0") == make_point(999));
 	CHECK(output.agents.at("agent_0").observation == make_point(999));
+}
+
+TEST_CASE("active population can shrink at reset and grow during a step", "[lifecycle][population]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	initialize_lifecycle(lifecycle, environment, { "agent_0", "agent_1", "agent_2" });
+	environment.reset_states.erase("agent_1");
+	environment.reset_states.erase("agent_2");
+	InitialEnvironmentState initial;
+	REQUIRE(lifecycle.reset({}, initial).is_ok());
+	CHECK(initial.agents.size() == 1);
+	environment.step_states = {
+		{ "agent_0", make_agent_state(1, 1.0f, true) },
+		{ "agent_1", make_agent_state(0, 0.0f) },
+	};
+	EnvironmentState output;
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) } }, output).is_ok());
+	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
+	CHECK(lifecycle.step({ { "agent_0", make_point(0) } }, output).get_code() == StatusCode::INVALID_ARGUMENT);
+	environment.step_states = { { "agent_1", make_agent_state(2, 1.0f, true) } };
+	REQUIRE(lifecycle.step({ { "agent_1", make_point(0) } }, output).is_ok());
+	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);
+	CHECK(output.agents.at("agent_0").terminated);
+	// A fresh episode may contain a different subset and reuse retired IDs.
+	environment.reset_states = { { "agent_1", make_initial_state(0, "new") } };
+	REQUIRE(lifecycle.reset({}, initial).is_ok());
+	CHECK(initial.agents.size() == 1);
+	REQUIRE(lifecycle.step({ { "agent_1", make_point(0) } }, output).is_ok());
+}
+
+TEST_CASE("a dead ID cannot be resurrected within an episode", "[lifecycle][population]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment, { "agent_0", "agent_1" });
+	environment.step_states = { { "agent_0", make_agent_state(0, 0.0f, true) }, { "agent_1", make_agent_state(0, 0.0f) } };
+	EnvironmentState output;
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).is_ok());
+	environment.step_states.at("agent_0").terminated = false;
+	CHECK(lifecycle.step({ { "agent_1", make_point(0) } }, output).get_code() == StatusCode::INVALID_DATA);
+	CHECK(lifecycle.get_state() == LifecycleState::FAULTED);
 }

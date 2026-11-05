@@ -88,12 +88,20 @@ godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 	return agents;
 }
 
+godot::TypedArray<ScholaAgent> ScholaEnvironment::get_possible_agents() const {
+	godot::TypedArray<ScholaAgent> result;
+	if (GDVIRTUAL_CALL(_get_possible_agents, result)) {
+		return result;
+	}
+	return get_agents();
+}
+
 godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	godot::PackedStringArray errors;
 	if (max_episode_steps < 0) {
 		errors.append("max_episode_steps must be zero or greater");
 	}
-	const godot::TypedArray<ScholaAgent> agents = get_agents();
+	const godot::TypedArray<ScholaAgent> agents = get_possible_agents();
 	if (agents.is_empty()) {
 		errors.append("Add a ScholaAgent node below this environment.");
 	}
@@ -119,12 +127,14 @@ godot::PackedStringArray ScholaEnvironment::_get_configuration_warnings() const 
 void ScholaEnvironment::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_max_episode_steps", "max_episode_steps"), &ScholaEnvironment::set_max_episode_steps);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_max_episode_steps"), &ScholaEnvironment::get_max_episode_steps);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_possible_agents"), &ScholaEnvironment::get_possible_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_agents"), &ScholaEnvironment::get_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaEnvironment::get_configuration_errors);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_episode_step"), &ScholaEnvironment::get_episode_step);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_rng"), &ScholaEnvironment::get_rng);
 	ADD_SIGNAL(godot::MethodInfo("episode_started"));
 	ADD_SIGNAL(godot::MethodInfo("episode_ended"));
+	GDVIRTUAL_BIND(_get_possible_agents);
 	GDVIRTUAL_BIND(_reset_episode, "seed", "options");
 	GDVIRTUAL_BIND(_get_reward, "agent");
 	GDVIRTUAL_BIND(_is_terminated, "agent");

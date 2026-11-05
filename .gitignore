@@ -153,6 +153,7 @@ coverage_html_report/*
 .idea
 
 # Godot and SCons generated files
+/Godot/**/*.os
 **/.godot/
 /Godot/build/
 /Godot/addons/**/bin/

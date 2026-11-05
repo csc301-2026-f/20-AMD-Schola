@@ -85,7 +85,9 @@ struct AgentState {
  * observation; callers accept that lag rather than splitting the step
  * around a physics frame.
  *
- * Agent membership and spaces are fixed after initialize(). Every method
+ * Possible agent IDs and spaces are fixed after initialize(); active membership
+ * may change at reset or step boundaries. IDs are retired until reset after
+ * termination or truncation. Every method
  * returns Status and leaves its out-parameter untouched on failure.
  */
 class Environment {
@@ -93,7 +95,7 @@ public:
 	virtual ~Environment() = default;
 
 	/**
-	 * Declares every agent and its spaces.
+	 * Declares every possible agent and its spaces.
 	 *
 	 * In:   r_agents, an empty map.
 	 *
@@ -113,7 +115,7 @@ public:
 	 * Does: starts a new episode. May be called again mid-episode to abandon
 	 *       and restart.
 	 *
-	 * Out:  r_states filled with one InitialAgentState per agent.
+	 * Out:  r_states filled with one InitialAgentState per currently active agent.
 	 */
 	virtual Status reset(const ResetSettings &p_settings, std::map<AgentId, InitialAgentState> &r_states) = 0;
 
@@ -123,11 +125,14 @@ public:
 	 * In:   p_actions, one Point per still-running agent. A finished agent
 	 *       is simply absent, not an error. r_states, an empty map.
 	 *
-	 * Does: applies each action, then reads back every agent that acted.
+	 * Does: applies each action, then reads back every agent that acted and any
+	 *       newly spawned agents. Missing actors must receive a final transition.
 	 *       Does not wait for a physics frame in between, so the observation
 	 *       may not yet reflect this step's action.
 	 *
-	 * Out:  r_states filled with one AgentState per agent in p_actions.
+	 * Out:  r_states includes every acting agent and newly active declared IDs.
+	 *       A birth has an initial observation and zero reward; it acts next step.
+	 *       Previously finished IDs must not reappear before reset.
 	 */
 	virtual Status step(const std::map<AgentId, Point> &p_actions, std::map<AgentId, AgentState> &r_states) = 0;
 

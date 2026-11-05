@@ -15,7 +15,8 @@ namespace schola {
  * @class EnvironmentLifecycle
  * @brief Coordinates one non-owned environment through its episode lifecycle.
  *
- * Environment membership and definitions remain fixed after initialize().
+ * Possible agent definitions remain fixed after initialize(); active membership
+ * follows reset observations and step results. Finished IDs retire until reset.
  * Output parameters remain unchanged when an operation returns a non-OK Status.
  * A validation failure detected before an Environment call leaves the lifecycle
  * state unchanged; a failed Environment call transitions it to FAULTED because
@@ -64,10 +65,10 @@ public:
 	 *
 	 * Reset is allowed from RESET_PENDING, ACTIVE, or COMPLETE, so an explicit
 	 * request may interrupt an active episode. Success increments the episode
-	 * count and resets the step count to zero. The environment must return exactly
-	 * the declared agent IDs. The output changes only on success.
+	 * count and resets the step count to zero. The environment may return any subset
+	 * of declared agent IDs. The output changes only on success.
 	 * @param[in] p_settings Seed and options for this reset.
-	 * @param[out] r_initial_state Initial state for every declared agent.
+	 * @param[out] r_initial_state Initial state for every currently active agent.
 	 * @return OK on success, or a failure describing the invalid state, malformed output, or environment error.
 	 */
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
@@ -75,12 +76,12 @@ public:
 	/**
 	 * @brief Steps every unfinished agent and captures an owned state snapshot.
 	 *
-	 * Requires ACTIVE. Actions must name exactly the unfinished declared agents,
-	 * and a successful response must name exactly the agents that acted. Each
+	 * Requires ACTIVE. Actions must name exactly the currently active agents. A successful
+	 * response names every actor plus any births from the declared possible IDs. Each
 	 * successful call increments the step count. The lifecycle becomes COMPLETE
-	 * only when every agent is terminated or truncated by the environment.
+	 * when every observed agent is terminated or truncated by the environment.
 	 * Otherwise it remains ACTIVE. The output changes only on success.
-	 * @param[in] p_actions One action for every unfinished declared agent.
+	 * @param[in] p_actions One action for every currently active agent.
 	 * @param[out] r_state Latest state for every agent in the environment.
 	 * @return OK on success, or a failure describing invalid actions, malformed output, or an environment error.
 	 */
