@@ -16,13 +16,9 @@ func _reset_episode(seed: Variant, options: Dictionary) -> void:
 		agent.observation = 0
 
 
-func _get_reward(_agent: ScholaAgent) -> float:
-	return 1.0
-
-
-func _is_terminated(_agent: ScholaAgent) -> bool:
-	return get_episode_step() + 1 >= episode_length
-
-
-func _get_info(_agent: ScholaAgent) -> Dictionary:
-	return {"reset_count": str(reset_count)}
+func _get_step_result(_agent: ScholaAgent) -> Dictionary:
+	return {
+		"reward": 1.0,
+		"terminated": get_episode_step() + 1 >= episode_length,
+		"info": {"reset_count": str(reset_count)},
+	}

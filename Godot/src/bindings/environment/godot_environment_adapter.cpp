@@ -16,7 +16,9 @@
 #include <godot_cpp/variant/variant.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -63,7 +65,7 @@ bool is_text(const godot::Variant &p_value) {
 	return p_value.get_type() == godot::Variant::STRING || p_value.get_type() == godot::Variant::STRING_NAME;
 }
 
-// _get_info() must return String keys and String values, because Python
+// Result info must contain String keys and String values, because Python
 // receives info as a map of strings. Anything else is rejected rather than
 // silently stringified.
 schola::Status to_info(const godot::Dictionary &p_dictionary, std::map<std::string, std::string> &r_info) {
@@ -78,6 +80,54 @@ schola::Status to_info(const godot::Dictionary &p_dictionary, std::map<std::stri
 		info[to_std_string(godot::String(key))] = to_std_string(godot::String(value));
 	}
 	r_info = std::move(info);
+	return schola::Status::ok();
+}
+
+// Parse without coercion or partial writes. Observation is collected separately
+// through _observe(); this callback supplies only the episode result fields.
+schola::Status to_step_result(const godot::Variant &p_value, schola::AgentState &r_state) {
+	using godot::Variant;
+	if (p_value.get_type() != Variant::DICTIONARY) {
+		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "expected a Dictionary");
+	}
+	const godot::Dictionary result = p_value;
+	const godot::Array keys = result.keys();
+	for (int32_t index = 0; index < keys.size(); ++index) {
+		const Variant key = keys[index];
+		if (!is_text(key)) {
+			return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "field names must be Strings");
+		}
+		const godot::String name = key;
+		if (name != "reward" && name != "terminated" && name != "truncated" && name != "info") {
+			return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "unknown field '" + to_std_string(name) + "'");
+		}
+	}
+	const Variant reward = result.get("reward", Variant());
+	if (reward.get_type() != Variant::INT && reward.get_type() != Variant::FLOAT) {
+		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "reward is required and must be an int or float");
+	}
+	const double reward_value = reward;
+	if (!std::isfinite(reward_value) || std::abs(reward_value) > std::numeric_limits<float>::max()) {
+		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "reward must be finite and fit in a float32");
+	}
+	const Variant terminated = result.get("terminated", false);
+	const Variant truncated = result.get("truncated", false);
+	if (terminated.get_type() != Variant::BOOL || truncated.get_type() != Variant::BOOL) {
+		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "terminated and truncated must be bools");
+	}
+	const Variant info = result.get("info", godot::Dictionary());
+	if (info.get_type() != Variant::DICTIONARY) {
+		return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "info must be a Dictionary");
+	}
+	std::map<std::string, std::string> converted_info;
+	const schola::Status status = to_info(info, converted_info);
+	if (!status.is_ok()) {
+		return status;
+	}
+	r_state.reward = static_cast<float>(reward_value);
+	r_state.terminated = terminated;
+	r_state.truncated = truncated;
+	r_state.info = std::move(converted_info);
 	return schola::Status::ok();
 }
 
@@ -118,7 +168,7 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 
 		// Two agents with the same ID would overwrite each other in every map
 		// Python sees, so refuse the whole environment.
-		const schola::AgentId id = to_std_string(agent_node->get_agent_id());
+		const schola::AgentId id = to_std_string(agent_node->get_resolved_agent_id());
 		if (definitions.count(id) != 0) {
 			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "agent_id is used by more than one agent");
 		}
@@ -225,10 +275,10 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 		}
 	}
 
-	// A missing _get_reward() would otherwise only show up after every agent
+	// A missing _get_step_result() would otherwise only show up after every agent
 	// had already acted, so catch it here while the world is still untouched.
-	if (!p_actions.empty() && !GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_reward)) {
-		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "_get_reward() is not overridden");
+	if (!p_actions.empty() && !GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_step_result)) {
+		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() is not overridden");
 	}
 
 	// Line the actions up in scene-tree order, so agents always act in the
@@ -284,23 +334,19 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			return status;
 		}
 
-		// _get_reward() was checked in phase 1, so false here means the
-		// script call itself failed, for example a wrong argument count.
-		double reward = 0.0;
-		if (!GDVIRTUAL_CALL_PTR(node, _get_reward, agent_node, reward)) {
-			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "_get_reward() could not be called");
-		}
-		state.reward = static_cast<float>(reward);
-
-		// These are optional. Left unoverridden, the call does nothing and the
-		// values keep their defaults: false, false and an empty Dictionary.
-		GDVIRTUAL_CALL_PTR(node, _is_terminated, agent_node, state.terminated);
-		GDVIRTUAL_CALL_PTR(node, _is_truncated, agent_node, state.truncated);
-		godot::Dictionary info;
-		GDVIRTUAL_CALL_PTR(node, _get_info, agent_node, info);
-		status = to_info(info, state.info);
+		// _observe() is user code and may free an agent, so resolve it again
+		// before passing the node to the result hook.
+		status = find_agent_node(id, item.entry->node_id, agent_node);
 		if (!status.is_ok()) {
-			return agent_error(id, status.get_code(), "_get_info() returned a bad value: " + status.get_message());
+			return status;
+		}
+		godot::Variant result;
+		if (!GDVIRTUAL_CALL_PTR(node, _get_step_result, agent_node, result)) {
+			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() could not be called");
+		}
+		status = to_step_result(result, state);
+		if (!status.is_ok()) {
+			return agent_error(id, status.get_code(), "_get_step_result(): " + status.get_message());
 		}
 
 		item.finished = state.terminated || state.truncated;
