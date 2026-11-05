@@ -142,6 +142,26 @@ func test_stepper_clamps_a_box_action_to_the_agent_space() -> void:
 	assert_array(_values(stepper.policy.infer(agent.observation))).contains_exactly([10.0, 2.0, -10.0])
 
 
+func test_stepper_only_skips_the_agent_with_a_discrete_action_outside_its_space() -> void:
+	var space := ScholaDiscreteSpace.new()
+	space.n = 2
+	var bad := _agent(4, 1, PackedFloat32Array([0.0, 0.0, 0.0, 9.0]))
+	var good := _agent(4, 1, PackedFloat32Array([9.0, 0.0, 0.0, 0.0]))
+	bad.action_space = space
+	good.action_space = space
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("discrete.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(bad)).is_equal(OK)
+	assert_int(stepper.add_agent(good)).is_equal(OK)
+
+	assert_int(stepper.step()).is_equal(ERR_INVALID_PARAMETER)
+	assert_int(bad.actions.size()).is_equal(0)
+	assert_array(good.actions).contains_exactly([0])
+	assert_int(stepper.policy.infer(bad.observation)).is_equal(3)
+
+
 func test_stepper_keeps_stepping_after_a_bad_observation() -> void:
 	var messages: Array = []
 	var bad := _agent(3, 3, PackedFloat32Array([1.0, 1.0, 1.0]))

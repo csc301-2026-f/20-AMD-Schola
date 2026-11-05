@@ -201,11 +201,18 @@ TEST_CASE("think clamps a Box action to its space", "[inference]") {
 	REQUIRE(std::isnan(box_values(fixture.action)[0]));
 }
 
-TEST_CASE("think rejects a Discrete action outside its space", "[inference]") {
-	Fixture fixture("discrete.onnx", definition(box(4), Space(DiscreteSpace{ 2 })));
-	Status status = fixture.think(Point(BoxPoint{ { 0.0f, 0.0f, 0.0f, 9.0f } }));
-	REQUIRE(status.get_code() == StatusCode::RUNTIME_FAILURE);
-	REQUIRE_THAT(status.get_message(), ContainsSubstring("returned 3 for action, outside [0, 2)"));
+TEST_CASE("think passes on a Discrete action outside its space", "[inference]") {
+	SECTION("Discrete") {
+		Fixture fixture("discrete.onnx", definition(box(4), Space(DiscreteSpace{ 2 })));
+		REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f, 0.0f, 0.0f, 9.0f } })).is_ok());
+		REQUIRE(fixture.action.get_if<DiscretePoint>()->value == 3);
+	}
+	SECTION("MultiDiscrete") {
+		Space observation(MultiDiscreteSpace{ { 4, 4 } });
+		Fixture fixture("multi_discrete.onnx", definition(observation, Space(MultiDiscreteSpace{ { 2, 2 } })));
+		REQUIRE(fixture.think(Point(MultiDiscretePoint{ { 3, 1 } })).is_ok());
+		REQUIRE(fixture.action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ 3, 1 });
+	}
 }
 
 TEST_CASE("think rejects a Discrete observation outside its space", "[inference]") {
