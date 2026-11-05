@@ -332,6 +332,27 @@ func test_stepper_reports_a_changed_policy() -> void:
 	assert_str(messages[0]).starts_with("ScholaInferenceStepper.policy: ")
 
 
+func test_stepper_rejects_an_agent_outside_the_tree() -> void:
+	var messages: Array = []
+	var agent: ScholaAgent = auto_free(TestAgent.new())
+	agent.setup(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+
+	assert_int(stepper.add_agent(agent)).is_equal(ERR_INVALID_PARAMETER)
+	assert_str(messages[0]).contains("inside the scene tree")
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(0)
+
+	add_child(agent)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(1)
+
+
 func test_stepper_forgets_a_freed_agent() -> void:
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
 	stepper.policy = _policy("box_scale.onnx")

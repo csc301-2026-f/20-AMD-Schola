@@ -127,7 +127,8 @@ and ``reset_state()`` affect every entry of that agent.
 A few rules keep this safe:
 
 - The ``agents`` list is only read when the game starts. After that, use ``add_agent()``.
-- Add an agent to the scene before calling ``add_agent()``.
+- Add an agent to the scene before calling ``add_agent()``. Otherwise it returns
+  ``ERR_INVALID_PARAMETER``.
 - To remove an agent inside ``_observe()`` or ``_act()``, use ``queue_free()``. Removing it
   immediately can skip an agent or give one the wrong action for that frame.
 - ``remove_child()`` and ``reparent()`` also remove the agent from the stepper. Call ``add_agent()``
