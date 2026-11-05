@@ -35,7 +35,7 @@ As a Godot developer, I want to configure agents and environments through nodes 
 ## Scope
 
 - A runnable gameplay example and movement-specific reward behavior are outside US5's acceptance criteria. `examples/basic_environment/` remains a registration probe.
-- `ScholaTrainingHost` is included from `main`. Migration of US4's existing callback implementations to `_get_step_result` is separate integration work.
+- `ScholaTrainingHost` is included from `main`. Its integration-test environment uses `_get_step_result` for reward, completion, and info; the production US4 implementation is unchanged.
 - CI builds the native adapter test driver with `integration_tests=yes`, so the consolidated callback suite runs alongside the other integration tests.
 
 Frozen D1/D2 demos and the archived D1 prototype are historical artifacts, not evidence of current plugin functionality.

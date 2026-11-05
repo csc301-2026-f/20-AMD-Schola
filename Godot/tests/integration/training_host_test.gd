@@ -248,7 +248,9 @@ func test_multiple_environments_run_repeated_episodes_without_state_leakage() ->
 
 	var actions := {"actions": [{"first_agent": 1}, {"second_agent": 2}]}
 	var first_step := host.step(actions)
-	assert_int(_status_code(first_step)).is_equal(STATUS_OK)
+	assert_int(_status_code(first_step)).override_failure_message(_status_message(first_step)).is_equal(STATUS_OK)
+	if _status_code(first_step) != STATUS_OK:
+		return
 	assert_float(first_step["value"]["state"][0]["first_agent"]["reward"]).is_equal(1.0)
 	assert_int(first.reset_count).is_equal(1)
 	assert_int(second.reset_count).is_equal(1)
