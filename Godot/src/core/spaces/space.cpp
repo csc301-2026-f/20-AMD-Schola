@@ -351,6 +351,10 @@ const char *dtype_name(DType p_dtype) {
 	return "unknown";
 }
 
+bool is_whole_dtype(DType p_dtype) {
+	return whole_range(p_dtype) != nullptr;
+}
+
 const Space *DictSpace::find(const std::string &p_key) const {
 	for (const auto &entry : entries) {
 		if (entry.first == p_key) {

@@ -19,6 +19,9 @@ class Space;
 // Returns the numpy name, such as "uint8", or "unknown".
 const char *dtype_name(DType p_dtype);
 
+// Returns true for integer and bool dtypes, whose Box bounds and values must be whole numbers.
+bool is_whole_dtype(DType p_dtype);
+
 // low and high hold product(shape) values in row-major order; infinity means unbounded. An empty
 // protobuf shape becomes {low.size()}. Integer and bool dtypes need finite, whole, in-range bounds and
 // whole values, because numpy truncates or garbles anything else.

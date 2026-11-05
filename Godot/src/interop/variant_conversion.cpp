@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -101,8 +102,22 @@ Status wrong_value(const std::string &p_path, const char *p_expected, int64_t p_
 	return invalid(p_path, message);
 }
 
-// r_error names a bad Array element
-bool read_floats(const godot::Variant &p_value, std::vector<float> &r_values, std::string &r_error) {
+// Narrows to float32, the wire type. Integer and bool dtypes reject values that narrowing would change,
+// because validate() only sees the float and would accept 1.00000001 as 1.
+bool push_float(double p_value, int64_t p_index, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
+	const float value = static_cast<float>(p_value);
+	if (is_whole_dtype(p_dtype) && !std::isnan(p_value) && static_cast<double>(value) != p_value) {
+		const std::string prefix = "Box value at index " + std::to_string(p_index) + " is " + to_std_string(godot::String::num(p_value));
+		r_error = std::floor(p_value) == p_value ? prefix + ", which float32 cannot represent exactly" : prefix + " but dtype " + dtype_name(p_dtype) + " needs a whole number";
+		return false;
+	}
+	r_values.push_back(value);
+	return true;
+}
+
+// r_error names a bad element
+bool read_floats(const godot::Variant &p_value, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
+	r_values.clear();
 	switch (p_value.get_type()) {
 		case godot::Variant::PACKED_FLOAT32_ARRAY: {
 			const godot::PackedFloat32Array values = p_value;
@@ -111,19 +126,24 @@ bool read_floats(const godot::Variant &p_value, std::vector<float> &r_values, st
 		}
 		case godot::Variant::PACKED_FLOAT64_ARRAY: {
 			const godot::PackedFloat64Array values = p_value;
-			r_values.assign(values.ptr(), values.ptr() + values.size());
+			for (int64_t i = 0; i < values.size(); ++i) {
+				if (!push_float(values[i], i, p_dtype, r_values, r_error)) {
+					return false;
+				}
+			}
 			return true;
 		}
 		case godot::Variant::ARRAY: {
 			const godot::Array values = p_value;
-			r_values.clear();
 			for (int64_t i = 0; i < values.size(); ++i) {
 				const godot::Variant &value = values[i];
 				if (value.get_type() != godot::Variant::INT && value.get_type() != godot::Variant::FLOAT) {
 					r_error = "Array element " + std::to_string(i) + " is " + type_name(value) + " but must be a number";
 					return false;
 				}
-				r_values.push_back(static_cast<float>(static_cast<double>(value)));
+				if (!push_float(value, i, p_dtype, r_values, r_error)) {
+					return false;
+				}
 			}
 			return true;
 		}
@@ -170,7 +190,7 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	if (const BoxSpace *box = p_space.get_if<BoxSpace>()) {
 		const int64_t expected = static_cast<int64_t>(box->low.size());
 		BoxPoint point;
-		if (!read_floats(p_value, point.values, error)) {
+		if (!read_floats(p_value, box->dtype, point.values, error)) {
 			return error.empty() ? wrong_value(p_path, "PackedFloat32Array", expected, p_space, p_value) : invalid(p_path, error);
 		}
 		if (static_cast<int64_t>(point.values.size()) != expected) {

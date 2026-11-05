@@ -152,3 +152,22 @@ func test_integer_box_needs_whole_bounds_and_values() -> void:
 	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 0.5]))).contains("needs a whole number")
 	space.low = PackedFloat32Array()
 	assert_str(space.get_definition_error()).contains("dtype uint8 needs a whole number in [0, 255]")
+
+
+func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
+	var space := _box(PackedFloat32Array([0.0]), PackedFloat32Array([255.0]), PackedInt32Array([2]))
+	space.dtype = 1 # uint8
+	assert_str(space.get_validation_error([0, 1.00000001])).contains("index 1")
+	assert_str(space.get_validation_error([0, 1.00000001])).contains("needs a whole number")
+	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 1.00000001]))).contains("needs a whole number")
+	assert_str(space.get_validation_error([0, 255.00000001])).contains("needs a whole number")
+	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 255.0]))).is_empty()
+	assert_str(space.get_validation_error([0, 255])).is_empty()
+
+	var wide := _box(PackedFloat32Array([0.0]), PackedFloat32Array([33554432.0]), PackedInt32Array([1]))
+	wide.dtype = 7 # int32
+	assert_str(wide.get_validation_error([16777217])).contains("float32 cannot represent exactly")
+	assert_str(wide.get_validation_error([16777216])).is_empty()
+
+	space.dtype = 0 # float32
+	assert_str(space.get_validation_error([0, 1.00000001])).is_empty()
