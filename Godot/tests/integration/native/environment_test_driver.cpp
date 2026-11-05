@@ -19,10 +19,16 @@ class ScholaEnvironmentTestDriver : public godot::RefCounted {
 
 public:
 	godot::Dictionary initialize(ScholaEnvironment *p_node) {
+		if (p_node == nullptr || p_node->get_environment() == nullptr) {
+			return missing_environment();
+		}
 		return response(p_node->get_environment()->initialize(definitions));
 	}
 
 	godot::Dictionary reset(ScholaEnvironment *p_node) {
+		if (p_node == nullptr || p_node->get_environment() == nullptr) {
+			return missing_environment();
+		}
 		std::map<schola::AgentId, schola::InitialAgentState> states;
 		const schola::Status status = p_node->get_environment()->reset({}, states);
 		godot::Dictionary result = response(status);
@@ -31,6 +37,9 @@ public:
 	}
 
 	godot::Dictionary step(ScholaEnvironment *p_node, const godot::Dictionary &p_actions) {
+		if (p_node == nullptr || p_node->get_environment() == nullptr) {
+			return missing_environment();
+		}
 		std::map<schola::AgentId, schola::Point> actions;
 		const godot::Array keys = p_actions.keys();
 		for (int32_t index = 0; index < keys.size(); ++index) {
@@ -79,6 +88,10 @@ protected:
 
 private:
 	std::map<schola::AgentId, schola::InteractionDefinition> definitions;
+
+	static godot::Dictionary missing_environment() {
+		return response(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, "Pass a valid ScholaEnvironment node that is inside the scene tree."));
+	}
 
 	static godot::Dictionary response(const schola::Status &p_status) {
 		godot::Dictionary result;

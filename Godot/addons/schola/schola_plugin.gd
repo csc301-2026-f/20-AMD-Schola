@@ -5,7 +5,8 @@ extends EditorPlugin
 const Monitor = preload("res://addons/schola/ui/schola_monitor.gd")
 const SpaceInspector = preload("res://addons/schola/space_inspector.gd")
 const PREVIEW = "res://examples/ui_preview/main.tscn"
-var _dock: VBoxContainer
+var _dock: ScrollContainer
+var _dock_content: VBoxContainer
 var _capabilities: Label
 var _nodes: ItemList
 var _scene_nodes: Array[Node] = []
@@ -15,35 +16,39 @@ var _space_inspector: EditorInspectorPlugin
 func _enter_tree() -> void:
 	_space_inspector = SpaceInspector.new()
 	add_inspector_plugin(_space_inspector)
-	_dock = VBoxContainer.new()
+	_dock = ScrollContainer.new()
 	_dock.name = "Schola"
 	_dock.custom_minimum_size.x = 260
-	_dock.add_theme_constant_override("separation", 10)
+	_dock.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_dock_content = VBoxContainer.new()
+	_dock_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dock_content.add_theme_constant_override("separation", 10)
+	_dock.add_child(_dock_content)
 	var heading := Label.new()
 	heading.text = "AMD SCHOLA"
 	heading.add_theme_font_size_override("font_size", 20)
-	_dock.add_child(heading)
+	_dock_content.add_child(heading)
 	var intro := Label.new()
 	intro.text = "Reinforcement learning / Godot"
-	_dock.add_child(intro)
+	_dock_content.add_child(intro)
 	_capabilities = Label.new()
 	_capabilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dock.add_child(_capabilities)
+	_dock_content.add_child(_capabilities)
 	_button("Open interactive UI preview", func(): get_editor_interface().open_scene_from_path(PREVIEW))
 	_button("Add monitor to current scene", _add_monitor)
 	var caption := Label.new()
 	caption.text = "SCENE NODES · select to inspect"
-	_dock.add_child(caption)
+	_dock_content.add_child(caption)
 	_nodes = ItemList.new()
 	_nodes.custom_minimum_size.y = 180
 	_nodes.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nodes.item_selected.connect(_inspect_node)
-	_dock.add_child(_nodes)
+	_dock_content.add_child(_nodes)
 	_button("Refresh scene & capabilities", _refresh)
 	var note := Label.new()
 	note.text = "Configure selected nodes in the Inspector.\nThe monitor accepts telemetry from your lifecycle code. Training and inference controls become available when their native APIs are implemented."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dock.add_child(note)
+	_dock_content.add_child(note)
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
 	scene_changed.connect(_on_scene_changed)
 	_refresh()
@@ -60,7 +65,7 @@ func _button(caption: String, action: Callable) -> void:
 	var button := Button.new()
 	button.text = caption
 	button.pressed.connect(action)
-	_dock.add_child(button)
+	_dock_content.add_child(button)
 
 
 func _on_scene_changed(_root: Node) -> void:
