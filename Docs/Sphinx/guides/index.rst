@@ -13,5 +13,6 @@ Guides
    cli_dataclass_conventions
    tips_and_tricks
    distributed_training
+   godot_training_lifecycle
    migrating_to_v2
    testing_with_pytest

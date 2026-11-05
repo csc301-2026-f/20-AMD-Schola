@@ -27,7 +27,7 @@ struct Session {
 	std::array<testing::FakeEnvironment, 2> environments;
 	EnvironmentCoordinator coordinator;
 
-	explicit Session(uint64_t p_limit = 0) {
+	Session() {
 		std::vector<std::unique_ptr<EnvironmentLifecycle>> lifecycles;
 		for (size_t index = 0; index < environments.size(); ++index) {
 			auto &environment = environments[index];
@@ -36,7 +36,7 @@ struct Session {
 			environment.definitions.emplace("agent", InteractionDefinition{ Space(DiscreteSpace{ 10 }), Space(DiscreteSpace{ 2 }), environment.label });
 			environment.reset_states.emplace("agent", InitialAgentState{ point(static_cast<int32_t>(index)), { { "episode", environment.label } } });
 			environment.step_states.emplace("agent", agent_state(static_cast<int32_t>(index + 2)));
-			lifecycles.push_back(std::make_unique<EnvironmentLifecycle>(static_cast<EnvironmentId>(index), environment, p_limit));
+			lifecycles.push_back(std::make_unique<EnvironmentLifecycle>(static_cast<EnvironmentId>(index), environment));
 		}
 		REQUIRE(coordinator.set_lifecycles(std::move(lifecycles)).is_ok());
 	}
@@ -370,7 +370,7 @@ TEST_CASE("next-step autoreset consumes no action and returns a fresh observatio
 }
 
 TEST_CASE("autoreset uses default settings and supports repeated truncated episodes", "[coordinator][autoreset]") {
-	Session session(1);
+	Session session;
 	auto mode = AutoResetMode::SAME_STEP;
 	SECTION("same step") {}
 	SECTION("next step") {
@@ -382,6 +382,9 @@ TEST_CASE("autoreset uses default settings and supports repeated truncated episo
 	InitialState initial;
 	REQUIRE(session.coordinator.reset(request, initial).is_ok());
 	for (int episode = 0; episode < 3; ++episode) {
+		for (auto &environment : session.environments) {
+			environment.step_states.at("agent").truncated = true;
+		}
 		StepResult terminal;
 		REQUIRE(session.coordinator.step(session.actions(), terminal).is_ok());
 		CHECK(terminal.state.environments[0].agents.at("agent").truncated);

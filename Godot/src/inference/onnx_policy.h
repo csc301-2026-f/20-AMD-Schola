@@ -18,6 +18,8 @@ public:
 	~OnnxPolicy() override;
 
 	Status load_model(const uint8_t *p_data, size_t p_size, const std::string &p_model_name);
+	void unload_model();
+	bool is_loaded() const;
 	Status set_max_state_sequence_length(int32_t p_length);
 	int32_t get_max_state_sequence_length() const;
 	const std::vector<std::string> &get_input_names() const;
@@ -26,7 +28,6 @@ public:
 	Status init(const InteractionDefinition &p_definition) override;
 	Status create_initial_state(std::unique_ptr<PolicyState> &r_state) const override;
 	Status think(const Point &p_observation, PolicyState &p_state, Point &r_action) override;
-	Status batched_think(const std::vector<const Point *> &p_observations, const std::vector<PolicyState *> &p_states, const std::vector<Point *> &r_actions) override;
 	bool is_recurrent() const override;
 
 	bool is_ready() const;

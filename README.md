@@ -66,7 +66,7 @@ The earlier D1 interface prototype is preserved in [`Godot/demo/d1`](Godot/demo/
 
 ### Define an environment
 
-The core API represents agents, environments, interaction definitions, and typed observation and action spaces. Native `ScholaEnvironment` and `ScholaAgent` nodes provide Inspector configuration, agent discovery, and GDScript behavior hooks. A C++ reference grid-world implements the core API and is tested against the US4 lifecycle; connecting the native nodes to that core contract remains work after D2.
+The core API represents agents, environments, interaction definitions, and typed observation and action spaces. Native `ScholaEnvironment` and `ScholaAgent` nodes provide Inspector configuration, agent discovery, and GDScript behavior hooks through the completed native adapters. The Godot training host connects these adapters to the episode lifecycle, with integration tests covering multiple environments and repeated episodes.
 
 ### Execute an episode
 

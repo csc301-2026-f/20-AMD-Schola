@@ -2,7 +2,11 @@
 
 #include "bindings/environment/schola_environment.h"
 
+#include "bindings/environment/godot_environment_adapter.h"
+
 #include <godot_cpp/core/class_db.hpp>
+
+#include <memory>
 
 namespace {
 
@@ -26,13 +30,47 @@ void collect_agents(const godot::Node *p_node, godot::TypedArray<ScholaAgent> &r
 
 } // namespace
 
-void ScholaEnvironment::set_max_episode_steps(int32_t p_max_episode_steps) {
-	max_episode_steps = p_max_episode_steps;
-	update_configuration_warnings();
+ScholaEnvironment::ScholaEnvironment() {
+	// Create the RNG up front so get_rng() never returns null, even before
+	// the first reset. Godot gives a new RandomNumberGenerator a random seed,
+	// so runs differ until Python sends a seed.
+	rng.instantiate();
 }
 
-int32_t ScholaEnvironment::get_max_episode_steps() const {
-	return max_episode_steps;
+// Empty, but it has to live here: destroying the unique_ptr needs the full
+// GodotEnvironmentAdapter definition, which the header only forward-declares.
+ScholaEnvironment::~ScholaEnvironment() = default;
+
+int64_t ScholaEnvironment::get_episode_step() const {
+	// The adapter does the stepping, so it keeps the count. Before anything
+	// has asked for the adapter, no episode has run.
+	return environment_adapter ? environment_adapter->get_episode_step() : 0;
+}
+
+godot::Ref<godot::RandomNumberGenerator> ScholaEnvironment::get_rng() const {
+	return rng;
+}
+
+schola::Environment *ScholaEnvironment::get_environment() {
+	// The adapter walks the scene tree to find agents, so it is only handed
+	// out while this node is in one.
+	if (!is_inside_tree()) {
+		return nullptr;
+	}
+
+	// Create the adapter the first time someone asks for it. It keeps a
+	// pointer back to this node, which is safe because this node owns it
+	// and deletes it when the node itself is destroyed.
+	if (!environment_adapter) {
+		environment_adapter = std::make_unique<GodotEnvironmentAdapter>(this);
+	}
+	return environment_adapter.get();
+}
+
+const schola::Environment *ScholaEnvironment::get_environment() const {
+	// Same adapter as above. const_cast lets this read-only version reuse it
+	// instead of duplicating the creation logic.
+	return const_cast<ScholaEnvironment *>(this)->get_environment();
 }
 
 godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
@@ -43,9 +81,6 @@ godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 
 godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	godot::PackedStringArray errors;
-	if (max_episode_steps < 0) {
-		errors.append("max_episode_steps must be zero or greater");
-	}
 	const godot::TypedArray<ScholaAgent> agents = get_agents();
 	if (agents.is_empty()) {
 		errors.append("Add a ScholaAgent node below this environment.");
@@ -70,14 +105,15 @@ godot::PackedStringArray ScholaEnvironment::_get_configuration_warnings() const 
 }
 
 void ScholaEnvironment::_bind_methods() {
-	godot::ClassDB::bind_method(godot::D_METHOD("set_max_episode_steps", "max_episode_steps"), &ScholaEnvironment::set_max_episode_steps);
-	godot::ClassDB::bind_method(godot::D_METHOD("get_max_episode_steps"), &ScholaEnvironment::get_max_episode_steps);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_agents"), &ScholaEnvironment::get_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaEnvironment::get_configuration_errors);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_episode_step"), &ScholaEnvironment::get_episode_step);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_rng"), &ScholaEnvironment::get_rng);
+	ADD_SIGNAL(godot::MethodInfo("episode_started"));
+	ADD_SIGNAL(godot::MethodInfo("episode_ended"));
 	GDVIRTUAL_BIND(_reset_episode, "seed", "options");
 	GDVIRTUAL_BIND(_get_reward, "agent");
 	GDVIRTUAL_BIND(_is_terminated, "agent");
 	GDVIRTUAL_BIND(_is_truncated, "agent");
 	GDVIRTUAL_BIND(_get_info, "agent");
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "max_episode_steps"), "set_max_episode_steps", "get_max_episode_steps");
 }

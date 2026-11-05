@@ -1,0 +1,85 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+
+import os
+import stat
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+import setup_grpc
+
+
+class GrpcSetupTests(unittest.TestCase):
+    def test_cleanup_removes_a_writable_checkout(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = Path(temporary) / "source"
+            checkout.mkdir()
+            (checkout / "file").write_bytes(b"fixture")
+            setup_grpc.remove_directory(checkout)
+            self.assertFalse(checkout.exists())
+
+    def test_windows_dependencies_select_the_static_runtime(self):
+        arguments = setup_grpc.configure_arguments(
+            "windows", "x86_64", Path("source"), Path("build"), Path("install")
+        )
+        for dependency in ("gRPC", "CARES", "protobuf", "ABSL"):
+            with self.subTest(dependency=dependency):
+                self.assertIn(f"-D{dependency}_MSVC_STATIC_RUNTIME=ON", arguments)
+
+    def test_macos_builds_for_the_host_architecture_only(self):
+        with patch.object(setup_grpc.platform, "system", return_value="Darwin"), patch.object(
+            setup_grpc.platform, "machine", return_value="arm64"
+        ):
+            self.assertEqual(setup_grpc.host(), ("macos", "arm64"))
+        arguments = setup_grpc.configure_arguments(
+            "macos", "arm64", Path("source"), Path("build"), Path("install")
+        )
+        self.assertIn("-DCMAKE_OSX_ARCHITECTURES=arm64", arguments)
+        self.assertFalse(any("MSVC" in str(argument) for argument in arguments))
+
+    def test_cache_key_follows_the_pins_and_the_platform_build_options(self):
+        grpc = {"tag": "v1.80.0", "commit": "f5e2d6e"}
+        protobuf = {"version": "31.1"}
+        linux = setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64")
+        self.assertEqual(linux, setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64"))
+        self.assertNotEqual(linux, setup_grpc.cache_key(grpc, protobuf, "windows", "x86_64"))
+        self.assertNotEqual(
+            linux, setup_grpc.cache_key({**grpc, "commit": "0000000"}, protobuf, "linux", "x86_64")
+        )
+        configure_arguments = setup_grpc.configure_arguments
+        with patch.object(
+            setup_grpc,
+            "configure_arguments",
+            side_effect=lambda *arguments: configure_arguments(*arguments) + ["-DEXTRA=ON"],
+        ):
+            self.assertNotEqual(linux, setup_grpc.cache_key(grpc, protobuf, "linux", "x86_64"))
+
+    @unittest.skipUnless(os.name == "nt", "Windows read-only file semantics")
+    def test_retry_removes_read_only_git_pack_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = Path(temporary) / "source"
+            pack = checkout / ".git/modules/abseil/objects/pack/pack.idx"
+            pack.parent.mkdir(parents=True)
+            pack.write_bytes(b"pack index fixture")
+            pack.chmod(stat.S_IREAD)
+            setup_grpc.remove_directory(checkout)
+            self.assertFalse(checkout.exists())
+
+    def test_cleanup_does_not_hide_other_permission_errors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            writable = Path(temporary) / "locked.idx"
+            writable.write_bytes(b"fixture")
+            failure = PermissionError("file is locked")
+
+            def fail_removal(path, onerror):
+                onerror(os.unlink, str(writable), (PermissionError, failure, None))
+
+            with patch.object(setup_grpc.shutil, "rmtree", side_effect=fail_removal):
+                with self.assertRaises(PermissionError) as caught:
+                    setup_grpc.remove_directory(Path(temporary))
+            self.assertIs(caught.exception, failure)
+
+
+if __name__ == "__main__":
+    unittest.main()

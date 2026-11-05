@@ -62,6 +62,7 @@ GRPC_WINDOWS_LIBRARY_NAMES = {
 }
 GRPC_SYSTEM_LIBRARIES = {
     "linux": ["pthread", "dl", "m", "rt"],
+    "macos": [],
     "windows": ["ws2_32", "crypt32", "iphlpapi", "advapi32", "bcrypt", "dbghelp"],
 }
 
@@ -215,6 +216,8 @@ def use_grpc(target_environment):
         target_environment["_LIBFLAGS"] = (
             "-Wl,--start-group " + target_environment["_LIBFLAGS"] + " -Wl,--end-group"
         )
+    elif platform_name == "macos":
+        target_environment.Append(LINKFLAGS=["-framework", "CoreFoundation"])
 
 
 def build_extension(

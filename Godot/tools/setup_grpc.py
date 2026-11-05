@@ -2,10 +2,12 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
 import argparse
+import hashlib
 import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -27,7 +29,7 @@ SUBMODULES = (
 
 
 def host():
-    system = {"Windows": "windows", "Linux": "linux"}.get(
+    system = {"Windows": "windows", "Linux": "linux", "Darwin": "macos"}.get(
         platform.system()
     )
     machine = {
@@ -48,6 +50,21 @@ def run(arguments, working_directory=None):
     subprocess.run([str(argument) for argument in arguments], check=True, cwd=working_directory)
 
 
+def remove_directory(directory):
+    def retry_read_only(function, path, exception_info):
+        error = exception_info[1]
+        if not isinstance(error, PermissionError):
+            raise error
+        mode = os.stat(path).st_mode
+        if mode & stat.S_IWRITE:
+            raise error
+        # Git pack files are read-only on Windows, even in our own checkout.
+        os.chmod(path, mode | stat.S_IWRITE)
+        function(path)
+
+    shutil.rmtree(directory, onerror=retry_read_only)
+
+
 def expected_stamp(grpc, protobuf, system, machine):
     return {
         "grpc_tag": grpc["tag"],
@@ -56,6 +73,23 @@ def expected_stamp(grpc, protobuf, system, machine):
         "platform": system,
         "arch": machine,
     }
+
+
+def cache_key(grpc, protobuf, system, machine):
+    # Covers what decides this platform's install, so CI keeps its cached build when
+    # only another platform's options or the script's other code change.
+    configuration = {
+        "stamp": expected_stamp(grpc, protobuf, system, machine),
+        "submodules": list(SUBMODULES),
+        "configure": [
+            str(argument)
+            for argument in configure_arguments(
+                system, machine, Path("source"), Path("build"), Path("install")
+            )
+        ],
+    }
+    encoded = json.dumps(configuration, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()[:16]
 
 
 def installed_stamp():
@@ -152,10 +186,14 @@ def configure_arguments(system, machine, source_directory, build_directory, inst
         # its shared library, which linkers prefer over the archive.
         "-DSKIP_INSTALL_LIBRARIES=ON",
     ]
-    if system == "windows":
+    if system == "macos":
+        arguments.append(f"-DCMAKE_OSX_ARCHITECTURES={machine}")
+    elif system == "windows":
         arguments += [
             # godot-cpp links the static MSVC runtime (/MT) by default.
             "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",
+            "-DgRPC_MSVC_STATIC_RUNTIME=ON",
+            "-DCARES_MSVC_STATIC_RUNTIME=ON",
             "-Dprotobuf_MSVC_STATIC_RUNTIME=ON",
             "-DABSL_MSVC_STATIC_RUNTIME=ON",
             # BoringSSL's assembly needs NASM; the connector never uses TLS.
@@ -189,7 +227,7 @@ def build(grpc, protobuf, system, machine, work_directory):
         json.dumps(stamp, indent=2) + "\n", encoding="utf-8"
     )
     if INSTALL_DIRECTORY.exists():
-        shutil.rmtree(INSTALL_DIRECTORY)
+        remove_directory(INSTALL_DIRECTORY)
     INSTALL_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(staged_directory), str(INSTALL_DIRECTORY))
 
@@ -208,12 +246,21 @@ def main():
     parser.add_argument(
         "--force", action="store_true", help="Rebuild even if the pinned release is installed."
     )
+    parser.add_argument(
+        "--print-cache-key",
+        action="store_true",
+        help="Print the CI cache key for this host's build and exit without building.",
+    )
     arguments = parser.parse_args()
 
     dependencies = json.loads(LOCK_FILE.read_text(encoding="utf-8"))
     grpc = dependencies["grpc"]
     protobuf = dependencies["protobuf"]
     system, machine = host()
+
+    if arguments.print_cache_key:
+        print(cache_key(grpc, protobuf, system, machine))
+        return
 
     if shutil.which("cmake") is None:
         raise RuntimeError("CMake 3.16 or newer is required to build gRPC")
@@ -228,7 +275,7 @@ def main():
     else:
         work_directory = arguments.work_dir.resolve()
         if work_directory.exists():
-            shutil.rmtree(work_directory)
+            remove_directory(work_directory)
         work_directory.mkdir(parents=True)
         build(grpc, protobuf, system, machine, work_directory)
     print(

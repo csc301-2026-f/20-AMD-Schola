@@ -22,6 +22,7 @@ public:
 
 	void reset();
 	godot::Error copy_from(const godot::Ref<ScholaPolicyState> &p_other);
+	godot::String get_last_error() const;
 	godot::String _to_string() const;
 
 	schola::PolicyState *get_state() const;
@@ -32,4 +33,5 @@ protected:
 
 private:
 	std::unique_ptr<schola::PolicyState> state;
+	godot::String last_error;
 };

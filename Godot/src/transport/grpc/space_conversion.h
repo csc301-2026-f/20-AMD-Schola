@@ -20,27 +20,18 @@
 
 namespace schola {
 
-// Converts US2 spaces and points to and from the protobuf messages Python Schola uses.
-// US3's message conversion calls these for every space and point it sends or receives.
+// Converts spaces and points to and from Python Schola's protobuf messages.
 
-/** Infinite Box bounds leave low/high unset. */
+/** Infinite bounds leave low/high unset. */
 void space_to_proto(const Space &p_space, ::Schola::Space &r_message);
 
-/**
- * Out: INCOMPATIBLE for a Text space or an unknown dtype. INVALID_DATA for an
- *      unset space or a definition that fails Space::check_definition().
- */
+/** INCOMPATIBLE for Text or an unknown dtype; INVALID_DATA for an unset or invalid space. */
 Status proto_to_space(const ::Schola::Space &p_message, Space &r_space);
 
 /** Uses p_space for BoxPoint shape and dtype. */
 void point_to_proto(const Point &p_point, const Space &p_space, ::Schola::Point &r_message);
 
-/**
- * Builds Dict entries in p_space order and validates the result against p_space.
- *
- * Out: INCOMPATIBLE for a Text point. INVALID_ARGUMENT for an unset point, a
- *      kind or Dict key mismatch, or a point that fails Space::validate().
- */
+/** Validates against p_space. INCOMPATIBLE for Text; INVALID_ARGUMENT if the point does not fit. */
 Status proto_to_point(const ::Schola::Point &p_message, const Space &p_space, Point &r_point);
 
 /** Decodes a point without space validation (Python validates training actions). */
