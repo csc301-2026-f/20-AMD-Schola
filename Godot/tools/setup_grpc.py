@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import shutil
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -46,6 +47,21 @@ def host():
 def run(arguments, working_directory=None):
     print("+", " ".join(str(argument) for argument in arguments), flush=True)
     subprocess.run([str(argument) for argument in arguments], check=True, cwd=working_directory)
+
+
+def remove_directory(directory):
+    def retry_read_only(function, path, exception_info):
+        error = exception_info[1]
+        if not isinstance(error, PermissionError):
+            raise error
+        mode = os.stat(path).st_mode
+        if mode & stat.S_IWRITE:
+            raise error
+        # Git pack files are read-only on Windows, even in our own checkout.
+        os.chmod(path, mode | stat.S_IWRITE)
+        function(path)
+
+    shutil.rmtree(directory, onerror=retry_read_only)
 
 
 def expected_stamp(grpc, protobuf, system, machine):
@@ -156,6 +172,8 @@ def configure_arguments(system, machine, source_directory, build_directory, inst
         arguments += [
             # godot-cpp links the static MSVC runtime (/MT) by default.
             "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",
+            "-DgRPC_MSVC_STATIC_RUNTIME=ON",
+            "-DCARES_MSVC_STATIC_RUNTIME=ON",
             "-Dprotobuf_MSVC_STATIC_RUNTIME=ON",
             "-DABSL_MSVC_STATIC_RUNTIME=ON",
             # BoringSSL's assembly needs NASM; the connector never uses TLS.
@@ -189,7 +207,7 @@ def build(grpc, protobuf, system, machine, work_directory):
         json.dumps(stamp, indent=2) + "\n", encoding="utf-8"
     )
     if INSTALL_DIRECTORY.exists():
-        shutil.rmtree(INSTALL_DIRECTORY)
+        remove_directory(INSTALL_DIRECTORY)
     INSTALL_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(staged_directory), str(INSTALL_DIRECTORY))
 
@@ -228,7 +246,7 @@ def main():
     else:
         work_directory = arguments.work_dir.resolve()
         if work_directory.exists():
-            shutil.rmtree(work_directory)
+            remove_directory(work_directory)
         work_directory.mkdir(parents=True)
         build(grpc, protobuf, system, machine, work_directory)
     print(

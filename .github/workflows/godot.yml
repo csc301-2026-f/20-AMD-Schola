@@ -95,6 +95,9 @@ jobs:
       - name: Verify dependency pins
         run: python Godot/tools/verify_dependency_pins.py
 
+      - name: Test gRPC setup
+        run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+
       - name: Install ONNX Runtime
         run: python Godot/tools/setup_onnxruntime.py
 

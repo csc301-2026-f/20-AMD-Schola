@@ -20,6 +20,18 @@ Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.
 
 gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. `python Godot/tools/setup_grpc.py` builds them from source with CMake into the git-ignored `thirdparty/grpc/`, together with the matching `protoc` and `grpc_cpp_plugin`, so generated code always matches the linked runtime. The build needs CMake 3.16 or newer and a C++17 compiler, takes several minutes, and is skipped when the pinned release is already installed. On Windows, pass a short `--work-dir` such as `C:\grpc` to avoid path-length failures. The script builds for the host architecture. The prebuilt archives under `Source/ThirdParty/` use Unreal's toolchain and cannot be linked into Godot. SCons generates C++ for the GymService protos from the repository-level `Proto/` directory into the git-ignored `generated/proto/`. Only the training extension links gRPC and Protocol Buffers, statically and with hidden symbols; the runtime target does not.
 
+On Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
+
+```powershell
+$env:CMAKE_GENERATOR = "Ninja"
+$env:CC = "cl"
+$env:CXX = "cl"
+Get-Command cl,ninja,cmake
+python Godot/tools/setup_grpc.py --work-dir C:\grpc
+```
+
+Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run with `python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
+
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 
 ```sh
