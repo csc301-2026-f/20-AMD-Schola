@@ -28,7 +28,7 @@ SUBMODULES = (
 
 
 def host():
-    system = {"Windows": "windows", "Linux": "linux"}.get(
+    system = {"Windows": "windows", "Linux": "linux", "Darwin": "macos"}.get(
         platform.system()
     )
     machine = {
@@ -168,7 +168,9 @@ def configure_arguments(system, machine, source_directory, build_directory, inst
         # its shared library, which linkers prefer over the archive.
         "-DSKIP_INSTALL_LIBRARIES=ON",
     ]
-    if system == "windows":
+    if system == "macos":
+        arguments.append(f"-DCMAKE_OSX_ARCHITECTURES={machine}")
+    elif system == "windows":
         arguments += [
             # godot-cpp links the static MSVC runtime (/MT) by default.
             "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded",

@@ -27,6 +27,17 @@ class GrpcSetupTests(unittest.TestCase):
             with self.subTest(dependency=dependency):
                 self.assertIn(f"-D{dependency}_MSVC_STATIC_RUNTIME=ON", arguments)
 
+    def test_macos_builds_for_the_host_architecture_only(self):
+        with patch.object(setup_grpc.platform, "system", return_value="Darwin"), patch.object(
+            setup_grpc.platform, "machine", return_value="arm64"
+        ):
+            self.assertEqual(setup_grpc.host(), ("macos", "arm64"))
+        arguments = setup_grpc.configure_arguments(
+            "macos", "arm64", Path("source"), Path("build"), Path("install")
+        )
+        self.assertIn("-DCMAKE_OSX_ARCHITECTURES=arm64", arguments)
+        self.assertFalse(any("MSVC" in str(argument) for argument in arguments))
+
     @unittest.skipUnless(os.name == "nt", "Windows read-only file semantics")
     def test_retry_removes_read_only_git_pack_files(self):
         with tempfile.TemporaryDirectory() as temporary:
