@@ -323,7 +323,6 @@ Status read_action(const Binding &p_binding, Point &r_point) {
 	if (BoxPoint *box = r_point.get_if<BoxPoint>(); box && p_binding.kind == SpaceKind::BOX && box->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < box->values.size(); ++i) {
 			const float value = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
-			// Training clips actions, so trained models can output past the bounds. NaN stays NaN.
 			box->values[i] = value < p_binding.low[i] ? p_binding.low[i] : (value > p_binding.high[i] ? p_binding.high[i] : value);
 		}
 		return Status::ok();
