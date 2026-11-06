@@ -34,21 +34,16 @@ struct MultiBinaryPoint {
 	std::vector<uint8_t> values;
 };
 
-// Entries are ordered. A valid point has exactly the keys of its DictSpace, in the same order, which
-// is sorted by key (see DictSpace). Protobuf Dict maps are unordered, so a converter must build
-// entries by walking the DictSpace entries in order and looking up each key in the map, rather than
-// iterating the map.
+// Entries follow the DictSpace's sorted key order. Protobuf maps are unordered, so converters walk the
+// DictSpace, not the map.
 struct DictPoint {
 	std::vector<std::pair<std::string, Point>> entries;
-	// Returns a non-owning pointer to the entry for p_key, or nullptr if the key is absent.
-	// The pointer is invalidated when entries is modified.
+	// Returns nullptr if p_key is absent. Invalidated when entries changes.
 	Point *find(const std::string &p_key);
 	const Point *find(const std::string &p_key) const;
 };
 
-// A value that belongs to a Space. Use Space::validate() to check that a point fits its space.
-// A Point owns all of its nested data, is safe to copy and move, and holds no references to Godot,
-// protobuf, ONNX, or caller-owned storage.
+// A value in a Space; check it with Space::validate(). Owns all its data and is safe to copy.
 class Point {
 public:
 	// Constructs an empty Box point.
@@ -60,14 +55,14 @@ public:
 	Point(DictPoint p_point);
 
 	SpaceKind get_kind() const;
-	// Returns a non-owning pointer to the held value, or nullptr if the point holds a different kind.
+	// Returns nullptr if the point holds a different kind.
 	template <typename T>
 	T *get_if();
 	template <typename T>
 	const T *get_if() const;
 	std::string to_string() const;
 
-	// Compares kind and values exactly, including Dict entry order.
+	// Exact comparison, including Dict entry order.
 	bool operator==(const Point &p_other) const;
 	bool operator!=(const Point &p_other) const;
 

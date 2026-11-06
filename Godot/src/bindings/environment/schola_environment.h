@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/random_number_generator.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/core/gdvirtual.gen.inc>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
@@ -16,6 +17,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace schola {
 class Environment;
@@ -32,8 +34,8 @@ class GodotEnvironmentAdapter;
  *
  * Each step runs in this order:
  *   1. ScholaAgent::_act runs for every agent still in the episode.
- *   2. ScholaAgent::_observe, then _get_reward, _is_terminated, _is_truncated
- *      and _get_info run for each of those agents, in the same call.
+ *   2. ScholaAgent::_observe, then _get_step_result run for each of those
+ *      agents, in the same call.
  *   3. Godot runs physics afterwards, so an action's effect may first appear
  *      in the next step's observation.
  *
@@ -51,20 +53,6 @@ public:
 	/** Defined in the .cpp, where GodotEnvironmentAdapter is a complete type. */
 	~ScholaEnvironment() override;
 
-	/**
-	 * Sets the episode step limit.
-	 *
-	 * @param p_max_episode_steps 0 for no step limit; a positive value
-	 *        truncates unfinished agents when an episode reaches that many
-	 *        steps. A negative value is a configuration error.
-	 */
-	void set_max_episode_steps(int32_t p_max_episode_steps);
-
-	/**
-	 * @return The episode step limit; 0 means no step limit.
-	 */
-	int32_t get_max_episode_steps() const;
-
 	// === US1 Additions Below ===
 
 	/**
@@ -80,48 +68,23 @@ public:
 	GDVIRTUAL2(_reset_episode, godot::Variant, godot::Dictionary)
 
 	/**
-	 * Override in GDScript: reward for the step that just finished.
+	 * Override in GDScript: return this agent's result after _observe().
 	 *
-	 * Called once per agent each step, following _observe().
+	 * Required hook, called once per acting agent per step. Returns a Dictionary:
+	 * - reward: required finite int or float representable as a core float.
+	 * - terminated: bool, default false; a natural episode ending.
+	 * - truncated: bool, default false; a user-defined external cutoff.
+	 * - info: Dictionary of String/StringName keys and values, default empty.
+	 * Unknown fields and invalid types are errors. Both flags may be true.
+	 * Implement any desired step limit by returning truncated = true. During this
+	 * hook, get_episode_step() counts completed steps, so the current step is +1.
+	 * Reset stays separate and does not invoke this hook or award a reward.
 	 *
-	 * @param agent The agent this reward is for.
-	 * @return A reward value. No default; every environment must override
-	 *         this.
+	 * @param agent The agent whose observation was just collected.
+	 * @return A result Dictionary. Variant return allows validation of wrong types
+	 *         without Godot silently coercing the result to a Dictionary.
 	 */
-	GDVIRTUAL1R(double, _get_reward, ScholaAgent *)
-
-	/**
-	 * Override in GDScript: did this agent reach a real end state?
-	 *
-	 * Called once per agent, same timing as _get_reward.
-	 *
-	 * @param agent The agent in question.
-	 * @return true if the episode ended on its own terms for this agent.
-	 *         Defaults to false if left unoverridden.
-	 */
-	GDVIRTUAL1R(bool, _is_terminated, ScholaAgent *)
-
-	/**
-	 * Override in GDScript: was this agent cut off early?
-	 *
-	 * Called once per agent, same timing as _get_reward.
-	 *
-	 * @param agent The agent in question.
-	 * @return true if the episode was cut off externally for this agent.
-	 *         Defaults to false if left unoverridden.
-	 */
-	GDVIRTUAL1R(bool, _is_truncated, ScholaAgent *)
-
-	/**
-	 * Override in GDScript: optional extra data passed through to Python.
-	 *
-	 * Called once per agent, same timing as _get_reward.
-	 *
-	 * @param agent The agent in question.
-	 * @return A Dictionary of String keys and String values. Defaults to an
-	 *         empty Dictionary if left unoverridden.
-	 */
-	GDVIRTUAL1R(godot::Dictionary, _get_info, ScholaAgent *)
+	GDVIRTUAL1R(godot::Variant, _get_step_result, ScholaAgent *)
 
 	/**
 	 * @return Steps completed since the last reset. During a step's hooks,
@@ -170,9 +133,8 @@ public:
 	/**
 	 * Checks the Inspector and scene-tree configuration.
 	 *
-	 * Reports a negative max_episode_steps, a missing ScholaAgent, and every
-	 * agent's own configuration errors, prefixed with its agent ID. Duplicate
-	 * agent IDs are reported by the adapter's initialize() instead.
+	 * Reports missing agents, duplicate resolved IDs, and each agent's resource
+	 * configuration errors. Script hooks are checked separately by editor warnings.
 	 *
 	 * @return One message per problem; empty when the configuration is valid.
 	 */
@@ -181,15 +143,23 @@ public:
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
-	 * @return The same messages as get_configuration_errors().
+	 * @return Configuration errors and missing required behavior hooks.
 	 */
 	godot::PackedStringArray _get_configuration_warnings() const override;
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
 
 private:
-	int32_t max_episode_steps = 0;
+	friend class ScholaAgent;
+
+	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks) const;
+	void on_script_changed();
+	void queue_configuration_refresh();
+	void refresh_configuration_warnings();
+	std::vector<godot::Ref<godot::Script>> watched_scripts;
+	bool configuration_refresh_queued = false;
 
 	// === US1 Addition Below ===
 

@@ -1,0 +1,21 @@
+{
+  "file": "windows-x86_64.zip",
+  "sha256": "16349aebe8500bf04d4ec29665c0a38b292e8a3e857e9b28e35336da0ddf05c7",
+  "configuration_key": "7a864387b7731cae",
+  "stamp": {
+    "grpc_tag": "v1.80.0",
+    "grpc_commit": "f5e2d6e856176c2f6b7691032adfefe21e5f64c1",
+    "protobuf_version": "31.1",
+    "platform": "windows",
+    "arch": "x86_64"
+  },
+  "build_artifact": {
+    "run_id": 42129354293,
+    "sha256": "497ed6e917d79a1855c529c8df1b23a7cc5498c06ebc99d9acd706d569789d05"
+  },
+  "supplemental_license": {
+    "path": "licenses/third_party/protobuf/third_party/utf8_range/LICENSE",
+    "source": "https://github.com/protocolbuffers/protobuf/blob/74211c0dfc2777318ab53c2cd2c317a2ef9012de/third_party/utf8_range/LICENSE",
+    "git_blob": "e59f14fa55de789cc2aa634e9788e0514be74611"
+  }
+}

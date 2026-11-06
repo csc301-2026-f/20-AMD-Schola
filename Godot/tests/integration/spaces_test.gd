@@ -107,6 +107,8 @@ func test_dict_that_contains_itself_reports_a_cycle() -> void:
 	space.spaces = {"mode": _discrete(2), "self": space}
 	assert_str(space.get_definition_error()).contains("at 'self': Dict contains itself")
 	assert_str(space.get_validation_error({"mode": 0})).is_not_empty()
+	# RefCounted cannot release a self-reference; break the intentionally invalid graph.
+	space.spaces = {}
 
 
 func test_dict_used_twice_is_not_a_cycle() -> void:
@@ -124,3 +126,78 @@ func test_box_rejects_unknown_dtype_and_oversized_shape() -> void:
 	assert_str(space.to_dictionary()["dtype"]).is_equal("unknown")
 	var huge := _box(PackedFloat32Array(), PackedFloat32Array(), PackedInt32Array([100000, 100000, 100000]))
 	assert_str(huge.get_definition_error()).contains("elements")
+
+
+func test_multi_discrete_and_multi_binary_accept_packed_and_plain_arrays() -> void:
+	var multi_discrete := ScholaMultiDiscreteSpace.new()
+	multi_discrete.nvec = PackedInt32Array([3, 2])
+	assert_int(typeof(multi_discrete.make_default_value())).is_equal(TYPE_PACKED_INT32_ARRAY)
+	assert_str(multi_discrete.get_validation_error(PackedInt32Array([2, 1]))).is_empty()
+	assert_str(multi_discrete.get_validation_error([2, 1])).is_empty()
+	assert_str(multi_discrete.get_validation_error([2, 2])).contains("index 1")
+	assert_str(multi_discrete.get_validation_error([2])).contains("of size 2")
+
+	var multi_binary := ScholaMultiBinarySpace.new()
+	multi_binary.n = 3
+	assert_int(typeof(multi_binary.make_default_value())).is_equal(TYPE_PACKED_BYTE_ARRAY)
+	assert_str(multi_binary.get_validation_error(PackedByteArray([0, 1, 1]))).is_empty()
+	assert_str(multi_binary.get_validation_error([1, 0, 1])).is_empty()
+	assert_str(multi_binary.get_validation_error([1, 2, 1])).contains("0 or 1")
+	assert_str(multi_binary.get_validation_error([1, 0.5, 1])).contains("Array element 1")
+
+
+func test_integer_box_needs_whole_bounds_and_values() -> void:
+	var space := _box(PackedFloat32Array([0.0]), PackedFloat32Array([255.0]), PackedInt32Array([2]))
+	space.dtype = 1 # uint8
+	assert_str(space.get_definition_error()).is_empty()
+	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 255.0]))).is_empty()
+	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 0.5]))).contains("needs a whole number")
+	space.low = PackedFloat32Array()
+	assert_str(space.get_definition_error()).contains("dtype uint8 needs a whole number in [0, 255]")
+
+
+func test_dict_forwards_nested_changes_once_and_disconnects_replaced_children() -> void:
+	var old_child := _discrete(2)
+	var nested := ScholaDictSpace.new()
+	nested.spaces = {"left": old_child, "right": old_child}
+	var outer := ScholaDictSpace.new()
+	outer.spaces = {"nested": nested}
+	var changes: Array[int] = [0]
+	outer.changed.connect(func(): changes[0] += 1)
+
+	old_child.n = 3
+	assert_int(changes[0]).is_equal(1)
+
+	var replacement := _discrete(4)
+	nested.spaces = {"replacement": replacement}
+	assert_int(changes[0]).is_equal(2)
+	old_child.n = 5
+	assert_int(changes[0]).is_equal(2)
+	replacement.n = 6
+	assert_int(changes[0]).is_equal(3)
+
+
+func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
+	var space := _box(PackedFloat32Array([0.0]), PackedFloat32Array([255.0]), PackedInt32Array([2]))
+	space.dtype = 1 # uint8
+	assert_str(space.get_validation_error([0, 1.00000001])).contains("index 1")
+	assert_str(space.get_validation_error([0, 1.00000001])).contains("needs a whole number")
+	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 1.00000001]))).contains("needs a whole number")
+	assert_str(space.get_validation_error([0, 255.00000001])).contains("needs a whole number")
+	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 255.0]))).is_empty()
+	assert_str(space.get_validation_error([0, 255])).is_empty()
+
+	var wide := _box(PackedFloat32Array([0.0]), PackedFloat32Array([33554432.0]), PackedInt32Array([1]))
+	wide.dtype = 7 # int32
+	assert_str(wide.get_validation_error([16777217])).contains("float32 cannot represent exactly")
+	assert_str(wide.get_validation_error([16777216])).is_empty()
+
+	# Above 2^53 an int would already round when converted to double
+	var huge := _box(PackedFloat32Array([float(1 << 60)]), PackedFloat32Array([float(1 << 60)]), PackedInt32Array([1]))
+	huge.dtype = 8 # int64
+	assert_str(huge.get_validation_error([1 << 60])).is_empty()
+	assert_str(huge.get_validation_error([(1 << 60) + 1])).contains("float32 cannot represent exactly")
+	assert_str(huge.get_validation_error([9223372036854775807])).contains("float32 cannot represent exactly")
+
+	space.dtype = 0 # float32
+	assert_str(space.get_validation_error([0, 1.00000001])).is_empty()

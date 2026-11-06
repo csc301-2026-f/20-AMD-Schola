@@ -62,6 +62,7 @@ GRPC_WINDOWS_LIBRARY_NAMES = {
 }
 GRPC_SYSTEM_LIBRARIES = {
     "linux": ["pthread", "dl", "m", "rt"],
+    "macos": [],
     "windows": ["ws2_32", "crypt32", "iphlpapi", "advapi32", "bcrypt", "dbghelp"],
 }
 
@@ -215,6 +216,8 @@ def use_grpc(target_environment):
         target_environment["_LIBFLAGS"] = (
             "-Wl,--start-group " + target_environment["_LIBFLAGS"] + " -Wl,--end-group"
         )
+    elif platform_name == "macos":
+        target_environment.Append(LINKFLAGS=["-framework", "CoreFoundation"])
 
 
 def build_extension(
@@ -235,13 +238,18 @@ def build_extension(
         suffix,
         extension_environment.subst("$SHLIBSUFFIX"),
     )
+    sources = sources_under(*source_directories) + list(extra_sources)
+    if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+        # Keep test-only flags out of godot-cpp and the other target environments.
+        extension_environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
+        sources += sources_under("tests/integration/native")
     # Each extension compiles src/core with its own flags, so their objects are kept apart.
     library = extension_environment.SharedLibrary(
         f"build/{platform_name}/{library_filename}",
         source=objects_in(
             f"build/{platform_name}/{name}",
             extension_environment.SharedObject,
-            sources_under(*source_directories) + list(extra_sources),
+            sources,
             extension_environment.subst("$SHOBJSUFFIX"),
         ),
     )
@@ -254,8 +262,29 @@ def configure_training(target_environment, install_directory):
     return []
 
 
-check_grpc_install(environment)
-gym_proto_sources = generate_gym_protos(environment)
+def requires_grpc(target):
+    target = Path(str(target).replace("\\", "/"))
+    if target.as_posix() in ("unit_tests", "inference_tests", "schola"):
+        return False
+    if target.name in (
+        "schola_core_tests",
+        "schola_core_tests.exe",
+        "schola_inference_tests",
+        "schola_inference_tests.exe",
+    ):
+        return False
+    # Support direct runtime-library targets as well as the public alias.
+    return not target.name.startswith(("libschola.", "schola."))
+
+
+# SCons evaluates every builder before selecting requested targets. Avoid
+# configuring transport dependencies when only independent targets are requested.
+grpc_enabled = not COMMAND_LINE_TARGETS or any(
+    requires_grpc(target) for target in COMMAND_LINE_TARGETS
+)
+if grpc_enabled:
+    check_grpc_install(environment)
+    gym_proto_sources = generate_gym_protos(environment)
 
 runtime_targets = build_extension(
     "schola",
@@ -263,13 +292,17 @@ runtime_targets = build_extension(
     "schola",
     configure=use_onnxruntime,
 )
-training_targets = build_extension(
-    "schola_training",
-    ["src/core", "src/transport", "src/training"],
-    "schola_training",
-    configure=configure_training,
-    extra_sources=gym_proto_sources,
-)
+Alias("schola", runtime_targets)
+training_targets = []
+if grpc_enabled:
+    training_targets = build_extension(
+        "schola_training",
+        ["src/core", "src/transport", "src/training"],
+        "schola_training",
+        configure=configure_training,
+        extra_sources=gym_proto_sources,
+    )
+    Alias("schola_training", training_targets)
 
 test_environment = environment.Clone()
 test_environment.Append(CPPPATH=["catch2/extras"])
@@ -315,22 +348,23 @@ inference_test_program = inference_test_environment.Program(
 )
 Alias("inference_tests", [inference_test_program, inference_test_runtime])
 
-transport_test_environment = test_environment.Clone()
-use_grpc(transport_test_environment)
-transport_test_sources = (
-    sources_under("src/core", "src/transport", "tests/transport")
-    + gym_proto_sources
-    + ["catch2/extras/catch_amalgamated.cpp"]
-)
-transport_test_program = transport_test_environment.Program(
-    "build/tests/schola_transport_tests",
-    source=objects_in(
-        "build/tests/transport",
-        transport_test_environment.Object,
-        transport_test_sources,
-        transport_test_environment.subst("$OBJSUFFIX"),
-    ),
-)
-Alias("transport_tests", transport_test_program)
+if grpc_enabled:
+    transport_test_environment = test_environment.Clone()
+    use_grpc(transport_test_environment)
+    transport_test_sources = (
+        sources_under("src/core", "src/transport", "tests/transport")
+        + gym_proto_sources
+        + ["catch2/extras/catch_amalgamated.cpp"]
+    )
+    transport_test_program = transport_test_environment.Program(
+        "build/tests/schola_transport_tests",
+        source=objects_in(
+            "build/tests/transport",
+            transport_test_environment.Object,
+            transport_test_sources,
+            transport_test_environment.subst("$OBJSUFFIX"),
+        ),
+    )
+    Alias("transport_tests", transport_test_program)
 
 Default(*(runtime_targets + training_targets))

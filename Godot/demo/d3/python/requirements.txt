@@ -1,0 +1,6 @@
+# Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+# Training and ONNX export only; packaged inference needs no Python installation.
+gymnasium==1.2.3
+numpy==2.5.2
+onnx==1.22.0
+onnxruntime==1.30.0

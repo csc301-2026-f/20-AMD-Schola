@@ -33,8 +33,7 @@ its SHA-256 checksum, and unpacks it into the git-ignored
 only and copies its library next to ``schola`` in ``addons/schola/bin/<PLATFORM>/``. The training
 extension never links it.
 
-Supported packages are Windows x86_64, Linux x86_64, and macOS arm64. ONNX Runtime has no universal
-macOS package, so macOS builds use ``platform=macos arch=arm64``.
+Supported packages are Windows x86_64 and Linux x86_64.
 
 
 Export a Policy to ONNX

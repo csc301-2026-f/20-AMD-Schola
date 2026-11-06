@@ -19,8 +19,7 @@ class ScholaEnvironment;
  *
  * Each agent below the node is reached through its own GodotAgentAdapter
  * (ScholaAgent::get_agent()). This class adds the environment's hooks on
- * top: _reset_episode, _get_reward, _is_terminated, _is_truncated and
- * _get_info.
+ * top: _reset_episode and _get_step_result.
  *
  * Training only. The ScholaEnvironment node creates and owns this adapter,
  * so the node always outlives it. Main thread only. Every failure leaves
@@ -77,14 +76,15 @@ public:
 	/**
 	 * Runs one logical step in two phases, so a bad action moves nobody.
 	 *
-	 * 1. Checks every action and that _get_reward is overridden, before any
+	 * 1. Checks every action and that _get_step_result is overridden, before any
 	 *    agent moves.
 	 * 2. Every agent with an action calls act(), in scene-tree order. Then
-	 *    each of them calls observe(), followed by _get_reward,
-	 *    _is_terminated, _is_truncated and _get_info.
+	 *    each of them calls observe(), followed by _get_step_result.
 	 *
-	 * _get_reward must be overridden; the others default to false and an
-	 * empty Dictionary. Emits episode_ended once every agent has finished.
+	 * _get_step_result must return a Dictionary with a finite numeric reward.
+	 * Flags default to false and info to an empty Dictionary. The environment
+	 * decides all truncation; no built-in step limit applies. Emits episode_ended
+	 * once every agent has finished.
 	 *
 	 * @param p_actions One action per agent that should act this step, keyed
 	 *        by agent ID. A finished agent is left out, not an error.
@@ -94,14 +94,14 @@ public:
 	 *         Phase 1, nothing has moved:
 	 *         NOT_FOUND for an unknown agent.
 	 *         FAILED_PRECONDITION before reset(), for an agent that already
-	 *         finished, for a freed agent node, or if _get_reward is not
+	 *         finished, for a freed agent node, or if _get_step_result is not
 	 *         overridden.
 	 *         INVALID_ARGUMENT for an action outside its action space.
 	 *         Phase 2, the world may already have changed, so the caller
 	 *         should end the session:
 	 *         any error from act() or observe(), FAILED_PRECONDITION if
-	 *         _get_reward could not be called, or INVALID_ARGUMENT if
-	 *         _get_info returns a non-String key or value.
+	 *         _get_step_result could not be called, or INVALID_ARGUMENT for an
+	 *         invalid result Dictionary (see ScholaEnvironment::_get_step_result).
 	 */
 	schola::Status step(const std::map<schola::AgentId, schola::Point> &p_actions,
 			std::map<schola::AgentId, schola::AgentState> &r_states) override;

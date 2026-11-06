@@ -10,5 +10,5 @@ linux.x86_64.debug = "./bin/linux/libschola_training.linux.template_debug.x86_64
 linux.x86_64.release = "./bin/linux/libschola_training.linux.template_release.x86_64.so"
 windows.x86_64.debug = "./bin/windows/schola_training.windows.template_debug.x86_64.dll"
 windows.x86_64.release = "./bin/windows/schola_training.windows.template_release.x86_64.dll"
-macos.debug = "./bin/macos/libschola_training.macos.template_debug.dylib"
-macos.release = "./bin/macos/libschola_training.macos.template_release.dylib"
+macos.arm64.debug = "./bin/macos/libschola_training.macos.template_debug.arm64.dylib"
+macos.arm64.release = "./bin/macos/libschola_training.macos.template_release.arm64.dylib"

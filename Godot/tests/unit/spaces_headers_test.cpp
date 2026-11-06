@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
-// Compiles the public spaces headers together. Behavioral tests are added with the implementation.
+// Compiles the public spaces headers together and checks their value semantics.
+// Behavior is covered by spaces_test.cpp.
 
 #include "core/spaces/point.h"
 #include "core/spaces/space.h"

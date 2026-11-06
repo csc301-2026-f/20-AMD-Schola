@@ -48,20 +48,14 @@ void to_proto(const TrainingDefinition &p_definition, ::Schola::TrainingDefiniti
 Status from_proto(const ::Schola::StateUpdate &p_message, const TrainingDefinition &p_definition, ConnectorUpdate &r_update);
 
 /**
- * UpdateState reply after a reset.
- *
- * Out: NOT_FOUND if a state names an environment or agent that is not in
- *      p_definition.
+ * UpdateState reply after a reset. Uses each agent's declared observation space
+ * for Box shape and dtype, including nested Dict points.
+ * Out: INVALID_DATA for an environment or agent absent from p_definition;
+ *      r_message is unchanged on failure.
  */
 Status to_proto(const InitialState &p_initial_state, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
-/**
- * UpdateState reply after a step. initial_state is only sent when an
- * environment auto-reset, because Python checks whether it is present.
- *
- * Out: NOT_FOUND if a state names an environment or agent that is not in
- *      p_definition.
- */
+/** UpdateState reply after a step, with the same definition/error contract as reset. */
 Status to_proto(const StepResult &p_result, const TrainingDefinition &p_definition, ::Schola::State &r_message);
 
 /**
