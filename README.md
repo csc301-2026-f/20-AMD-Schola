@@ -22,6 +22,22 @@ flowchart LR
     Manual[Keyboard controls] --> Runner
 ```
 
+**Training:** the local Python trainer controls the agent, and the reward graph updates as episodes finish.
+
+![D3 demo training with the Python trainer](Godot/demo/d3/screenshots/d3_training.png)
+
+**Inference:** after the trainer closes, the exported ONNX policy controls the agent inside Godot.
+
+![D3 demo running the exported ONNX policy](Godot/demo/d3/screenshots/d3_inference_policy.png)
+
+**Map editing:** click to toggle hazards and right-click to move the goal, then retrain for the new map.
+
+![D3 demo map editor](Godot/demo/d3/screenshots/d3_map_edit.png)
+
+**Parallel training:** several instances train one shared policy, each shown on its own live board.
+
+![D3 parallel training viewer with four instances](Godot/demo/d3/screenshots/d3_parallel_training.png)
+
 ## D2 feedback addressed
 
 - **Replace integration stand-ins (D2 review):** D3 replaces the scripted environment and lifecycle. The temporary JSON/TCP training connector remains and is labelled as temporary until the gRPC connector is finished.
