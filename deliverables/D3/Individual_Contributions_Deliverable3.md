@@ -21,8 +21,13 @@
 - Improved the D3 demo's missing-policy message and instructions ([PR #43](https://github.com/csc301-2026-f/20-AMD-Schola/pull/43)). Proposed US14 for reading the state sequence length from model metadata.
 - Reviewed and approved [PR #32](https://github.com/csc301-2026-f/20-AMD-Schola/pull/32).
 
-**[Name]**, [Role]
-> [Specific contributions]
+## Jimmy Zhu - Spaces, points, tests, and D3 demo
+
+- Completed US2 ([PR #36](https://github.com/csc301-2026-f/20-AMD-Schola/pull/36)): observations converted from Godot are now validated against their space, so out-of-bounds values are rejected at the boundary instead of passing through unchecked. Integer and bool Box spaces now follow Python Schola's dtype rules, requiring finite, whole-number bounds and values within the dtype's `std::numeric_limits` range, checked before narrowing to float32.
+- Cleaned up the US2 API: removed the unused `variant_to_space` / `space_to_variant` conversion, replaced a duplicate dtype-name table with `schola::dtype_name()`, made `ScholaSpace` build its space once per call, and switched the training host to encode definition spaces with `space_to_dictionary`. Added Catch2 and GdUnit4 tests for integer and bool Box rules and MultiDiscrete / MultiBinary value conversion ([PR #36](https://github.com/csc301-2026-f/20-AMD-Schola/pull/36)).
+- Built the D3 demo in `Godot/demo/d3/` ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)), rebuilding the D2 grid world on the current native implementation. `GridEnvironment` and `GridAgent` extend the native `ScholaEnvironment` and `ScholaAgent`, and keyboard play, Python training, and ONNX playback all run through one `ScholaTrainingHost` session. ONNX playback uses the US7 `ScholaOnnxPolicy` / `ScholaPolicyState` API in place of D2's GDScript Q-table reader.
+- Added parallel training to the demo: a launcher that starts N headless instances with their own ports and host sessions, a trainer that steps them in lockstep to learn one shared Q-table (3.0× faster with 4 instances, 5.0× with 8), and a single-window viewer showing a live board per instance ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
+- Added map editing to the demo (toggle hazards, move the goal, resize from 3×3 to 10×10, save to `user://d3_map.json`). Observation bounds follow the map size, and policies record their training map so playback warns on a mismatch. Also added the compact 2D HUD, export presets, the demo README, and the headless `d3_smoke.gd` test covering seeding, goal, hazard, timeout, custom maps, and ONNX playback ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
 
 **[Name]**, [Role]
 > [Specific contributions]
