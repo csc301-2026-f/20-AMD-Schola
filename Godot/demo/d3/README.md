@@ -43,7 +43,7 @@ These follow from the current US1 and US4 contracts:
    cp Godot/addons/schola/bin/windows/schola.windows.template_debug.x86_64.dll Godot/addons/schola/bin/windows/onnxruntime.dll Godot/demo/d3/addons/schola/bin/windows/
    ```
    `ScholaTrainingHost` is part of the runtime extension, so the demo does not need the `schola_training` add-on.
-2. Optional: create the reference policy so **Policy** works before any training:
+2. **Policy** needs a trained model. If you don't have one yet, train first with **Train** and then **Stop**, or create the reference policy:
    ```sh
    python Godot/demo/d3/python/create_reference_policy.py
    python Godot/demo/d3/python/export_onnx.py
@@ -144,5 +144,5 @@ The check drives the scene through its own `ScholaTrainingHost` session, without
   - The log panel shows the connection state: `waiting`, `connected`, `training`, `closed` or `error`. An error always comes with a message saying what went wrong.
   - If nothing connects within 45 seconds, the run ends with an error. Check `python_executable` on `Runner`, or untick `auto_launch_trainer` and run `python python/trainer.py --port 8000` yourself.
 - **Stop:** the trainer saves `policies/q_policy.json` and exports it to the `Runner` policy's `model_path` (`policies/q_policy.onnx`), and the scene resets.
-- **Policy:** reloads the model, checks it against the agent's spaces, and lets it drive the agent with Python closed.
+- **Policy:** reloads the model, checks it against the agent's spaces, and lets it drive the agent with Python closed. If you don't have a policy yet, press **Train** and then **Stop** to create one first.
 - **Check US2:** logs the US2 errors for a set of invalid actions and observations.

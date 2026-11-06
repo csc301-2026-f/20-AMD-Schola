@@ -193,7 +193,8 @@ func load_onnx_policy() -> void:
 	if error == OK:
 		error = policy.initialize(agent)
 	if error != OK:
-		_log("could not load ONNX policy (%s): %s" % [error_string(error), policy.get_last_error()], true)
+		var hint := " Press Train and then Stop to create it." if error == ERR_FILE_NOT_FOUND else ""
+		_log("could not load ONNX policy (%s): %s.%s" % [error_string(error), policy.get_last_error(), hint], true)
 		return
 	_policy_state = policy.create_state()
 	if _policy_state == null:
