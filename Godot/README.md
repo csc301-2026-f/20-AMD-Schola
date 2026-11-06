@@ -99,6 +99,8 @@ On macOS, use `platform=macos arch=arm64` and replace `$(nproc)` with `$(sysctl 
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
+Use `scons -C Godot schola platform=linux target=template_debug` for a runtime-only build. The `schola`, `unit_tests`, and `inference_tests` targets do not require gRPC or generate protocol bindings. The default build, `schola_training`, and `transport_tests` require the installed gRPC package.
+
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
 ## Inspect the Schola UI

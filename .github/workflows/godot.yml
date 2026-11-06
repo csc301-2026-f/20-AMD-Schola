@@ -100,8 +100,10 @@ jobs:
       - name: Verify dependency pins
         run: python Godot/tools/verify_dependency_pins.py
 
-      - name: Test prebuilt dependency installer
-        run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+      - name: Test dependency installer and build target isolation
+        run: |
+          python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+          python -m unittest discover -s Godot/tools -p test_build_targets.py -v
 
       - name: Install committed gRPC and protobuf
         run: python Godot/tools/setup_grpc.py
