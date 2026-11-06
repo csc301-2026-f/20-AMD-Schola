@@ -6,11 +6,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - ".github/workflows/godot.yml"
-      - ".gitmodules"
-      - "Godot/**"
-      - "Proto/**"
 
 permissions:
   contents: read
@@ -24,6 +19,7 @@ jobs:
   changes:
     name: Detect Godot changes
     runs-on: ubuntu-22.04
+    timeout-minutes: 2
     outputs:
       godot: ${{ steps.filter.outputs.godot }}
     steps:
@@ -40,7 +36,7 @@ jobs:
               --jq '.[].filename' > changed-files.txt
             while IFS= read -r path; do
               case "$path" in
-                .github/workflows/godot.yml|.gitmodules|Godot/*|Proto/*)
+                .github/workflows/godot.yml|.github/workflows/d3-release.yml|.gitmodules|Godot/*|Proto/*)
                   relevant=true
                   break
                   ;;
@@ -291,9 +287,47 @@ jobs:
             -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --ignoreHeadlessMode -a res://tests/integration
 
+      - name: Prepare D3 demo and reference policy
+        run: |
+          python3 -m pip install --disable-pip-version-check -r Godot/demo/d3/python/requirements.txt
+          mkdir -p Godot/demo/d3/addons/schola/bin/linux
+          cp Godot/addons/schola/bin/linux/*.so* Godot/demo/d3/addons/schola/bin/linux/
+          python3 Godot/demo/d3/python/create_reference_policy.py
+          python3 Godot/demo/d3/python/export_onnx.py
+          test -s Godot/demo/d3/policies/q_policy.onnx
+
+      - name: Import D3 demo
+        run: timeout 90s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 --editor --quit
+
+      - name: Run D3 host and ONNX smoke check
+        run: timeout 60s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd -- --require-policy --expect-success
+
+      - name: Verify parallel training and ONNX export
+        run: |
+          timeout 120s python3 Godot/demo/d3/python/train_parallel.py \
+            --godot "$PWD/Godot_v4.7.2-stable_linux.x86_64" --instances 2 --episodes 20
+          python3 -c 'import json; from pathlib import Path; p = Path("Godot/demo/d3/policies"); assert json.loads((p / "q_policy.json").read_text())["episodes"] == 20; assert (p / "q_policy.onnx").stat().st_size > 0'
+          timeout 60s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd -- --require-policy
+
+      - name: Upload D3 training diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: d3-training-logs
+          path: Godot/demo/d3/python/logs/
+          if-no-files-found: ignore
+
+  packages:
+    name: Godot / D3 packages
+    needs: [changes, format, build, prebuilt-windows, smoke]
+    if: needs.changes.outputs.godot == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/d3-release.yml
+
   required:
     name: Godot / required
-    needs: [changes, format, build, prebuilt-windows, smoke]
+    needs: [changes, format, build, prebuilt-windows, smoke, packages]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 1
@@ -306,6 +340,7 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           WINDOWS_RESULT: ${{ needs.prebuilt-windows.result }}
           SMOKE_RESULT: ${{ needs.smoke.result }}
+          PACKAGES_RESULT: ${{ needs.packages.result }}
         run: |
           if [ "$CHANGES_RESULT" != "success" ]; then
             echo "Change detection failed with result: $CHANGES_RESULT"
@@ -322,7 +357,8 @@ jobs:
             "format:$FORMAT_RESULT" \
             "build:$BUILD_RESULT" \
             "windows-prebuilt:$WINDOWS_RESULT" \
-            "smoke:$SMOKE_RESULT"; do
+            "smoke:$SMOKE_RESULT" \
+            "packages:$PACKAGES_RESULT"; do
             name=${result%%:*}
             status=${result#*:}
             if [ "$status" != "success" ]; then

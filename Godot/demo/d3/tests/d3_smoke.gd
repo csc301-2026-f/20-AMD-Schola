@@ -16,6 +16,9 @@ const RIGHT := 3
 var _failures := 0
 var _host: ScholaTrainingHost
 var _agent_id := ""
+var _main_completed := false
+var _map_completed := false
+var _policy_completed := false
 
 
 func _initialize() -> void:
@@ -26,9 +29,11 @@ func _initialize() -> void:
 func _start() -> void:
 	var scene := _instantiate()
 	_run(scene)
+	_expect(_main_completed, "the main-scene checks completed without a script error")
 	_ok(_host.close(), "close")
 	scene.free()
 	_run_custom_map()
+	_expect(_map_completed, "the custom-map checks completed without a script error")
 	quit(1 if _failures > 0 else 0)
 
 
@@ -77,6 +82,7 @@ func _run_custom_map() -> void:
 	_expect(last.get("terminated") == true and last.info.outcome == "failure", "the custom hazard at (1, 3) ends the episode")
 	_ok(_host.close(), "custom map close")
 	scene.free()
+	_map_completed = true
 
 
 func _run(scene: Node) -> void:
@@ -128,11 +134,15 @@ func _run(scene: Node) -> void:
 	_expect(last.get("truncated") == true and last.get("terminated") == false and last.info.outcome == "timeout", "step 40 truncates with timeout")
 
 	_check_policy(environment, agents[0])
+	_expect(_policy_completed, "the policy checks completed without a script error")
+	_main_completed = true
 
 
 func _check_policy(environment: GridEnvironment, agent: ScholaAgent) -> void:
 	if not FileAccess.file_exists(POLICY_PATH):
+		_expect(not "--require-policy" in OS.get_cmdline_user_args(), "required ONNX policy exists at %s" % POLICY_PATH)
 		print("SKIP ONNX policy: %s not found; run python/create_reference_policy.py and python/export_onnx.py" % POLICY_PATH)
+		_policy_completed = true
 		return
 	var policy := ScholaOnnxPolicy.new()
 	policy.model_path = POLICY_PATH
@@ -153,6 +163,9 @@ func _check_policy(environment: GridEnvironment, agent: ScholaAgent) -> void:
 		if result.terminated or result.truncated:
 			break
 	print("ONNX policy episode from (0, 5) ended with %s" % result.get("info", {}).get("outcome"))
+	if "--expect-success" in OS.get_cmdline_user_args():
+		_expect(result.get("info", {}).get("outcome") == "success", "the reference policy reaches the goal")
+	_policy_completed = true
 
 
 func _reset(seed: Variant) -> Variant:
