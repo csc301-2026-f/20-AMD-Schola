@@ -2,7 +2,7 @@
 
 - **Owner:** Sanjay
 - **Status:** In progress
-- **Last updated:** Oct. 30, 2026
+- **Last updated:** Nov. 4, 2026
 
 ## Story
 
@@ -21,5 +21,7 @@ As an ML practitioner, I want a Godot environment to connect to Schola's existin
 
 - The connector loop, training messages, and gRPC boundary have been defined.
 - The blocking `tick` model was retained and `poll_tick` was removed from the design.
-- Remaining work includes completing the concrete gRPC integration and its integration tests.
+- `poll_tick` and `Connector::poll_update` were removed from the code, as AMD recommended at partner meeting 5.
+- gRPC 1.80.0 and Protocol Buffers 31.1, the versions Unreal Schola uses, are built from source by `tools/setup_grpc.py` and linked into the training extension only. Generated bindings and a `transport_tests` target are part of the shared build. The build has been tested on macOS arm64; Linux runs in CI, and the Windows configuration has not been tested yet. The versions await AMD confirmation.
+- Remaining work includes the concrete `GrpcConnector`, the training-message conversions, and their integration tests.
 - No new progress was discussed at the Oct. 30 partner meeting because the owner was absent.

@@ -1,0 +1,21 @@
+{
+  "file": "linux-x86_64.zip",
+  "sha256": "038db9670fd342d3828c4a80c4b2d354ffe72d8ad2468be3a964a60552bfdfa5",
+  "configuration_key": "217a4ba370f35069",
+  "stamp": {
+    "grpc_tag": "v1.80.0",
+    "grpc_commit": "f5e2d6e856176c2f6b7691032adfefe21e5f64c1",
+    "protobuf_version": "31.1",
+    "platform": "linux",
+    "arch": "x86_64"
+  },
+  "build_artifact": {
+    "run_id": 42129354293,
+    "sha256": "3ebeaebd3ada7dc1a83cdc87d6042ec8bbf7b04ff3bd6c3317821dfefe6d4467"
+  },
+  "supplemental_license": {
+    "path": "licenses/third_party/protobuf/third_party/utf8_range/LICENSE",
+    "source": "https://github.com/protocolbuffers/protobuf/blob/74211c0dfc2777318ab53c2cd2c317a2ef9012de/third_party/utf8_range/LICENSE",
+    "git_blob": "e59f14fa55de789cc2aa634e9788e0514be74611"
+  }
+}

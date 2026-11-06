@@ -24,10 +24,9 @@ public:
 	std::optional<StartRequest> start_request = StartRequest{};
 	// Returned by wait_for_start() instead of a request, e.g. an unknown auto-reset mode.
 	std::optional<Status> start_error;
-	// Popped by wait_for_update() and poll_update(). When empty, wait_for_update() returns TIMEOUT and
-	// poll_update() returns NOT_FOUND.
+	// Popped by wait_for_update(). When empty, wait_for_update() returns TIMEOUT.
 	std::deque<ConnectorUpdate> updates;
-	// Returned once by the next wait_for_update() or poll_update() instead of an update.
+	// Returned once by the next wait_for_update() instead of an update.
 	std::optional<Status> next_update_error;
 
 	std::optional<Status> start_reply;
@@ -75,18 +74,6 @@ public:
 		if (updates.empty()) {
 			return Status::error(StatusCode::TIMEOUT,
 					"No message from Python within " + std::to_string(p_timeout.count()) + " ms.");
-		}
-		r_update = pop_update();
-		return Status::ok();
-	}
-
-	Status poll_update(ConnectorUpdate &r_update) override {
-		record("poll_update");
-		if (std::optional<Status> error = take_update_error()) {
-			return *error;
-		}
-		if (updates.empty()) {
-			return Status::error(StatusCode::NOT_FOUND, "No message from Python yet.");
 		}
 		r_update = pop_update();
 		return Status::ok();

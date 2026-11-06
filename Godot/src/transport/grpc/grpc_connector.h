@@ -45,7 +45,6 @@ public:
 	Status reply_start(const Status &p_result) override;
 	Status publish_definition(const TrainingDefinition &p_definition) override;
 	Status wait_for_update(ConnectorUpdate &r_update, std::chrono::milliseconds p_timeout) override;
-	Status poll_update(ConnectorUpdate &r_update) override;
 	Status reply_reset(const InitialState &p_initial_state) override;
 	Status reply_step(const StepResult &p_result) override;
 	void fail(const Status &p_error) override;

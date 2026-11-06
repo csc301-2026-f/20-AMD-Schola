@@ -16,7 +16,21 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC, Windows/MSVC, and macOS/Apple Clang |
 
-Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`. The existing gRPC and Protocol Buffers files under `Source/ThirdParty/` are an Unreal-specific reference build, not an approved Godot dependency. Their Godot acquisition and compatible versions require an isolated build spike and AMD confirmation. Feature branches must not select those versions independently. Neither gRPC nor Protocol Buffers is linked into the runtime target.
+Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`.
+
+gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. Godot-specific Windows/Linux x86_64 prebuilt packages are committed under [`vendor/grpc/`](vendor/grpc/), including headers, static libraries, matching generators, licenses, and build provenance. Run `uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py` locally to verify and unpack the host package into the git-ignored `thirdparty/grpc/`; normal installation never compiles or downloads gRPC. CI uses the same installer with its existing Python setup. Missing or incompatible packages fail clearly. See the [package and rebuild guide](vendor/grpc/README.md) for explicit source builds and other platforms. SCons generates GymService bindings from the shared `Proto/` directory into `generated/proto/`. Only the training extension links gRPC and protobuf; Unreal's binaries are not reused.
+
+For an explicit source rebuild on Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
+
+```powershell
+$env:CMAKE_GENERATOR = "Ninja"
+$env:CC = "cl"
+$env:CXX = "cl"
+Get-Command cl,ninja,cmake
+uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py --from-source --force --work-dir C:\grpc
+```
+
+Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run locally with `uv run --no-project --python 3.12 python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
 
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 
@@ -30,6 +44,13 @@ Use the matching platform value on macOS or Windows. ONNX Runtime tests live und
 ```sh
 scons -C Godot inference_tests platform=linux target=template_debug -j"$(nproc)"
 ./Godot/build/tests/schola_inference_tests
+```
+
+Tests for the gRPC transport and its Protocol Buffer conversions live under `tests/transport/` and build as a separate target that links gRPC:
+
+```sh
+scons -C Godot transport_tests platform=linux target=template_debug -j"$(nproc)"
+./Godot/build/tests/schola_transport_tests
 ```
 
 Godot scene and extension integration tests use pinned GdUnit4 and live under `tests/integration/`. Install and run the integration tests from the repository root:
@@ -69,6 +90,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes -r Godot/requirements.txt
 python Godot/tools/setup_onnxruntime.py
+python Godot/tools/setup_grpc.py
 scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 godot --editor --path Godot
 ```
@@ -76,6 +98,8 @@ godot --editor --path Godot
 On macOS, use `platform=macos arch=arm64` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
+
+Use `scons -C Godot schola platform=linux target=template_debug` for a runtime-only build. The `schola`, `unit_tests`, and `inference_tests` targets do not require gRPC or generate protocol bindings. The default build, `schola_training`, and `transport_tests` require the installed gRPC package.
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
@@ -286,7 +310,7 @@ Adapts the core abstractions to user-facing Godot nodes, resources, the Inspecto
 
 ### `src/transport/grpc`
 
-Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. The public adapter API is merged; dependency acquisition, generated bindings, and runtime behavior remain implementation work. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
+Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. The public adapter API, dependency build, and generated bindings are in place; the connector's runtime behavior remains implementation work. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
 
 ### `src/inference`
 
@@ -356,6 +380,6 @@ git ls-files ':(glob)Godot/**/*.cpp' ':(glob)Godot/**/*.h' | xargs clang-format 
 
 Run the check before opening a pull request. Format only team-owned source files. Repository workflow, testing expectations, generated-file rules, and review requirements are defined in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-## Archived Deliverable 1 demo
+## Deliverable 1 demo
 
-The original C#/.NET demo is preserved in [`archive/d1_demo/`](archive/d1_demo/) as a historical reference. It is not the production add-on and requires Godot .NET to run. The production add-on is the native C++ GDExtension described above; its environment and reward APIs are still under development, so the archived demo has not been ported.
+The original C#/.NET prototype is preserved in [`demo/d1/`](demo/d1/) as the frozen Deliverable 1 demo and requires Godot .NET to run. It is a historical prototype, not evidence of current production functionality. See the [demo index](demo/README.md) for milestone demos. The production add-on is the native C++ GDExtension described above.

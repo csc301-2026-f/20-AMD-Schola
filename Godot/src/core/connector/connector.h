@@ -98,14 +98,6 @@ public:
 	 */
 	virtual Status wait_for_update(ConnectorUpdate &r_update, std::chrono::milliseconds p_timeout) = 0;
 
-	/**
-	 * Never blocks.
-	 *
-	 * Out: OK with r_update filled if an update has arrived, NOT_FOUND if
-	 *      not yet, CLOSED as for wait_for_update.
-	 */
-	virtual Status poll_update(ConnectorUpdate &r_update) = 0;
-
 	/** Answers a pending RESET update. */
 	virtual Status reply_reset(const InitialState &p_initial_state) = 0;
 
@@ -146,21 +138,15 @@ public:
 	Status start(Connector &p_connector, TrainingBackend &p_backend, std::chrono::milliseconds p_start_timeout);
 
 	/**
-	 * Headless mode, once per physics frame: waits for an update, runs it on
-	 * the backend, and replies.
+	 * Once per physics frame: waits for an update, runs it on the backend,
+	 * and replies. Blocking keeps each action and its reward on the same
+	 * frame; game state that must advance while waiting does so before this
+	 * call.
 	 *
 	 * Out: CLOSED once Python ends the session; any other failure after it
 	 *      has been reported to Python.
 	 */
 	Status tick(std::chrono::milliseconds p_update_timeout);
-
-	/**
-	 * Windowed mode: runs an update if one has arrived, otherwise returns
-	 * NOT_FOUND immediately so the window stays responsive.
-	 *
-	 * Out: TIMEOUT once no update has arrived for p_update_timeout.
-	 */
-	Status poll_tick(std::chrono::milliseconds p_update_timeout);
 
 	/** Closes the backend and the connector. Safe to call twice. */
 	void stop();
@@ -177,7 +163,6 @@ private:
 
 	Connector *connector = nullptr; // Not owned; null when no session is running.
 	TrainingBackend *backend = nullptr; // Not owned; null when no session is running.
-	std::chrono::steady_clock::time_point last_update;
 };
 
 } // namespace schola
