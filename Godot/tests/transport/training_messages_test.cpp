@@ -121,12 +121,16 @@ TEST_CASE("training updates decode actions and reset settings", "[training][tran
 }
 
 TEST_CASE("training replies set independent state oneofs and replace reused messages", "[training][transport]") {
+	TrainingDefinition definition;
+	definition.environments.resize(6);
+	definition.environments[3].agents["runner"].observation_space = Space(DiscreteSpace{ 3 });
+	definition.environments[1].agents["runner"].observation_space = Space(BoxSpace{ { -1.0f, -1.0f }, { 1.0f, 1.0f }, { 2 } });
 	InitialState initial;
 	initial.environments[3].agents["runner"] = InitialAgentState{ Point(DiscretePoint{ 2 }), { { "spawn", "north" } } };
 	initial.environments[5];
 	::Schola::State message;
 	message.mutable_training_state();
-	to_proto(initial, message);
+	REQUIRE(to_proto(initial, definition, message).is_ok());
 	CHECK_FALSE(message.has_training_state());
 	REQUIRE(message.has_initial_state());
 	REQUIRE(message.initial_state().environment_states().size() == 2);
@@ -143,7 +147,7 @@ TEST_CASE("training replies set independent state oneofs and replace reused mess
 	state.truncated = true;
 	state.info["lap"] = "2";
 	result.state.environments[1].agents["runner"] = state;
-	to_proto(result, message);
+	REQUIRE(to_proto(result, definition, message).is_ok());
 	REQUIRE(message.has_training_state());
 	CHECK_FALSE(message.has_initial_state());
 	REQUIRE(message.training_state().environment_states_size() == 2);
@@ -156,11 +160,11 @@ TEST_CASE("training replies set independent state oneofs and replace reused mess
 	CHECK(decoded.truncated);
 	CHECK(decoded.info == state.info);
 	result.initial_state = initial;
-	to_proto(result, message);
+	REQUIRE(to_proto(result, definition, message).is_ok());
 	CHECK(message.has_training_state());
 	CHECK(message.has_initial_state());
 	CHECK(message.initial_state().environment_states().at(3).agent_states().at("runner").info().at("spawn") == "north");
-	to_proto(InitialState(), message);
+	REQUIRE(to_proto(InitialState(), definition, message).is_ok());
 	CHECK_FALSE(message.has_training_state());
 	CHECK(message.has_initial_state());
 	CHECK(message.initial_state().environment_states().empty());
@@ -184,6 +188,80 @@ TEST_CASE("training errors map to gRPC codes with RPC context", "[training][tran
 		CHECK(status.error_code() == entry.second);
 		CHECK(status.error_message() == "UpdateState: reason");
 	}
+}
+
+TEST_CASE("training replies preserve declared Box shape and dtype", "[training][transport]") {
+	TrainingDefinition definition;
+	definition.environments.resize(3);
+	const Space image(BoxSpace{ std::vector<float>(6, 0.0f), std::vector<float>(6, 255.0f), { 2, 3 }, DType::UINT8 });
+	DictSpace nested;
+	nested.entries.emplace_back("image", image);
+	definition.environments[2].agents["camera"].observation_space = Space(std::move(nested));
+	// A second agent has a different layout to catch incorrect agent lookups.
+	definition.environments[2].agents["scalar"].observation_space = Space(BoxSpace{ { 0.0f }, { 1.0f }, { 1 }, DType::FLOAT32 });
+	DictPoint observation;
+	observation.entries.emplace_back("image", Point(BoxPoint{ { 0, 1, 2, 128, 254, 255 } }));
+	InitialState initial;
+	initial.environments[2].agents["camera"].observation = Point(observation);
+	initial.environments[2].agents["scalar"].observation = Point(BoxPoint{ { 0.5f } });
+
+	auto check_image = [](const ::Schola::Point &point) {
+		const auto &box = point.dict_point().values().at("image").box_point();
+		REQUIRE(box.shape_size() == 2);
+		CHECK(box.shape(0) == 2);
+		CHECK(box.shape(1) == 3);
+		CHECK(box.dtype() == ::Schola::UINT8);
+		REQUIRE(box.values_size() == 6);
+		CHECK(box.values(3) == 128);
+		CHECK(box.values(5) == 255);
+	};
+	::Schola::State message;
+	REQUIRE(to_proto(initial, definition, message).is_ok());
+	check_image(message.initial_state().environment_states().at(2).agent_states().at("camera").observations());
+	const auto &scalar = message.initial_state().environment_states().at(2).agent_states().at("scalar").observations().box_point();
+	REQUIRE(scalar.shape_size() == 1);
+	CHECK(scalar.shape(0) == 1);
+	CHECK(scalar.dtype() == ::Schola::FLOAT32);
+
+	StepResult result;
+	result.state.environments.resize(3);
+	result.state.environments[2].agents["camera"].observation = Point(observation);
+	result.initial_state = initial;
+	REQUIRE(to_proto(result, definition, message).is_ok());
+	check_image(message.training_state().environment_states(2).agent_states().at("camera").observations());
+	check_image(message.initial_state().environment_states().at(2).agent_states().at("camera").observations());
+}
+
+TEST_CASE("training replies reject missing definitions without modifying output", "[training][transport]") {
+	TrainingDefinition definition;
+	definition.environments.resize(1);
+	::Schola::State message;
+	message.mutable_initial_state();
+	const std::string before = message.SerializeAsString();
+	InitialState initial;
+	SECTION("undefined reset environment") {
+		initial.environments[3];
+	}
+	SECTION("negative reset environment") {
+		initial.environments[-1];
+	}
+	SECTION("undefined reset agent") {
+		initial.environments[0].agents["unknown"];
+	}
+	CHECK(to_proto(initial, definition, message).get_code() == StatusCode::INVALID_DATA);
+	CHECK(message.SerializeAsString() == before);
+	StepResult result;
+	result.state.environments.resize(2);
+	CHECK(to_proto(result, definition, message).get_code() == StatusCode::INVALID_DATA);
+	CHECK(message.SerializeAsString() == before);
+	result.state.environments.resize(1);
+	result.state.environments[0].agents["unknown"];
+	CHECK(to_proto(result, definition, message).get_code() == StatusCode::INVALID_DATA);
+	CHECK(message.SerializeAsString() == before);
+	result.state.environments[0].agents.clear();
+	result.initial_state = initial;
+	CHECK(to_proto(result, definition, message).get_code() == StatusCode::INVALID_DATA);
+	CHECK(message.SerializeAsString() == before);
 }
 
 #endif

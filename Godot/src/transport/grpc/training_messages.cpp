@@ -10,17 +10,37 @@
 namespace schola {
 namespace {
 
-void initial_state_to_proto(const InitialState &p_state, ::Schola::InitialState &r_message) {
+Status observation_space(const TrainingDefinition &p_definition, EnvironmentId p_environment, const AgentId &p_agent, const Space *&r_space) {
+	if (p_environment < 0 || static_cast<size_t>(p_environment) >= p_definition.environments.size()) {
+		return Status::error(StatusCode::INVALID_DATA, "State references undefined environment " + std::to_string(p_environment));
+	}
+	const auto &agents = p_definition.environments[p_environment].agents;
+	const auto found = agents.find(p_agent);
+	if (found == agents.end()) {
+		return Status::error(StatusCode::INVALID_DATA, "State references undefined agent '" + p_agent + "' in environment " + std::to_string(p_environment));
+	}
+	r_space = &found->second.observation_space;
+	return Status::ok();
+}
+
+Status initial_state_to_proto(const InitialState &p_state, const TrainingDefinition &p_definition, ::Schola::InitialState &r_message) {
 	for (const auto &environment : p_state.environments) {
+		if (environment.first < 0 || static_cast<size_t>(environment.first) >= p_definition.environments.size()) {
+			return Status::error(StatusCode::INVALID_DATA, "Initial state references undefined environment " + std::to_string(environment.first));
+		}
 		auto &message = (*r_message.mutable_environment_states())[environment.first];
 		for (const auto &agent : environment.second.agents) {
+			const Space *space = nullptr;
+			Status status = observation_space(p_definition, environment.first, agent.first, space);
+			if (!status.is_ok()) {
+				return status;
+			}
 			auto &state = (*message.mutable_agent_states())[agent.first];
-			// These reply contracts carry points without their definitions. US2
-			// uses a flat Box shape and the wire's default dtype in that case.
-			point_to_proto(agent.second.observation, Space(), *state.mutable_observations());
+			point_to_proto(agent.second.observation, *space, *state.mutable_observations());
 			state.mutable_info()->insert(agent.second.info.begin(), agent.second.info.end());
 		}
 	}
+	return Status::ok();
 }
 
 } // namespace
@@ -96,23 +116,40 @@ Status from_proto(const ::Schola::StateUpdate &p_message, ConnectorUpdate &r_upd
 	return Status::ok();
 }
 
-void to_proto(const InitialState &p_initial_state, ::Schola::State &r_message) {
-	r_message.Clear();
-	initial_state_to_proto(p_initial_state, *r_message.mutable_initial_state());
+Status to_proto(const InitialState &p_initial_state, const TrainingDefinition &p_definition, ::Schola::State &r_message) {
+	::Schola::State message;
+	Status status = initial_state_to_proto(p_initial_state, p_definition, *message.mutable_initial_state());
+	if (status.is_ok()) {
+		r_message.Swap(&message);
+	}
+	return status;
 }
 
-void to_proto(const StepResult &p_result, ::Schola::State &r_message) {
-	r_message.Clear();
-	auto *training = r_message.mutable_training_state();
-	for (const auto &environment : p_result.state.environments) {
+Status to_proto(const StepResult &p_result, const TrainingDefinition &p_definition, ::Schola::State &r_message) {
+	if (p_result.state.environments.size() > p_definition.environments.size()) {
+		return Status::error(StatusCode::INVALID_DATA, "Training state has more environments than its definition");
+	}
+	::Schola::State reply;
+	auto *training = reply.mutable_training_state();
+	for (size_t i = 0; i < p_result.state.environments.size(); ++i) {
 		auto *message = training->add_environment_states();
-		for (const auto &agent : environment.agents) {
-			agent_state_to_proto(agent.second, Space(), (*message->mutable_agent_states())[agent.first]);
+		for (const auto &agent : p_result.state.environments[i].agents) {
+			const Space *space = nullptr;
+			Status status = observation_space(p_definition, static_cast<EnvironmentId>(i), agent.first, space);
+			if (!status.is_ok()) {
+				return status;
+			}
+			agent_state_to_proto(agent.second, *space, (*message->mutable_agent_states())[agent.first]);
 		}
 	}
 	if (!p_result.initial_state.environments.empty()) {
-		initial_state_to_proto(p_result.initial_state, *r_message.mutable_initial_state());
+		Status status = initial_state_to_proto(p_result.initial_state, p_definition, *reply.mutable_initial_state());
+		if (!status.is_ok()) {
+			return status;
+		}
 	}
+	r_message.Swap(&reply);
+	return Status::ok();
 }
 
 grpc::Status to_grpc_status(const Status &p_status, std::string_view p_rpc) {
