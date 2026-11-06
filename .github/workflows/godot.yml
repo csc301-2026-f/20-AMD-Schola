@@ -304,7 +304,23 @@ jobs:
           test -s Godot/demo/d3/policies/q_policy.onnx
 
       - name: Import D3 demo
-        run: timeout 90s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 --editor --quit
+        run: |
+          # The first import can abort during GDExtension shutdown after writing
+          # its cache, just as for the main project's import above.
+          ulimit -c 0
+          for attempt in 1 2 3; do
+            set +e
+            timeout 90s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 --editor --quit
+            status=$?
+            set -e
+            if [ "$status" -eq 0 ]; then
+              break
+            fi
+            if [ "$status" -ne 134 ] || [ "$attempt" -eq 3 ]; then
+              exit "$status"
+            fi
+            echo "::warning::D3 import aborted during shutdown; retrying with its generated cache ($attempt/3)"
+          done
 
       - name: Run D3 host and ONNX smoke check
         run: timeout 60s ./Godot_v4.7.2-stable_linux.x86_64 --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd -- --require-policy --expect-success
