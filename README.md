@@ -22,6 +22,16 @@ flowchart LR
     Manual[Keyboard controls] --> Runner
 ```
 
+## D2 feedback addressed
+
+- **Replace integration stand-ins (D2 review):** D3 replaces the scripted environment and lifecycle. The temporary JSON/TCP training connector remains and is labelled as temporary until the gRPC connector is finished.
+- **Keep the learning visible (TA demo feedback):** the D3 demo keeps episode statistics and a reward graph, so progress can be seen during training.
+- **One step callback (AMD):** separate reward, termination, truncation, and info callbacks were ambiguous, so `ScholaEnvironment` now uses one `_get_step_result(agent)` callback.
+- **No built-in step limit (AMD):** a built-in maximum could conflict with custom truncation logic, so it was removed and developers control truncation in `_get_step_result(agent)`.
+- **Blocking connector loop (AMD):** delaying actions and rewards harms reinforcement learning, so `poll_tick` was removed and the loop keeps its blocking `tick`.
+- **Clearer ONNX policy setup and errors (AMD):** `ScholaOnnxPolicy` now initializes from an agent through `initialize(agent)`, and US7 Godot classes report failures through one shared error path.
+- **Sequence length from the model (AMD):** we checked `max_state_sequence_length`. Unreal also sets it by hand, and ONNX Runtime's C API cannot read the metadata on individual inputs, so it stays manual for now and reading it from the model is proposed as [US14](Godot/docs/user_stories/US14.md).
+
 ## Deployed URL and access instructions
 
 This is a native Godot plugin and desktop demo, so deployment means downloadable applications rather than a hosted web page.
