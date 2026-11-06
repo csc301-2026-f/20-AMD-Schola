@@ -81,6 +81,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          lfs: true
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: lfs.fetchinclude
+          GIT_CONFIG_VALUE_0: Godot/vendor/grpc/linux-x86_64.zip
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -137,7 +142,6 @@ jobs:
 
       - name: Build and run core unit tests
         run: |
-          # Keep compile options consistent with the extension build to reuse objects.
           scons -C Godot unit_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_core_tests
 
@@ -160,6 +164,48 @@ jobs:
             Godot/addons/*/bin/linux/*.so
             Godot/addons/*/bin/linux/*.so.*
           if-no-files-found: error
+
+  prebuilt-windows:
+    name: Godot / Windows prebuilt dependency
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: lfs.fetchinclude
+          GIT_CONFIG_VALUE_0: Godot/vendor/grpc/windows-x86_64.zip
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Enable MSVC
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module "$vs/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+          foreach ($name in 'PATH','INCLUDE','LIB','LIBPATH','VCToolsInstallDir','VSINSTALLDIR','WindowsSdkDir','WindowsSDKVersion') {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" >> $env:GITHUB_ENV }
+          }
+
+      - name: Test installer
+        run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+
+      - name: Install committed gRPC and protobuf
+        run: python Godot/tools/setup_grpc.py
+
+      - name: Verify gRPC generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
 
   smoke:
     name: Godot / smoke
@@ -245,7 +291,7 @@ jobs:
 
   required:
     name: Godot / required
-    needs: [changes, format, build, smoke]
+    needs: [changes, format, build, prebuilt-windows, smoke]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 1
@@ -256,6 +302,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           FORMAT_RESULT: ${{ needs.format.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          WINDOWS_RESULT: ${{ needs.prebuilt-windows.result }}
           SMOKE_RESULT: ${{ needs.smoke.result }}
         run: |
           if [ "$CHANGES_RESULT" != "success" ]; then
@@ -272,6 +319,7 @@ jobs:
           for result in \
             "format:$FORMAT_RESULT" \
             "build:$BUILD_RESULT" \
+            "windows-prebuilt:$WINDOWS_RESULT" \
             "smoke:$SMOKE_RESULT"; do
             name=${result%%:*}
             status=${result#*:}

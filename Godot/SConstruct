@@ -82,10 +82,6 @@ environment = SConscript(
 )
 environment.Append(CPPPATH=["src"])
 
-# Opt-in native driver for GdUnit4 adapter tests; omitted from shipped builds.
-if ARGUMENTS.get("integration_tests", "no") == "yes":
-    environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
-
 
 def sources_under(*directories):
     sources = []
@@ -244,6 +240,8 @@ def build_extension(
     )
     sources = sources_under(*source_directories) + list(extra_sources)
     if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+        # Keep test-only flags out of godot-cpp and the other target environments.
+        extension_environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
         sources += sources_under("tests/integration/native")
     # Each extension compiles src/core with its own flags, so their objects are kept apart.
     library = extension_environment.SharedLibrary(

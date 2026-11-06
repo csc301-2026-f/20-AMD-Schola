@@ -30,6 +30,7 @@ def main():
         "runner_image": os.environ.get("ImageOS"),
         "runner_image_version": os.environ.get("ImageVersion"),
         "platform": platform.platform(),
+        "build_generator": os.environ.get("CMAKE_GENERATOR", "CMake platform default"),
         "compiler": (version.stdout + version.stderr).strip(),
         "configuration_key": setup_grpc.cache_key(
             lock["grpc"], lock["protobuf"], system, machine
@@ -47,6 +48,9 @@ def main():
     )
     arguments.output.mkdir(parents=True, exist_ok=True)
     name = f"{system}-{machine}"
+    (arguments.output / f"{name}.build.json").write_text(
+        json.dumps(provenance, indent=2) + "\n", encoding="utf-8"
+    )
     archive = Path(shutil.make_archive(str(arguments.output / name), "zip", root))
     with archive.open("rb") as source:
         digest = hashlib.file_digest(source, "sha256").hexdigest()

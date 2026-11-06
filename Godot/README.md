@@ -18,19 +18,19 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 
 Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`.
 
-gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. `python Godot/tools/setup_grpc.py` builds them from source with CMake into the git-ignored `thirdparty/grpc/`, together with the matching `protoc` and `grpc_cpp_plugin`, so generated code always matches the linked runtime. The build needs CMake 3.16 or newer and a C++17 compiler, takes several minutes, and is skipped when the pinned release is already installed. On Windows, pass a short `--work-dir` such as `C:\grpc` to avoid path-length failures. The script builds for the host architecture. The prebuilt archives under `Source/ThirdParty/` use Unreal's toolchain and cannot be linked into Godot. SCons generates C++ for the GymService protos from the repository-level `Proto/` directory into the git-ignored `generated/proto/`. Only the training extension links gRPC and Protocol Buffers, statically and with hidden symbols; the runtime target does not.
+gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. Godot-specific Windows/Linux x86_64 prebuilt packages are committed under [`vendor/grpc/`](vendor/grpc/), including headers, static libraries, matching generators, licenses, and build provenance. Run `uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py` locally to verify and unpack the host package into the git-ignored `thirdparty/grpc/`; normal installation never compiles or downloads gRPC. CI uses the same installer with its existing Python setup. Missing or incompatible packages fail clearly. See the [package and rebuild guide](vendor/grpc/README.md) for explicit source builds and other platforms. SCons generates GymService bindings from the shared `Proto/` directory into `generated/proto/`. Only the training extension links gRPC and protobuf; Unreal's binaries are not reused.
 
-On Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
+For an explicit source rebuild on Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
 
 ```powershell
 $env:CMAKE_GENERATOR = "Ninja"
 $env:CC = "cl"
 $env:CXX = "cl"
 Get-Command cl,ninja,cmake
-python Godot/tools/setup_grpc.py --work-dir C:\grpc
+uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py --from-source --force --work-dir C:\grpc
 ```
 
-Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run with `python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
+Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run locally with `uv run --no-project --python 3.12 python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
 
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 

@@ -121,6 +121,12 @@ def install_prebuilt(grpc, protobuf, system, machine):
         )
     archive_path = VENDOR_DIRECTORY / manifest["file"]
     with archive_path.open("rb") as source:
+        if source.read(64).startswith(b"version https://git-lfs.github.com/spec/v1"):
+            raise RuntimeError(
+                "gRPC package is a Git LFS pointer. Run git lfs pull "
+                '--include="Godot/vendor/grpc/*.zip" --exclude="" first.'
+            )
+        source.seek(0)
         digest = hashlib.file_digest(source, "sha256").hexdigest()
     if digest != manifest["sha256"]:
         raise RuntimeError("Committed gRPC archive checksum mismatch")
@@ -316,7 +322,9 @@ def build(grpc, protobuf, system, machine, work_directory):
     )
     run(["cmake", "--install", build_directory, "--config", "Release"])
 
-    for component in (".",) + SUBMODULES:
+    for component in (
+        (".",) + SUBMODULES + ("third_party/protobuf/third_party/utf8_range",)
+    ):
         directory = source_directory / component
         for license_file in directory.iterdir():
             if license_file.is_file() and license_file.name.upper().startswith(
@@ -340,7 +348,7 @@ def build(grpc, protobuf, system, machine, work_directory):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build the pinned gRPC and protobuf release into Godot/thirdparty/grpc/."
+        description="Install committed gRPC/protobuf into Godot/thirdparty/grpc/; source builds are opt-in."
     )
     parser.add_argument(
         "--from-source",
@@ -376,6 +384,8 @@ def main():
         return
 
     if not arguments.from_source:
+        if arguments.force or arguments.work_dir is not None:
+            parser.error("--force and --work-dir require --from-source")
         install_prebuilt(grpc, protobuf, system, machine)
         return
 

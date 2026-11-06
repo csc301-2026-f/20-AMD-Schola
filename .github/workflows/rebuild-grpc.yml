@@ -2,9 +2,6 @@ name: Rebuild vendored gRPC
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Shahyar/ci-reuse-build-cache]
-    paths: [.github/workflows/rebuild-grpc.yml]
 
 permissions:
   contents: read
@@ -35,11 +32,21 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           Import-Module "$vs/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
-          Get-ChildItem Env: | ForEach-Object { "$($_.Name)=$($_.Value)" >> $env:GITHUB_ENV }
+          foreach ($name in 'PATH','INCLUDE','LIB','LIBPATH','VCToolsInstallDir','VSINSTALLDIR','WindowsSdkDir','WindowsSDKVersion') {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" >> $env:GITHUB_ENV }
+          }
+          Get-Command ninja
+          "CMAKE_GENERATOR=Ninja" >> $env:GITHUB_ENV
+          "CC=cl" >> $env:GITHUB_ENV
+          "CXX=cl" >> $env:GITHUB_ENV
 
       - name: Rebuild pinned dependency
         shell: bash
-        run: python Godot/tools/setup_grpc.py --from-source --work-dir "${RUNNER_TEMP}/grpc"
+        run: python Godot/tools/setup_grpc.py --from-source --force --work-dir "${RUNNER_TEMP}/grpc"
+
+      - name: Verify generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
 
       - name: Package with provenance and checksums
         run: python Godot/tools/package_grpc.py --output grpc-packages

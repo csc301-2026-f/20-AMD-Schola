@@ -78,9 +78,30 @@ class PrebuiltGrpcTests(unittest.TestCase):
         self.assertFalse((self.install / "existing").exists())
         self.assertEqual((self.install / "bin/protoc").read_text(), "generator")
 
+    def test_default_command_installs_without_cmake_or_compiler(self):
+        lock = self.root / "dependencies.lock.json"
+        lock.write_text(json.dumps({"grpc": self.grpc, "protobuf": self.protobuf}))
+        with (
+            patch.object(setup_grpc, "LOCK_FILE", lock),
+            patch.object(setup_grpc, "host", return_value=("linux", "x86_64")),
+            patch.object(setup_grpc.shutil, "which", return_value=None),
+            patch.object(
+                setup_grpc, "build", side_effect=AssertionError("must not compile")
+            ),
+            patch("sys.argv", ["setup_grpc.py"]),
+        ):
+            setup_grpc.main()
+        self.assertTrue((self.install / "include/grpcpp/grpcpp.h").is_file())
+
     def test_corrupt_archive_preserves_previous_install(self):
         self.archive.write_bytes(b"corrupt")
         with self.assertRaisesRegex(RuntimeError, "checksum"):
+            self.install_package()
+        self.assertTrue((self.install / "existing").exists())
+
+    def test_unfetched_lfs_pointer_explains_how_to_download_the_package(self):
+        self.archive.write_bytes(b"version https://git-lfs.github.com/spec/v1\n")
+        with self.assertRaisesRegex(RuntimeError, "git lfs pull"):
             self.install_package()
         self.assertTrue((self.install / "existing").exists())
 
