@@ -78,7 +78,7 @@ jobs:
             output: dist/Schola-D3-Linux-x86_64/Schola-D3-Demo.x86_64
             archive: dist/Schola-D3-Linux-x86_64.tar.gz
           - name: macOS arm64
-            runner: macos-14
+            runner: macos-15
             platform: macos
             arch: arm64
             preset: macOS
