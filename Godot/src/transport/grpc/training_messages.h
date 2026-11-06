@@ -20,9 +20,7 @@
 namespace schola {
 
 // Converts the GymService messages. Spaces and points inside them use US2's
-// protobuf conversions, which need each point's space. That is why the
-// state and update conversions take the TrainingDefinition published at
-// startup.
+// protobuf conversions.
 
 /**
  * StartGymConnector request.
@@ -36,16 +34,13 @@ Status from_proto(const ::Schola::GymConnectorStartRequest &p_message, StartRequ
 void to_proto(const TrainingDefinition &p_definition, ::Schola::TrainingDefinition &r_message);
 
 /**
- * UpdateState request. Each action is read with its agent's action space
- * from p_definition, which also checks that it fits that space.
+ * UpdateState request.
  *
  * Out: Python's CLOSED status becomes UpdateKind::CLOSE. Its ERROR status
- *      (or any status this build does not know) returns CLOSED.
- *      INVALID_ARGUMENT if the message has neither a reset nor a step, or an
- *      action does not fit its space. NOT_FOUND for an action addressed to an
- *      environment or agent that is not in p_definition.
+ *      returns CLOSED carrying Python's report. Points pass through without
+ *      space validation; Python validates them.
  */
-Status from_proto(const ::Schola::StateUpdate &p_message, const TrainingDefinition &p_definition, ConnectorUpdate &r_update);
+Status from_proto(const ::Schola::StateUpdate &p_message, ConnectorUpdate &r_update);
 
 /**
  * UpdateState reply after a reset. Uses each agent's declared observation space

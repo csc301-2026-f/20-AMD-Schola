@@ -335,7 +335,7 @@ Status GrpcConnector::wait_for_update(ConnectorUpdate &r_update, std::chrono::mi
 	}
 
 	ConnectorUpdate update;
-	status = from_proto(service->call->update, service->definition, update);
+	status = from_proto(service->call->update, update);
 
 	// Python is leaving, either normally (CLOSE) or after an error of its own
 	// (CLOSED status). No reply method follows either, so acknowledge it here.
