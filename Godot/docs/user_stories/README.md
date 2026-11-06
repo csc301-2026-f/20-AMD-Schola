@@ -16,6 +16,7 @@ This directory is the canonical home for the project's approved MVP stories, pro
 | [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Proposed |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Proposed |
 | [US13](US13.md) | Train and deploy through a production example | Unassigned | Proposed |
+| [US14](US14.md) | Read the state sequence length from the model | Unassigned | Proposed |
 
 US6 is not part of the approved MVP story set.
 
