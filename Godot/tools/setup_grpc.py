@@ -10,11 +10,13 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 
 GODOT_ROOT = Path(__file__).resolve().parents[1]
 LOCK_FILE = GODOT_ROOT / "dependencies.lock.json"
 INSTALL_DIRECTORY = GODOT_ROOT / "thirdparty" / "grpc"
+VENDOR_DIRECTORY = GODOT_ROOT / "vendor" / "grpc"
 # Read by SConstruct to detect an install that no longer matches the lock.
 STAMP_FILENAME = "schola_grpc.json"
 # Only the submodules the CMake build uses with every provider set to "module".
@@ -47,7 +49,9 @@ def host():
 
 def run(arguments, working_directory=None):
     print("+", " ".join(str(argument) for argument in arguments), flush=True)
-    subprocess.run([str(argument) for argument in arguments], check=True, cwd=working_directory)
+    subprocess.run(
+        [str(argument) for argument in arguments], check=True, cwd=working_directory
+    )
 
 
 def remove_directory(directory):
@@ -99,6 +103,86 @@ def installed_stamp():
     return json.loads(stamp_path.read_text(encoding="utf-8"))
 
 
+def install_prebuilt(grpc, protobuf, system, machine):
+    name = f"{system}-{machine}"
+    manifest_path = VENDOR_DIRECTORY / f"{name}.json"
+    if not manifest_path.is_file():
+        raise RuntimeError(
+            f"No committed gRPC package for {name}. Use --from-source to rebuild explicitly."
+        )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest["file"] != f"{name}.zip":
+        raise RuntimeError("Unexpected gRPC archive filename")
+    expected = expected_stamp(grpc, protobuf, system, machine)
+    configuration = cache_key(grpc, protobuf, system, machine)
+    if manifest["stamp"] != expected or manifest["configuration_key"] != configuration:
+        raise RuntimeError(
+            "Committed gRPC package does not match dependency pins or build options; rebuild it."
+        )
+    archive_path = VENDOR_DIRECTORY / manifest["file"]
+    with archive_path.open("rb") as source:
+        if source.read(64).startswith(b"version https://git-lfs.github.com/spec/v1"):
+            raise RuntimeError(
+                "gRPC package is a Git LFS pointer. Run git lfs pull "
+                '--include="Godot/vendor/grpc/*.zip" --exclude="" first.'
+            )
+        source.seek(0)
+        digest = hashlib.file_digest(source, "sha256").hexdigest()
+    if digest != manifest["sha256"]:
+        raise RuntimeError("Committed gRPC archive checksum mismatch")
+    INSTALL_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix="grpc-install-", dir=INSTALL_DIRECTORY.parent
+    ) as temporary:
+        staged = Path(temporary) / "install"
+        with zipfile.ZipFile(archive_path) as archive:
+            for entry in archive.infolist():
+                path = Path(entry.filename)
+                if (
+                    path.is_absolute()
+                    or ".." in path.parts
+                    or ":" in entry.filename
+                    or "\\" in entry.filename
+                    or stat.S_ISLNK(entry.external_attr >> 16)
+                ):
+                    raise RuntimeError("gRPC archive contains an unsafe path")
+            archive.extractall(staged)
+        if (
+            json.loads((staged / STAMP_FILENAME).read_text(encoding="utf-8"))
+            != expected
+        ):
+            raise RuntimeError("gRPC archive stamp does not match the pinned release")
+        provenance = json.loads(
+            (staged / "build_provenance.json").read_text(encoding="utf-8")
+        )
+        if provenance["configuration_key"] != configuration:
+            raise RuntimeError(
+                "gRPC archive provenance does not match its build configuration"
+            )
+        suffix = ".exe" if system == "windows" else ""
+        required = [
+            "include/grpcpp/grpcpp.h",
+            "include/google/protobuf/message.h",
+            f"bin/protoc{suffix}",
+            f"bin/grpc_cpp_plugin{suffix}",
+        ]
+        if any(not (staged / path).is_file() for path in required) or not any(
+            (staged / "lib").glob("*.lib" if system == "windows" else "*.a")
+        ):
+            raise RuntimeError(
+                "gRPC archive is missing required headers, libraries, or generators"
+            )
+        for tool in ("protoc", "grpc_cpp_plugin"):
+            if system != "windows":
+                (staged / "bin" / tool).chmod(0o755)
+        if INSTALL_DIRECTORY.exists():
+            remove_directory(INSTALL_DIRECTORY)
+        shutil.move(str(staged), str(INSTALL_DIRECTORY))
+    print(
+        f"Installed committed gRPC package for {name}; no source build or download needed."
+    )
+
+
 def checkout(grpc, protobuf, source_directory):
     run(
         [
@@ -124,7 +208,17 @@ def checkout(grpc, protobuf, source_directory):
             f"gRPC {grpc['tag']} resolved to {commit}, but the lock pins {grpc['commit']}"
         )
     run(
-        ["git", "-C", source_directory, "submodule", "update", "--init", "--depth", "1", "--"]
+        [
+            "git",
+            "-C",
+            source_directory,
+            "submodule",
+            "update",
+            "--init",
+            "--depth",
+            "1",
+            "--",
+        ]
         + list(SUBMODULES)
     )
 
@@ -138,7 +232,9 @@ def checkout(grpc, protobuf, source_directory):
         )
 
 
-def configure_arguments(system, machine, source_directory, build_directory, install_directory):
+def configure_arguments(
+    system, machine, source_directory, build_directory, install_directory
+):
     arguments = [
         "cmake",
         "-S",
@@ -208,7 +304,11 @@ def build(grpc, protobuf, system, machine, work_directory):
     staged_directory = work_directory / "install"
 
     checkout(grpc, protobuf, source_directory)
-    run(configure_arguments(system, machine, source_directory, build_directory, staged_directory))
+    run(
+        configure_arguments(
+            system, machine, source_directory, build_directory, staged_directory
+        )
+    )
     run(
         [
             "cmake",
@@ -222,6 +322,20 @@ def build(grpc, protobuf, system, machine, work_directory):
     )
     run(["cmake", "--install", build_directory, "--config", "Release"])
 
+    for component in (
+        (".",) + SUBMODULES + ("third_party/protobuf/third_party/utf8_range",)
+    ):
+        directory = source_directory / component
+        for license_file in directory.iterdir():
+            if license_file.is_file() and license_file.name.upper().startswith(
+                ("LICENSE", "COPYING", "NOTICE")
+            ):
+                destination = (
+                    staged_directory / "licenses" / component / license_file.name
+                )
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(license_file, destination)
+
     stamp = expected_stamp(grpc, protobuf, system, machine)
     (staged_directory / STAMP_FILENAME).write_text(
         json.dumps(stamp, indent=2) + "\n", encoding="utf-8"
@@ -234,7 +348,12 @@ def build(grpc, protobuf, system, machine, work_directory):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Build the pinned gRPC and protobuf release into Godot/thirdparty/grpc/."
+        description="Install committed gRPC/protobuf into Godot/thirdparty/grpc/; source builds are opt-in."
+    )
+    parser.add_argument(
+        "--from-source",
+        action="store_true",
+        help="Explicitly rebuild instead of installing the committed prebuilt package.",
     )
     parser.add_argument(
         "--work-dir",
@@ -244,7 +363,9 @@ def main():
         "avoids MAX_PATH failures.",
     )
     parser.add_argument(
-        "--force", action="store_true", help="Rebuild even if the pinned release is installed."
+        "--force",
+        action="store_true",
+        help="Rebuild even if the pinned release is installed.",
     )
     parser.add_argument(
         "--print-cache-key",
@@ -262,10 +383,18 @@ def main():
         print(cache_key(grpc, protobuf, system, machine))
         return
 
+    if not arguments.from_source:
+        if arguments.force or arguments.work_dir is not None:
+            parser.error("--force and --work-dir require --from-source")
+        install_prebuilt(grpc, protobuf, system, machine)
+        return
+
     if shutil.which("cmake") is None:
         raise RuntimeError("CMake 3.16 or newer is required to build gRPC")
 
-    if not arguments.force and installed_stamp() == expected_stamp(grpc, protobuf, system, machine):
+    if not arguments.force and installed_stamp() == expected_stamp(
+        grpc, protobuf, system, machine
+    ):
         print(f"gRPC {grpc['tag']} is already installed in {INSTALL_DIRECTORY}")
         return
 

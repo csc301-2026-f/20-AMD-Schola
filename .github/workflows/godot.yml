@@ -1,6 +1,7 @@
 name: Godot
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -73,14 +74,18 @@ jobs:
     needs: changes
     if: needs.changes.outputs.godot == 'true'
     runs-on: ubuntu-22.04
-    # A cold gRPC build takes most of this; cached runs finish in about 15 minutes.
-    timeout-minutes: 60
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           submodules: recursive
+          lfs: true
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: lfs.fetchinclude
+          GIT_CONFIG_VALUE_0: Godot/vendor/grpc/linux-x86_64.zip
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -95,38 +100,25 @@ jobs:
       - name: Verify dependency pins
         run: python Godot/tools/verify_dependency_pins.py
 
-      - name: Test gRPC setup
+      - name: Test prebuilt dependency installer
         run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
 
-      - name: Install ONNX Runtime
-        run: python Godot/tools/setup_onnxruntime.py
-
-      - name: Compute gRPC cache key
-        id: grpc-key
-        # Changes only with the pins or this platform's build options, not with every
-        # edit to setup_grpc.py.
-        run: |
-          key=$(python Godot/tools/setup_grpc.py --print-cache-key)
-          echo "key=grpc-${{ runner.os }}-${{ runner.arch }}-${key}" >> "$GITHUB_OUTPUT"
-
-      - name: Restore gRPC
-        id: grpc-cache
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: Godot/thirdparty/grpc
-          key: ${{ steps.grpc-key.outputs.key }}
-
-      - name: Build gRPC
-        if: steps.grpc-cache.outputs.cache-hit != 'true'
+      - name: Install committed gRPC and protobuf
         run: python Godot/tools/setup_grpc.py
 
-      # Saved right away so a later failing step does not force another cold build.
-      - name: Save gRPC
-        if: steps.grpc-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Verify gRPC generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
+
+      - name: Cache ONNX Runtime
+        id: onnx-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          path: Godot/thirdparty/grpc
-          key: ${{ steps.grpc-key.outputs.key }}
+          path: Godot/thirdparty/onnxruntime
+          key: onnxruntime-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Godot/dependencies.lock.json', 'Godot/tools/setup_onnxruntime.py') }}
+
+      - name: Install ONNX Runtime
+        if: steps.onnx-cache.outputs.cache-hit != 'true'
+        run: python Godot/tools/setup_onnxruntime.py
 
       - name: Identify compiler for build cache
         id: compiler
@@ -139,25 +131,28 @@ jobs:
         with:
           path: ${{ env.SCONS_CACHE }}
           key: scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-${{ github.sha }}
+          # SCons checks input and command signatures before reusing each output.
+          # Older configurations can still supply unchanged godot-cpp objects.
           restore-keys: |
             scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-${{ hashFiles('Godot/requirements.txt', 'Godot/dependencies.lock.json', 'Godot/SConstruct') }}-
+            scons-v1-${{ runner.os }}-${{ runner.arch }}-debug-${{ steps.compiler.outputs.hash }}-
 
       - name: Build debug extensions
-        run: scons -C Godot platform=linux target=template_debug -j2
+        run: scons -C Godot platform=linux target=template_debug integration_tests=yes -j2
 
       - name: Build and run core unit tests
         run: |
-          scons -C Godot unit_tests platform=linux target=template_debug -j2
+          scons -C Godot unit_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_core_tests
 
       - name: Build and run inference tests
         run: |
-          scons -C Godot inference_tests platform=linux target=template_debug -j2
+          scons -C Godot inference_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_inference_tests
 
       - name: Build and run transport tests
         run: |
-          scons -C Godot transport_tests platform=linux target=template_debug -j2
+          scons -C Godot transport_tests platform=linux target=template_debug integration_tests=yes -j2
           ./Godot/build/tests/schola_transport_tests
 
       - name: Upload extensions
@@ -169,6 +164,48 @@ jobs:
             Godot/addons/*/bin/linux/*.so
             Godot/addons/*/bin/linux/*.so.*
           if-no-files-found: error
+
+  prebuilt-windows:
+    name: Godot / Windows prebuilt dependency
+    needs: changes
+    if: needs.changes.outputs.godot == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          lfs: true
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: lfs.fetchinclude
+          GIT_CONFIG_VALUE_0: Godot/vendor/grpc/windows-x86_64.zip
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Enable MSVC
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module "$vs/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+          foreach ($name in 'PATH','INCLUDE','LIB','LIBPATH','VCToolsInstallDir','VSINSTALLDIR','WindowsSdkDir','WindowsSDKVersion') {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" >> $env:GITHUB_ENV }
+          }
+
+      - name: Test installer
+        run: python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v
+
+      - name: Install committed gRPC and protobuf
+        run: python Godot/tools/setup_grpc.py
+
+      - name: Verify gRPC generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
 
   smoke:
     name: Godot / smoke
@@ -191,17 +228,36 @@ jobs:
           name: godot-linux-debug
           path: Godot/addons
 
+      - name: Cache Godot download
+        id: godot-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: godot.zip
+          key: godot-linux-x86_64-4.7.2-cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+
       - name: Download Godot 4.7.2
+        if: steps.godot-cache.outputs.cache-hit != 'true'
         run: |
           curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
             --output godot.zip \
             https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+
+      - name: Verify and unpack Godot
+        run: |
           echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  godot.zip" \
             | sha256sum --check --strict
           unzip -q godot.zip
           chmod +x Godot_v4.7.2-stable_linux.x86_64
 
+      - name: Cache Godot test dependencies
+        id: gdunit-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: Godot/addons/gdUnit4
+          key: gdunit4-v1-${{ hashFiles('Godot/dependencies.lock.json', 'Godot/tools/setup_test_dependencies.py') }}
+
       - name: Install Godot test dependencies
+        if: steps.gdunit-cache.outputs.cache-hit != 'true'
         run: python Godot/tools/setup_test_dependencies.py
 
       - name: Import project resources
@@ -235,7 +291,7 @@ jobs:
 
   required:
     name: Godot / required
-    needs: [changes, format, build, smoke]
+    needs: [changes, format, build, prebuilt-windows, smoke]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 1
@@ -246,6 +302,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           FORMAT_RESULT: ${{ needs.format.result }}
           BUILD_RESULT: ${{ needs.build.result }}
+          WINDOWS_RESULT: ${{ needs.prebuilt-windows.result }}
           SMOKE_RESULT: ${{ needs.smoke.result }}
         run: |
           if [ "$CHANGES_RESULT" != "success" ]; then
@@ -262,6 +319,7 @@ jobs:
           for result in \
             "format:$FORMAT_RESULT" \
             "build:$BUILD_RESULT" \
+            "windows-prebuilt:$WINDOWS_RESULT" \
             "smoke:$SMOKE_RESULT"; do
             name=${result%%:*}
             status=${result#*:}

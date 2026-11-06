@@ -18,19 +18,19 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 
 Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`.
 
-gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. `python Godot/tools/setup_grpc.py` builds them from source with CMake into the git-ignored `thirdparty/grpc/`, together with the matching `protoc` and `grpc_cpp_plugin`, so generated code always matches the linked runtime. The build needs CMake 3.16 or newer and a C++17 compiler, takes several minutes, and is skipped when the pinned release is already installed. On Windows, pass a short `--work-dir` such as `C:\grpc` to avoid path-length failures. The script builds for the host architecture. The prebuilt archives under `Source/ThirdParty/` use Unreal's toolchain and cannot be linked into Godot. SCons generates C++ for the GymService protos from the repository-level `Proto/` directory into the git-ignored `generated/proto/`. Only the training extension links gRPC and Protocol Buffers, statically and with hidden symbols; the runtime target does not.
+gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. Godot-specific Windows/Linux x86_64 prebuilt packages are committed under [`vendor/grpc/`](vendor/grpc/), including headers, static libraries, matching generators, licenses, and build provenance. Run `uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py` locally to verify and unpack the host package into the git-ignored `thirdparty/grpc/`; normal installation never compiles or downloads gRPC. CI uses the same installer with its existing Python setup. Missing or incompatible packages fail clearly. See the [package and rebuild guide](vendor/grpc/README.md) for explicit source builds and other platforms. SCons generates GymService bindings from the shared `Proto/` directory into `generated/proto/`. Only the training extension links gRPC and protobuf; Unreal's binaries are not reused.
 
-On Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
+For an explicit source rebuild on Windows, install the Visual Studio C++ Build Tools and Windows SDK, then run setup from an **x64 Native Tools Command Prompt for VS 2022** or an x64 Visual Studio Developer PowerShell. For Ninja builds, select MSVC explicitly before running setup:
 
 ```powershell
 $env:CMAKE_GENERATOR = "Ninja"
 $env:CC = "cl"
 $env:CXX = "cl"
 Get-Command cl,ninja,cmake
-python Godot/tools/setup_grpc.py --work-dir C:\grpc
+uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py --from-source --force --work-dir C:\grpc
 ```
 
-Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run with `python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
+Ninja must be installed and available on `PATH`. Setup selects the static MSVC runtime for gRPC, c-ares, protobuf, and Abseil to match `godot-cpp`. An explicit `--work-dir` is deleted and recreated on each build attempt, including read-only Git pack files; use a directory dedicated to this build. Setup regression tests run locally with `uv run --no-project --python 3.12 python -m unittest discover -s Godot/tools -p test_setup_grpc.py -v`.
 
 Engine-independent C++ unit tests use the pinned Catch2 submodule and live under `tests/unit/`. Build and run them from the repository root with:
 
@@ -100,6 +100,160 @@ On macOS, use `platform=macos arch=arm64` and replace `$(nproc)` with `$(sysctl 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
+
+## Inspect the Schola UI
+
+### Agent identity
+
+`ScholaAgent.agent_id` stores the configured Inspector value. Leave it empty to
+use the agent node's name, or set it explicitly for an ID that stays the same when
+the node is renamed. `get_resolved_agent_id()` returns that effective ID without
+changing the saved property. Native adapters should use this method when registering
+an agent; `get_agent_id()` returns the configured value and may be empty.
+
+Use the same agent IDs when replicating an environment. Resolution uses the local
+node name rather than a full scene path, UUID, or instance ID, so copying an entire
+environment preserves its child agents' IDs when their names are unchanged.
+Resolved IDs must be unique within each environment; matching IDs across separate
+environments are intentional. Godot's sibling naming rules do not prevent equal
+names in different descendant branches, so this resolver alone does not validate
+environment-wide uniqueness. An empty fallback follows subsequent node renames;
+use an explicit ID when that is undesirable.
+
+`ScholaAgent.agent_type` is an optional policy-sharing label. Its configured value
+is preserved by `get_agent_type()`. Use `get_resolved_agent_type()` for the effective
+type: an explicit type takes precedence; an empty type falls back to the resolved
+agent ID, which itself falls back to the node name. Resolution does not change the
+saved properties. The integrated US1 adapter uses the resolved type when populating
+`InteractionDefinition::agent_type`; this resolver does not implement policy sharing.
+
+### Space resources and configuration warnings
+
+Assign `ScholaSpace` resources to the agent's `observation_space` and
+`action_space` fields. Both start unassigned and must be configured. The Inspector
+offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
+by US2, with inline help for their settings. Discrete and MultiBinary sizes start
+at zero and require a positive value; their Inspector fields provide positive-size
+range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
+
+Resources can be embedded in a scene or saved separately as `.tres` files. Shared
+resources intentionally share configuration; use Godot's Make Unique operation
+when an assignment needs an independent copy. The US5 owner has completed the
+manual editor persistence checks.
+
+Agent warning icons identify missing/invalid spaces and missing `_observe` or
+`_act` hooks. The environment also reports missing agents, missing
+`_get_step_result`, and duplicate resolved agent IDs, including the conflicting
+node paths. Nested environments are searched independently, so matching agent IDs
+across separate environments are allowed. `_reset_episode` is optional.
+
+Warnings refresh when resources (including nested Dict entries) or scripts change,
+and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
+inspect inherited script metadata; gameplay scripts do not need `@tool`.
+`get_configuration_errors()` checks resources and scene configuration; the editor
+adds missing-hook warnings. Runtime adapter calls still validate required hooks
+before invoking them.
+
+### Episode endings
+
+Schola does not impose a built-in episode step limit. The environment supplies
+termination and truncation results. Implement any desired time or step limit in
+your environment's `_get_step_result(agent)` hook by returning `truncated: true`.
+
+The native adapter calls `_act` for all acting agents, then `_observe` and
+`_get_step_result` for each agent in scene-tree order. The result hook returns a
+Dictionary with these fields:
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `reward` | Finite int or float within float32 range | Required |
+| `terminated` | bool: natural episode ending | `false` |
+| `truncated` | bool: user-defined external cutoff | `false` |
+| `info` | Dictionary of String/StringName keys and values | `{}` |
+
+Both flags may be true. Unknown fields, incorrect types, missing rewards, and
+nonfinite or overflowing rewards produce an error naming the agent. Values are
+not silently coerced. A missing hook is detected before any action runs. An
+invalid returned result is detected after actions have run, so the caller must
+end the training session; no partial result batch is published.
+
+```gdscript
+extends ScholaEnvironment
+
+@export var episode_length: int = 200 # A setting owned by this environment.
+
+func _reset_episode(_seed: Variant, _options: Dictionary) -> void:
+    # Restore your gameplay state here. The adapter resets its step counter.
+    pass
+
+func _get_step_result(agent: ScholaAgent) -> Dictionary:
+    return {
+        "reward": calculate_reward(agent), # Your gameplay reward function.
+        "terminated": reached_goal(agent), # Your gameplay ending condition.
+        "truncated": get_episode_step() + 1 >= episode_length,
+    }
+```
+
+`get_episode_step()` counts completed successful steps; add one when deciding
+whether the current step reaches your limit. Reset remains a separate optional
+`_reset_episode(seed, options)` hook: it returns no step result and awards no reward.
+Initial reset observations have empty `info`. The old `_get_reward`,
+`_is_terminated`, `_is_truncated`, and `_get_info` hooks are replaced by
+`_get_step_result`; they are no longer called.
+
+To exercise the C++ adapter through GdUnit4, build with the test-only driver enabled:
+
+```sh
+scons -C Godot platform=windows target=template_debug integration_tests=yes
+godot --headless --path Godot --import
+godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd
+```
+
+Use the platform appropriate to your machine. Normal builds omit the driver;
+the adapter suite is skipped when it is unavailable.
+
+The driver is a test-only bridge, not a production training host. Running an
+ordinary scene does not automatically initialize, reset, or step its environments.
+The current `examples/basic_environment/` scene is a registration probe. A gameplay
+example is outside US5's scope. `ScholaTrainingHost` supplies the production host;
+its integration-test environment uses `_get_step_result` for reward and completion.
+
+CI builds with `integration_tests=yes` so the adapter suite is exercised. Builds
+intended for distribution should omit that option to exclude the test driver.
+
+### Editor and runtime monitor
+
+The **AMD Schola** editor plugin uses GDScript and works in standard Godot without .NET. It is enabled in this project. Reopen the project after updating, or enable it in **Project → Project Settings → Plugins**.
+
+- Open the **Schola** dock beside the Inspector to see which native Schola classes are actually available. Refresh after changing the scene tree. Select a listed node to configure its existing properties in the Inspector.
+- Use **Add monitor to current scene** to insert a `CanvasLayer` and `ScholaMonitor`, with editor undo/redo support. You can also search for **ScholaMonitor** in Add Node. Its title and history limit are editable in the Inspector.
+- Use **Open interactive UI preview**, then **F6**, to inspect the runtime panel. Alternatively open `res://examples/ui_preview/main.tscn` directly. Next step, auto play/pause, new episode, terminate, and truncate operate on explicitly synthetic telemetry. This preview does not run a trainer or implement an RL environment.
+
+The runtime monitor displays episode and step counts, cumulative reward history, per-agent rewards and returns, and termination/truncation state. Feed it real data from the component that owns the lifecycle, on the Godot main thread:
+
+```gdscript
+@onready var monitor: ScholaMonitor = $ScholaHUD/ScholaMonitor
+
+func start_display_episode() -> void:
+    monitor.begin_episode(1, PackedStringArray(["player"]), 500)
+
+func display_step(reward: float) -> void:
+    monitor.record_step({"player": reward}) # Incremental reward, once per step.
+
+func display_episode_end(truncated: bool) -> void:
+    monitor.end_episode(truncated)
+```
+
+Each `record_step` call represents one environment step. Only IDs declared at the start of that episode are accepted; invalid reward batches are rejected together. Calls after episode end are ignored until the next `begin_episode`. The monitor does not control the environment or automatically end an episode at the displayed limit. The lifecycle owner supplies the actual end event. Missing native capabilities remain labeled unavailable in the editor dock.
+
+After installing the test dependencies described above, run the UI checks with:
+
+```sh
+godot --headless --path Godot \
+  -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests/integration/ui_test.gd
+```
 
 ## Running a trained policy
 
@@ -223,3 +377,7 @@ git ls-files ':(glob)Godot/**/*.cpp' ':(glob)Godot/**/*.h' | xargs clang-format 
 ```
 
 Run the check before opening a pull request. Format only team-owned source files. Repository workflow, testing expectations, generated-file rules, and review requirements are defined in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
+## Archived Deliverable 1 demo
+
+The original C#/.NET demo is preserved in [`archive/d1_demo/`](archive/d1_demo/) as a historical reference. It is not the production add-on and requires Godot .NET to run. The production add-on is the native C++ GDExtension described above; its environment and reward APIs are still under development, so the archived demo has not been ported.

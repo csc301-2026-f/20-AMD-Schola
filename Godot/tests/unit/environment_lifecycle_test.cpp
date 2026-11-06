@@ -384,8 +384,65 @@ TEST_CASE("completion waits for every agent and preserves finished state", "[lif
 	require_agent_state(second_result.agents.at("agent_1"), second_terminal);
 }
 
-// The lifecycle tracks steps but leaves truncation decisions to the environment.
-TEST_CASE("repeated steps never truncate an unfinished agent", "[lifecycle]") {
+// Truncation comes from the environment and completes the episode.
+TEST_CASE("environment truncation completes an episode", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment);
+
+	environment.step_states = {
+		{ "agent_0", make_agent_state(1, 0.5f) },
+	};
+	EnvironmentState first_result;
+	const Status first_step_result = lifecycle.step({ { "agent_0", make_point(0) } }, first_result);
+	REQUIRE(first_step_result.is_ok());
+	CHECK_FALSE(first_result.agents.at("agent_0").truncated);
+	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
+
+	environment.step_states = {
+		{ "agent_0", make_agent_state(2, 0.5f, false, true) },
+	};
+	EnvironmentState second_result;
+	const Status second_step_result = lifecycle.step({ { "agent_0", make_point(1) } }, second_result);
+	REQUIRE(second_step_result.is_ok());
+
+	CHECK(second_result.agents.at("agent_0").truncated);
+	CHECK_FALSE(second_result.agents.at("agent_0").terminated);
+	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);
+}
+
+// The lifecycle preserves the environment's flags, including unfinished agents.
+TEST_CASE("lifecycle preserves environment completion flags", "[lifecycle]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment, { "terminated", "truncated", "unfinished" });
+
+	const AgentState terminated = make_agent_state(1, 1.0f, true);
+	const AgentState truncated = make_agent_state(2, 2.0f, false, true);
+	environment.step_states = {
+		{ "terminated", terminated },
+		{ "truncated", truncated },
+		{ "unfinished", make_agent_state(3, 3.0f) },
+	};
+
+	EnvironmentState state;
+	const Status result = lifecycle.step(
+			{
+					{ "terminated", make_point(0) },
+					{ "truncated", make_point(0) },
+					{ "unfinished", make_point(0) },
+			},
+			state);
+
+	REQUIRE(result.is_ok());
+	require_agent_state(state.agents.at("terminated"), terminated);
+	require_agent_state(state.agents.at("truncated"), truncated);
+	CHECK_FALSE(state.agents.at("unfinished").truncated);
+	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
+}
+
+// Only the environment decides when an agent is truncated.
+TEST_CASE("lifecycle never automatically truncates an unfinished agent", "[lifecycle]") {
 	testing::FakeEnvironment environment;
 	EnvironmentLifecycle lifecycle(0, environment);
 	start_active(lifecycle, environment);
@@ -691,6 +748,7 @@ TEST_CASE("invalid action membership preserves lifecycle and output before calli
 	};
 	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).is_ok());
 	CHECK_FALSE(output.agents.at("agent_0").truncated);
+	CHECK(lifecycle.get_episode_step_count() == 1);
 }
 
 TEST_CASE("malformed successful environment responses fault without publishing partial state", "[lifecycle][regression]") {

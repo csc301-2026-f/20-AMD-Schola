@@ -107,6 +107,8 @@ func test_dict_that_contains_itself_reports_a_cycle() -> void:
 	space.spaces = {"mode": _discrete(2), "self": space}
 	assert_str(space.get_definition_error()).contains("at 'self': Dict contains itself")
 	assert_str(space.get_validation_error({"mode": 0})).is_not_empty()
+	# RefCounted cannot release a self-reference; break the intentionally invalid graph.
+	space.spaces = {}
 
 
 func test_dict_used_twice_is_not_a_cycle() -> void:
@@ -152,6 +154,27 @@ func test_integer_box_needs_whole_bounds_and_values() -> void:
 	assert_str(space.get_validation_error(PackedFloat32Array([0.0, 0.5]))).contains("needs a whole number")
 	space.low = PackedFloat32Array()
 	assert_str(space.get_definition_error()).contains("dtype uint8 needs a whole number in [0, 255]")
+
+
+func test_dict_forwards_nested_changes_once_and_disconnects_replaced_children() -> void:
+	var old_child := _discrete(2)
+	var nested := ScholaDictSpace.new()
+	nested.spaces = {"left": old_child, "right": old_child}
+	var outer := ScholaDictSpace.new()
+	outer.spaces = {"nested": nested}
+	var changes: Array[int] = [0]
+	outer.changed.connect(func(): changes[0] += 1)
+
+	old_child.n = 3
+	assert_int(changes[0]).is_equal(1)
+
+	var replacement := _discrete(4)
+	nested.spaces = {"replacement": replacement}
+	assert_int(changes[0]).is_equal(2)
+	old_child.n = 5
+	assert_int(changes[0]).is_equal(2)
+	replacement.n = 6
+	assert_int(changes[0]).is_equal(3)
 
 
 func test_integer_box_checks_values_before_narrowing_to_float32() -> void:

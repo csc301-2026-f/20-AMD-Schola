@@ -125,6 +125,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 	}
 
 	episode_step_count++;
+
 	for (const auto &[agent_id, agent_state] : step_states) {
 		last_state.agents[agent_id] = agent_state;
 	}

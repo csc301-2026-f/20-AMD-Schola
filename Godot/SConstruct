@@ -238,13 +238,18 @@ def build_extension(
         suffix,
         extension_environment.subst("$SHLIBSUFFIX"),
     )
+    sources = sources_under(*source_directories) + list(extra_sources)
+    if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+        # Keep test-only flags out of godot-cpp and the other target environments.
+        extension_environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
+        sources += sources_under("tests/integration/native")
     # Each extension compiles src/core with its own flags, so their objects are kept apart.
     library = extension_environment.SharedLibrary(
         f"build/{platform_name}/{library_filename}",
         source=objects_in(
             f"build/{platform_name}/{name}",
             extension_environment.SharedObject,
-            sources_under(*source_directories) + list(extra_sources),
+            sources,
             extension_environment.subst("$SHOBJSUFFIX"),
         ),
     )

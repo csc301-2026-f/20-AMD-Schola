@@ -21,12 +21,13 @@
   },
   "grpc": {
     "status": "awaiting-amd-approval",
-    "source": "git-source-build",
+    "source": "repository-prebuilt",
     "url": "https://github.com/grpc/grpc.git",
     "tag": "v1.80.0",
     "commit": "f5e2d6e856176c2f6b7691032adfefe21e5f64c1",
     "install_path": "Godot/thirdparty/grpc",
-    "note": "Built from source by Godot/tools/setup_grpc.py. Matches the Unreal reference build (Source/ThirdParty/gRPC), whose prebuilt archives use Unreal's toolchain and cannot be linked into Godot."
+    "package_path": "Godot/vendor/grpc",
+    "note": "Godot-specific Windows/Linux x86_64 packages are committed with SHA-256 manifests, licenses, and build provenance. setup_grpc.py verifies and installs them offline; --from-source explicitly rebuilds them. Unreal's binaries are not reused."
   },
   "protobuf": {
     "status": "awaiting-amd-approval",

@@ -1,0 +1,60 @@
+name: Rebuild vendored gRPC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - name: Check out source and pins
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Enable MSVC
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module "$vs/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+          foreach ($name in 'PATH','INCLUDE','LIB','LIBPATH','VCToolsInstallDir','VSINSTALLDIR','WindowsSdkDir','WindowsSDKVersion') {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value) { "$name=$value" >> $env:GITHUB_ENV }
+          }
+          Get-Command ninja
+          "CMAKE_GENERATOR=Ninja" >> $env:GITHUB_ENV
+          "CC=cl" >> $env:GITHUB_ENV
+          "CXX=cl" >> $env:GITHUB_ENV
+
+      - name: Rebuild pinned dependency
+        shell: bash
+        run: python Godot/tools/setup_grpc.py --from-source --force --work-dir "${RUNNER_TEMP}/grpc"
+
+      - name: Verify generators and static libraries
+        run: python Godot/tools/verify_grpc_package.py
+
+      - name: Package with provenance and checksums
+        run: python Godot/tools/package_grpc.py --output grpc-packages
+
+      - name: Upload package for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: grpc-${{ runner.os }}-${{ runner.arch }}
+          path: grpc-packages/*
+          if-no-files-found: error
+          retention-days: 14
