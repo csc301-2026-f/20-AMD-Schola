@@ -174,6 +174,8 @@ Generate the default reference policy before using `--expect-success`. Omit that
 
 CI also runs two headless instances for 20 total episodes with `python/train_parallel.py`, verifies the saved episode count and ONNX output, and runs the smoke check again after Python exits. Packaging builds debug and release runtime libraries for each platform, then runs these host/ONNX checks against both the source project and exported application. See [Godot CI](../../../.github/workflows/godot.yml) and [D3 packaging](../../../.github/workflows/d3-release.yml).
 
+Release executables disable command-line script overrides. To check a packaged application, launch it with `--headless -- --smoke-test --require-policy --expect-success` instead of `-s`. This runs the same suite through the demo's application entry point. CI requires the `D3 smoke checks passed` completion marker and stops a packaged check after 60 seconds.
+
 ## Configuration and troubleshooting
 
 | Setting or symptom | Action |

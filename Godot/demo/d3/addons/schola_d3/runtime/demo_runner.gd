@@ -86,6 +86,12 @@ var _last_progress := {}
 
 
 func _ready() -> void:
+	# Release templates disable --script overrides; run the shared checks from
+	# an application argument inside the exported game's normal scene tree.
+	if "--smoke-test" in OS.get_cmdline_user_args():
+		var suite: Node = load("res://tests/d3_smoke_suite.gd").new()
+		get_tree().root.add_child.call_deferred(suite)
+		return
 	add_to_group(GROUP)
 	_apply_command_line()
 	# The host discovers environments under the current scene, which is set after _ready().

@@ -173,6 +173,7 @@ jobs:
           Copy-Item -Recurse -Force godot-templates/templates/* $templateDirectory
 
       - name: Export demo
+        timeout-minutes: 5
         shell: pwsh
         run: |
           $editor = Resolve-Path "godot-editor/${{ matrix.editor_path }}"
@@ -225,6 +226,7 @@ jobs:
           }
 
       - name: Smoke-test package
+        timeout-minutes: 2
         shell: pwsh
         run: |
           if ($env:RUNNER_OS -eq "macOS") {
@@ -236,14 +238,27 @@ jobs:
           }
           if ($env:RUNNER_OS -ne "Windows") {
             chmod +x $executable.FullName
-            & $executable.FullName --headless -s res://tests/d3_smoke.gd -- --require-policy --expect-success
-            $smokeExitCode = $LASTEXITCODE
-          } else {
-            $process = Start-Process -FilePath $executable.FullName -ArgumentList "--headless", "-s", "res://tests/d3_smoke.gd", "--", "--require-policy", "--expect-success" -Wait -PassThru -WindowStyle Hidden
-            $smokeExitCode = $process.ExitCode
           }
-          if ($smokeExitCode -ne 0) {
-            throw "Packaged demo smoke test failed with exit code $smokeExitCode"
+          $stdout = "$env:RUNNER_TEMP/d3-package-smoke.log"
+          $stderr = "$env:RUNNER_TEMP/d3-package-smoke-error.log"
+          $launch = @{
+            FilePath = $executable.FullName
+            ArgumentList = @("--headless", "--", "--smoke-test", "--require-policy", "--expect-success")
+            PassThru = $true
+            RedirectStandardOutput = $stdout
+            RedirectStandardError = $stderr
+          }
+          if ($env:RUNNER_OS -eq "Windows") { $launch.WindowStyle = "Hidden" }
+          $process = Start-Process @launch
+          $finished = $process.WaitForExit(60000)
+          if (-not $finished) { $process.Kill($true); $process.WaitForExit() }
+          Get-Content $stdout, $stderr
+          if (-not $finished) { throw "Packaged smoke test exceeded 60 seconds" }
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged demo smoke test failed with exit code $($process.ExitCode)"
+          }
+          if (-not (Select-String -Quiet -SimpleMatch "D3 smoke checks passed" $stdout)) {
+            throw "Packaged demo did not complete the smoke suite"
           }
 
       - name: Archive package
@@ -271,7 +286,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: d3-diagnostics-${{ matrix.platform }}-${{ matrix.arch }}
-          path: Godot/demo/d3/python/logs/
+          path: ${{ runner.temp }}/d3-package-smoke*.log
           if-no-files-found: ignore
 
   release:
