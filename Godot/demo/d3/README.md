@@ -1,6 +1,7 @@
 # D3 demo
 
 The [D2 demo](../d2)'s grid world, rebuilt on the current Schola GDExtension and drawn in 2D:
+
 1. Godot sends observations and rewards to a local Python trainer.
 2. Godot applies the trainer's actions to the agent.
 3. The trained policy is exported to ONNX and runs in Godot with Python closed.
@@ -31,25 +32,55 @@ These follow from the current US1 and US4 contracts:
 ## Requirements
 
 - Godot 4.7.2
-- Python with `gymnasium`, `numpy`, `onnx`, and `onnxruntime`. Install them into a virtual environment with `python -m pip install gymnasium numpy onnx onnxruntime`.
+- Python 3.12 with the training/export packages pinned in [`python/requirements.txt`](python/requirements.txt). From the repository root, install them into a virtual environment with `python -m pip install -r Godot/demo/d3/python/requirements.txt`.
+- For building from source: initialized Git submodules, a supported C++ compiler, and the pinned SCons build tools. Follow the [root setup instructions](../../../README.md#instructions) first.
+
+## Packaged demo
+
+Download a **D3 development** prerelease from [GitHub releases](https://github.com/csc301-2026-f/20-AMD-Schola/releases), or the final [D3 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D3) once published. Extract the archive for your platform and launch the application. Manual play, map editing, and **Policy** playback need no Python installation. A deterministic shortest-path reference ONNX model is included for the default map; it is not a trained-policy result.
+
+Use the source project below for **Train** and **Parallel training**. Packaged exports do not include the Python trainer. Policies fit the layout they were created for; restore the default map before using the bundled reference policy, or train a new model from source.
 
 ## Run
 
-1. Download ONNX Runtime, build the extension, and copy both libraries into the demo:
+1. Download ONNX Runtime, build only the runtime extension, and copy both libraries into the demo. From a Windows developer PowerShell:
+
+   ```powershell
+   python Godot/tools/setup_onnxruntime.py
+   scons -C Godot schola platform=windows target=template_debug
+   New-Item -ItemType Directory -Force Godot/demo/d3/addons/schola/bin/windows
+   Copy-Item Godot/addons/schola/bin/windows/*.dll Godot/demo/d3/addons/schola/bin/windows/
+   ```
+
+   `ScholaTrainingHost` is part of the runtime extension, so the demo does not need the `schola_training` add-on.
+
+   On Linux:
+
    ```sh
    python Godot/tools/setup_onnxruntime.py
-   scons -C Godot platform=windows target=template_debug
-   mkdir -p Godot/demo/d3/addons/schola/bin/windows
-   cp Godot/addons/schola/bin/windows/schola.windows.template_debug.x86_64.dll Godot/addons/schola/bin/windows/onnxruntime.dll Godot/demo/d3/addons/schola/bin/windows/
+   scons -C Godot schola platform=linux target=template_debug -j2
+   mkdir -p Godot/demo/d3/addons/schola/bin/linux
+   cp Godot/addons/schola/bin/linux/*.so* Godot/demo/d3/addons/schola/bin/linux/
    ```
-   `ScholaTrainingHost` is part of the runtime extension, so the demo does not need the `schola_training` add-on.
-2. **Policy** needs a trained model. If you don't have one yet, train first with **Train** and then **Stop**, or create the reference policy:
+
+   On macOS arm64:
+
+   ```sh
+   python Godot/tools/setup_onnxruntime.py
+   scons -C Godot schola platform=macos arch=arm64 target=template_debug -j2
+   mkdir -p Godot/demo/d3/addons/schola/bin/macos
+   cp Godot/addons/schola/bin/macos/libschola.macos.template_debug.arm64.dylib Godot/demo/d3/addons/schola/bin/macos/libschola.macos.template_debug.dylib
+   cp Godot/addons/schola/bin/macos/libonnxruntime.1.dylib Godot/demo/d3/addons/schola/bin/macos/
+   ```
+
+2. **Policy** needs an ONNX model. Train first with **Train** and then **Stop**, or create the reference policy below. These commands overwrite any existing `q_policy.json` and `q_policy.onnx`; keep a copy of a learned model you want to preserve.
+
    ```sh
    python Godot/demo/d3/python/create_reference_policy.py
    python Godot/demo/d3/python/export_onnx.py
    ```
 3. Open `Godot/demo/d3/project.godot` in Godot.
-4. On the `Runner` node, set `python_executable` to a Python that has the packages above, for example `.venv/Scripts/python.exe`.
+4. On the `Runner` node, set `python_executable` to the absolute path of a Python that has the packages above, for example `C:/path/to/checkout/.venv/Scripts/python.exe`. Relative executable paths are not resolved from the repository root reliably.
 5. Press F5 or the Play button.
 
 ## Changing the map
@@ -127,7 +158,7 @@ After building and copying the runtime extension, import the project and run the
 
 ```sh
 godot --headless --path Godot/demo/d3 --editor --quit
-godot --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd
+godot --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd -- --require-policy --expect-success
 ```
 
 The check drives the scene through its own `ScholaTrainingHost` session, without Python. It verifies:
@@ -135,7 +166,27 @@ The check drives the scene through its own `ScholaTrainingHost` session, without
 - the scene configuration, agent ID, spaces, and 40-step limit;
 - seeded resets;
 - the goal, hazard, and timeout outcomes and their rewards;
-- that an ONNX policy at `policies/q_policy.onnx` loads and produces valid actions, when that file exists.
+- that an ONNX policy at `policies/q_policy.onnx` loads and produces valid actions;
+- that the default reference model reaches the goal with `--expect-success`;
+- that all check groups complete, so a script runtime error cannot silently return success.
+
+Generate the default reference policy before using `--expect-success`. Omit that flag for a newly trained model; omit `--require-policy` only when intentionally checking the host without inference. CI requires the model and checks both reference playback and playback of a short training run's export.
+
+CI also runs two headless instances for 20 total episodes with `python/train_parallel.py`, verifies the saved episode count and ONNX output, and runs the smoke check again after Python exits. Packaging builds debug and release runtime libraries for each platform, then runs these host/ONNX checks against both the source project and exported application. See [Godot CI](../../../.github/workflows/godot.yml) and [D3 packaging](../../../.github/workflows/d3-release.yml).
+
+## Configuration and troubleshooting
+
+| Setting or symptom | Action |
+| --- | --- |
+| Extension classes are missing | Build the current runtime, copy its libraries into this demo, and re-import. Old binaries can disagree with the current scripts. |
+| Python cannot import packages | Set `Runner.python_executable` to the virtual environment's absolute executable path. |
+| Port 8000 is busy | Close the other instance or launch with `-- --port=8001`; use the same port in the trainer. |
+| No trainer connects | Check the Python path and log panel; the default start timeout is 45 seconds. With `auto_launch_trainer` disabled, run the trainer yourself. |
+| Model is missing or incompatible | Generate the default reference model or train and export for the current spaces. **Policy** displays the model-loading error. |
+| Map differs from the model's layout | Restore **Default** or retrain. Saved maps live at `user://d3_map.json`; trained map metadata lives beside the model. |
+| Session shows CLOSED | Select **Reload** to create a new host session. |
+
+The scene's exported properties are the configuration template: `Runner.port` defaults to 8000, `python_executable` to `python`, `start_timeout_sec` to 45, `step_timeout_sec` to 60, and the model path to `res://policies/q_policy.onnx`. Training communication binds to `127.0.0.1`; the parallel viewer uses loopback UDP port 9100 by default. No API keys or passwords are required. The local demo is intended for trusted local processes, and does not provide remote authentication.
 
 ## Controls
 

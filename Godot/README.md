@@ -4,6 +4,14 @@ This directory contains the Godot port of AMD Schola. The design keeps reusable 
 
 Repository workflow and contribution requirements are defined in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Binding engineering rules are defined in the [`Godot development contract`](docs/development_contract.md). This guide contains the supported toolchain and executable development commands.
 
+## Current D3 example and automation
+
+The [D3 demo](demo/d3/README.md) exercises the native environment/agent adapters, `ScholaTrainingHost`, and ONNX inference. It uses only the runtime extension: build with the `schola` target to avoid installing or linking the unfinished production gRPC transport. The demo's localhost JSON/TCP connector and tabular trainer remain temporary integration code.
+
+The [Godot workflow](../.github/workflows/godot.yml) runs formatting, native and Godot tests, D3 reference-policy playback, and a two-instance, 20-episode training/export/playback check. [D3 packaging](../.github/workflows/d3-release.yml) builds debug/release runtime libraries and desktop packages, checks both source and exported applications, and participates in the aggregate required PR check. Successful `main` runs publish commit-specific development prereleases; the `D3` tag publishes the final course snapshot. Manual dispatch and `D3-test-*` tags produce artifacts without publishing. Confirm platform results in Actions before describing a package as verified.
+
+Every runner job has a timeout. Native compilation, especially cold debug/release builds of `godot-cpp`, needs a longer allowance than formatting and publication; SCons output caches reduce repeated work. The optional source rebuild of gRPC has its own 90-minute limit and does not run in normal PR checks or D3 packaging. Standard GitHub-hosted runners for this public repository do not consume the course organization's shared private-repository minutes allocation.
+
 ## Supported toolchain
 
 | Component | Initial baseline |
