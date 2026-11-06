@@ -378,6 +378,6 @@ git ls-files ':(glob)Godot/**/*.cpp' ':(glob)Godot/**/*.h' | xargs clang-format 
 
 Run the check before opening a pull request. Format only team-owned source files. Repository workflow, testing expectations, generated-file rules, and review requirements are defined in [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-## Archived Deliverable 1 demo
+## Deliverable 1 demo
 
-The original C#/.NET demo is preserved in [`archive/d1_demo/`](archive/d1_demo/) as a historical reference. It is not the production add-on and requires Godot .NET to run. The production add-on is the native C++ GDExtension described above; its environment and reward APIs are still under development, so the archived demo has not been ported.
+The original C#/.NET prototype is preserved in [`demo/d1/`](demo/d1/) as the frozen Deliverable 1 demo and requires Godot .NET to run. It is a historical prototype, not evidence of current production functionality. See the [demo index](demo/README.md) for milestone demos. The production add-on is the native C++ GDExtension described above.
