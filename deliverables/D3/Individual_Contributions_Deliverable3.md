@@ -29,8 +29,14 @@
 - Added parallel training to the demo: a launcher that starts N headless instances with their own ports and host sessions, a trainer that steps them in lockstep to learn one shared Q-table (3.0× faster with 4 instances, 5.0× with 8), and a single-window viewer showing a live board per instance ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
 - Added map editing to the demo (toggle hazards, move the goal, resize from 3×3 to 10×10, save to `user://d3_map.json`). Observation bounds follow the map size, and policies record their training map so playback warns on a mismatch. Also added the compact 2D HUD, export presets, the demo README, and the headless `d3_smoke.gd` test covering seeding, goal, hazard, timeout, custom maps, and ONNX playback ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
 
-**[Name]**, [Role]
-> [Specific contributions]
+## Guneev Pannu - US3 training-message conversion
+
+- Implemented the US3 conversions between GymService protobuf messages and Schola's engine-independent training types ([PR #38](https://github.com/csc301-2026-f/20-AMD-Schola/pull/38)) so Schola can work and survive indepentendly of protobuf's behaviour
+- Fixed training replies that flattened multi-dimensional Box observations and lost dtype ([PR #40](https://github.com/csc301-2026-f/20-AMD-Schola/pull/40)). SO a 2 x 3 observation doesn't get collapsed into a 1 x 6 array
+- Both changes merged into the US3 gRPC connector branch and shipped with the transport packaging PR ([PR #35](https://github.com/csc301-2026-f/20-AMD-Schola/pull/35)). Co-authored the vendored gRPC/protobuf dependency packaging ([PR #41](https://github.com/csc301-2026-f/20-AMD-Schola/pull/41)).
+- Added `Godot/tools/test.sh` so unit, inference, transport, and integration suites can be built and run from one easy entry point.
+- Extended US4 so agent membership can change during a session: possible IDs and spaces stay fixed in the training definition, while live agents may spawn or leave at reset/step boundaries. Not merged yet (`Guneev/dynamic-training-populations`). Lets rl environments where agents can spawn other agents.
+
 
 **[Name]**, [Role]
 > [Specific contributions]
