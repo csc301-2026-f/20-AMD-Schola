@@ -11,7 +11,7 @@ Schola for Godot ports AMD's reinforcement-learning toolkit to Godot 4.7. Develo
 
 D3 replaces the D2 demo's scripted environment and lifecycle stand-ins with native `ScholaEnvironment`, `ScholaAgent`, and `ScholaTrainingHost` implementations. The current 2D grid-world adds editable maps and a viewer for parallel training, and runs exported ONNX policies through the current per-agent state API. Training still uses a temporary localhost JSON/TCP connector and tabular Q-learning; production gRPC integration is unfinished.
 
-Read the [D3 demo guide](Godot/demo/d3/README.md) for controls and the [product-evolution report](deliverables/D3/product-evolution.md) for the D2 comparison, implementation decisions, evidence, and remaining work.
+Watch the [D3 demo video](https://youtu.be/JGB_9ZzR93k), read the [D3 demo guide](Godot/demo/d3/README.md) for controls, and see the [product-evolution report](deliverables/D3/product-evolution.md) for the D2 comparison, implementation decisions, evidence, and remaining work.
 
 ```mermaid
 flowchart LR
