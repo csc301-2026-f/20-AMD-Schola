@@ -6,7 +6,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 |---|---|---|---|
 | [US1](US1.md) | Define a reinforcement-learning environment | Isaac and Sanjay | Complete |
 | [US2](US2.md) | Declare observation and action spaces | Jimmy | Core and Godot resources complete; protobuf tests wired into transport CI |
-| [US3](US3.md) | Connect to existing Python training tools | Sanjay | In progress |
+| [US3](US3.md) | Connect to existing Python training tools | Sanjay and Isaac | In progress |
 | [US4](US4.md) | Execute the episode lifecycle | Shahyar | Complete |
 | [US5](US5.md) | Configure Schola through Godot-native tools | Vansh | Core bindings implemented |
 | [US7](US7.md) | Run and ship an ONNX policy | Bohdan | Complete |
