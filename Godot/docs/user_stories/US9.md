@@ -1,8 +1,9 @@
 # US9: Test an environment without Python
 
 - **Owner:** Unassigned
-- **Status:** Proposed
-- **Last updated:** Oct. 30, 2026
+- **Status:** Approved; implementation progress not yet reported
+- **Priority:** Stretch goal
+- **Last updated:** Nov. 6, 2026
 
 ## Story
 
