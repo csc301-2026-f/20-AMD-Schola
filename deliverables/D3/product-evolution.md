@@ -16,6 +16,12 @@ The [D3 demo, PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42), u
 
 Integration required respecting session lifetime. An environment initializes once, and its declared spaces remain fixed for the session. The demo therefore uses disabled autoreset, reloads after map changes, and validates incoming actions before a host step. If a host failure closes the session, the UI reports that state and offers reload instead of attempting to reuse an invalid session. These constraints are documented in the [D3 guide](../../Godot/demo/d3/README.md#host-session-rules).
 
+### Improve Godot-native configuration
+
+US5 improved scene configuration through live editor warnings for missing hooks, invalid spaces, and duplicate agent IDs, refreshing as scripts, resources, and scene structure change. Identity defaults preserve saved Inspector values. The Schola dock adds scene-node inspection and monitor insertion, while a reusable telemetry monitor displays episode progress and per-agent rewards supplied by lifecycle code. Configuration, persistence, callback, and monitor regression tests support these changes ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+
+AMD's feedback in [partner meeting 6](../team/minutes/partner-meeting-06.md#us5-godot-native-scene-nodes) also shaped episode-limit handling. The proposed `MaxEpisodeSteps` node was judged too special-purpose, so US5 removed built-in step-limit handling and left environment authors to report `truncated: true` through `_get_step_result(agent)`. This keeps task-specific cutoff rules in the environment while preserving the shared lifecycle's distinction between termination and truncation.
+
 ### Update inference and make the task inspectable
 
 [PR #16](https://github.com/csc301-2026-f/20-AMD-Schola/pull/16) implements the current policy, recurrent-state, Godot binding, and packaging design. D3 initializes `ScholaOnnxPolicy` against the agent, creates a per-agent `ScholaPolicyState`, and resets that state between episodes. The demo's previous GDScript Q-table playback path is removed; playback uses ONNX Runtime with Python closed. Python still saves a Q-table as training output, then converts it to ONNX and compares the exported model's actions with the table.
