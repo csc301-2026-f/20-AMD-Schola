@@ -1,8 +1,9 @@
 # US8: Compose agents from reusable sensors and actuators
 
 - **Owner:** Unassigned
-- **Status:** Proposed
-- **Last updated:** Oct. 30, 2026
+- **Status:** Approved; implementation progress not yet reported
+- **Priority:** MVP (highest priority)
+- **Last updated:** Nov. 6, 2026
 
 ## Story
 
