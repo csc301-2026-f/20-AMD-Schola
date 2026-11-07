@@ -37,6 +37,27 @@
 - Added `Godot/tools/test.sh` so unit, inference, transport, and integration suites can be built and run from one easy entry point.
 - Extended US4 so agent membership can change during a session: possible IDs and spaces stay fixed in the training definition, while live agents may spawn or leave at reset/step boundaries. Not merged yet (`Guneev/dynamic-training-populations`). Lets rl environments where agents can spawn other agents.
 
+## Vansh Sehrawat - Godot configuration, editor tools, and partner liaison (US5)
 
-**[Name]**, [Role]
-> [Specific contributions]
+- Extended the native US5 bindings with Godot-native agent and environment configuration ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)). Empty agent IDs now resolve to the node name, and empty agent types resolve to the effective agent ID, without changing saved Inspector values. Integrated these defaults into the US1 adapters and added Inspector help for identities, observation/action spaces, defaults, and resource sharing.
+- Implemented live configuration warnings for missing or invalid spaces, missing agents, duplicate resolved IDs, and missing required behavior hooks. Duplicate-ID warnings identify both conflicting node paths. Warnings refresh after nested-resource edits, script changes, agent addition/removal, renaming, and reparenting; inherited hooks are recognized without running gameplay scripts in the editor ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+- Consolidated reward, termination, truncation, and info callbacks into `_get_step_result(agent)`, while keeping `_reset_episode(seed, options)` separate. Added strict validation for finite float32 rewards, boolean completion flags, and string-to-string info, with agent-specific errors and no partial result batches. Updated the native adapter and integration-test environments to use the revised contract ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+- Applied AMD's feedback on episode limits by removing built-in step-limit handling from the node API and lifecycle, and dropping the proposed special-purpose `MaxEpisodeSteps` node. Environment authors now implement cutoffs through `truncated: true`; documented the distinction between natural termination and external truncation ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+- Built the GDScript Schola editor dock with native-capability reporting, scene-node selection, and undoable monitor insertion. Added `ScholaMonitor` for externally supplied episode/step counts, per-agent rewards and returns, completion status, and bounded reward history, plus an interactive preview using sample telemetry. Fixed the dock layout so it stays within the editor window ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+- Added regression coverage for identity defaults and scene persistence, configuration diagnostics, callback ordering and validation, user-defined truncation, and monitor behavior. Added the optional native adapter test driver, enabled it in CI, and fixed a test-driver crash. Completed manual editor persistence checks and recorded the Windows build, integration-test, warning-refresh, and layout verification in the US5 progress documentation ([PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39)).
+
+## Sanjay Ram - Developer & Meeting Manager (US1, US3, QA, Meeting Notes)
+
+- Implemented the environment adaptor, connecting Schola's environment API to a ScholaEnvironment scene. This builds on US1's agent adapter. ([PR #34](https://github.com/csc301-2026-f/20-AMD-Schola/pull/34))
+- Worked on ([PR #35](https://github.com/csc301-2026-f/20-AMD-Schola/pull/35)), with the following changes done:
+    - Removed non blocking polling methods from the connector loop based on partner feedback, and only kept the blocking method
+    - Set up the gRPC and Protobuf build for Godot
+    - Wrote a python scrip thta tbuilds versions in the dependency json for Windows and Linux.
+    - Also integrated gRPC configs to our SCons build.
+    - Also added macOS configurations as well.
+    - Adjusted the CI so it builds the gRPC, and with coordination with Shahyar, integrated a cache to save time with the CI time.
+- QA work, reviewing and approving 3 PRs:
+    - [PR #33](https://github.com/csc301-2026-f/20-AMD-Schola/pull/33)
+    - [PR #38](https://github.com/csc301-2026-f/20-AMD-Schola/pull/38)
+    - [PR #40](https://github.com/csc301-2026-f/20-AMD-Schola/pull/40).
+- Recorded the minutes for partner meeting 7 and TA meeting 4.
