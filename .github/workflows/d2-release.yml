@@ -233,6 +233,7 @@ jobs:
 
   release:
     name: Publish D2 release
+    timeout-minutes: 5
     if: github.ref == 'refs/tags/D2'
     needs: package
     runs-on: ubuntu-22.04

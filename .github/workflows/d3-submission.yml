@@ -1,0 +1,66 @@
+name: D3 submission tag
+
+on:
+  schedule:
+    # November 6, 2026 at 11:30 p.m. America/Toronto (UTC-5).
+    - cron: "30 4 7 11 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d3-submission
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Tag merged D3 submission
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Check date and branch
+        id: guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Run this workflow from main."
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$(date -u +%F)" != "2026-11-07" ]; then
+            echo "Outside the one-time submission date; skipping." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create submission tag
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          # Listing refs lets authentication/network errors fail instead of looking like a missing tag.
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/D3" --jq '.[] | select(.ref == "refs/tags/D3") | .object.sha')
+          if [ -n "$existing" ]; then
+            echo "D3 already exists ($existing); leaving it unchanged." >> "$GITHUB_STEP_SUMMARY"
+          else
+            tag_sha=$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/tags" \
+              -f tag=D3 -f message='D3 submission' -f object="$main_sha" -f type=commit --jq '.sha')
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref=refs/tags/D3 -f sha="$tag_sha"
+            echo "Created D3 at $main_sha." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Start release packaging at the tagged commit
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Tags created with GITHUB_TOKEN do not trigger push workflows.
+          gh workflow run d3-release.yml --repo "$GITHUB_REPOSITORY" --ref D3
+          echo "Packaging dispatched for D3: https://github.com/$GITHUB_REPOSITORY/actions/workflows/d3-release.yml" >> "$GITHUB_STEP_SUMMARY"

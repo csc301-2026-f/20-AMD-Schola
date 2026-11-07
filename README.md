@@ -1,137 +1,168 @@
 # Schola for Godot
 
-Schola for Godot is a Godot 4.7 port of AMD's Schola reinforcement-learning toolkit, developed by CSC301 Team 20 in partnership with AMD. The project gives Godot developers engine-native building blocks for defining reinforcement-learning environments, training agents through Python, and running exported ONNX policies without a live training process.
+Schola for Godot ports AMD's reinforcement-learning toolkit to Godot 4.7. Developers define environments and agents with native nodes, train a policy through Python, and run exported ONNX policies inside Godot without shipping Python. CSC301 Team 20 develops the port in partnership with AMD.
 
 ## Partner introduction
-
-AMD maintains the open-source Schola reinforcement-learning toolkit and is the partner organization for this project.
 
 - **Primary contact:** Alexander Cann, Member of Technical Staff, [alexander.cann@amd.com](mailto:alexander.cann@amd.com)
 - **Secondary contact:** TianYue "Michael" Liu, Senior Software Engineer, [tianyliu@amd.com](mailto:tianyliu@amd.com)
 
-## Project description and value
+## D3 improvement highlight
 
-AMD Schola currently connects Unreal Engine environments to Python reinforcement-learning frameworks. This project brings the same workflow to Godot: developers define environments and agents with engine-native APIs, train them through Schola's Python tooling, export trained policies to ONNX, and run those policies inside Godot without shipping Python. The port avoids requiring each Godot developer to build custom training transport, episode coordination, and inference infrastructure.
+D3 replaces the D2 demo's scripted environment and lifecycle stand-ins with native `ScholaEnvironment`, `ScholaAgent`, and `ScholaTrainingHost` implementations. The current 2D grid-world adds editable maps and a viewer for parallel training, and runs exported ONNX policies through the current per-agent state API. Training still uses a temporary localhost JSON/TCP connector and tabular Q-learning; production gRPC integration is unfinished.
 
-## Guiding principles
+Read the [D3 demo guide](Godot/demo/d3/README.md) for controls and the [product-evolution report](deliverables/D3/product-evolution.md) for the D2 comparison, implementation decisions, evidence, and remaining work.
 
-- **Shared semantics, engine-native interfaces:** Godot and Unreal should expose the same Schola capabilities, but each integration should present them through the conventions of its engine rather than copying the other engine's class structure.
-- **Follow Godot composition patterns:** Use nodes for scene-owned behavior, lifecycle, transforms, and per-frame processing; use resources for reusable serialized configuration and data; use signals for events and asynchronous completion; and use Inspector configuration warnings for invalid scene setup.
-- **Preserve cross-engine maintainability:** Prefer capabilities that already exist in Schola or can reasonably be represented in both Godot and Unreal. A Godot-specific form, such as a child node, is acceptable; Godot-only training semantics require a clear user benefit and partner approval.
-- **Keep the portable core engine-independent:** Reinforcement-learning contracts, lifecycle rules, and validation belong in reusable core code. Godot bindings translate those contracts into Godot types and workflows without introducing engine dependencies into the core.
-- **Add the smallest useful abstraction:** Do not introduce generalized frameworks, custom editor tooling, or performance complexity before a concrete workflow requires them. Complete and validate the end-to-end training and inference paths first.
+```mermaid
+flowchart LR
+    Python[Python trainer] <-->|Local JSON/TCP| Runner[D3 demo runner]
+    Runner --> Host[Native training host]
+    Host --> Environment[Native environment and agent adapters]
+    Policy[ONNX policy, Python closed] --> Runner
+    Manual[Keyboard controls] --> Runner
+```
 
-## Key features
+**Training:** the local Python trainer controls the agent, and the reward graph updates as episodes finish.
 
-- **Godot-native environment definition:** Configure environments and agents through Godot nodes and the Inspector.
-- **Typed observation and action spaces:** Represent and validate Box, Discrete, MultiDiscrete, MultiBinary, and Dict values.
-- **Python training integration:** Exchange environment definitions, observations, actions, rewards, and episode state with Python trainers.
-- **Episode lifecycle coordination:** Handle resets, steps, terminal states, truncation, autoreset, and multiple environments.
-- **Local ONNX inference:** Run exported policies in Godot without an active Python process or training connection.
-- **Separable packaging:** Exclude training-only dependencies from games that need inference only.
+![D3 demo training with the Python trainer](Godot/demo/d3/screenshots/d3_training.png)
 
-## D2 product
+**Inference:** after the trainer closes, the exported ONNX policy controls the agent inside Godot.
 
-The D2 release includes a playable 3D grid-world that demonstrates the intended workflow:
+![D3 demo running the exported ONNX policy](Godot/demo/d3/screenshots/d3_inference_policy.png)
 
-1. A Godot environment exposes observations, actions, rewards, and episode completion.
-2. A local Python trainer learns a policy while Godot displays episode rewards and connection status.
-3. The trained policy is exported to ONNX.
-4. Godot loads the ONNX model and runs inference with Python closed.
+**Map editing:** click to toggle hazards and right-click to move the goal, then retrain for the new map.
 
-![D2 grid-world demo](Godot/demo/d2/screenshots/godot-demo2.png)
+![D3 demo map editor](Godot/demo/d3/screenshots/d3_map_edit.png)
 
-[Watch the D2 demo on YouTube](https://youtu.be/AGgiJN7cSnE).
+**Parallel training:** several instances train one shared policy, each shown on its own live board.
 
-The demo combines production components with temporary integration code. Its space resources and validation use the US2 C++ implementation, its environment and agent configuration use the native US5 nodes, and ONNX loading and inference use the US7 C++ implementation with ONNX Runtime 1.30. The environment behavior adapter, episode lifecycle, and localhost training connector remain GDScript stand-ins for unfinished US1, US3, and US4 integration. The connector uses JSON over local TCP rather than the planned gRPC transport. The production US4 lifecycle is implemented and tested on the release branch but is not called by the demo scene. The US1 contract likewise has a tested C++ reference implementation that the demo does not yet use.
+![D3 parallel training viewer with four instances](Godot/demo/d3/screenshots/d3_parallel_training.png)
 
-## Instructions
+## D2 feedback addressed
 
-The packaged Windows, Linux, and macOS demos require no source checkout or development tools for the inference workflow. Download and launch instructions are in [Deployed URL and access instructions](#deployed-url-and-access-instructions).
-
-Inside the demo:
-
-- Use the arrow keys to move the agent manually.
-- Select **Load ONNX Policy** to run the exported policy locally through ONNX Runtime.
-- Select **Stop / Reset Run** to return the environment to its initial state.
-- Select **Test US2 validation** to display rejected action and observation values.
-
-Training requires the developer setup because the D2 trainer runs as a local Python process. The complete build, training, and troubleshooting instructions are in the [D2 demo guide](Godot/demo/d2/README.md).
-
-## D1 prototype
-
-The earlier D1 interface prototype is preserved in [`Godot/demo/d1`](Godot/demo/d1), with a [video walkthrough on YouTube](https://youtu.be/zg4K3fiQjJw). It demonstrates configurable Godot environment and agent nodes, reward feedback, episode limits, and resets. It uses C# to prototype the interface and does not include a training backend or persistence; the production architecture uses C++ GDExtensions.
-
-## Key use cases
-
-### Define an environment
-
-The core API represents agents, environments, interaction definitions, and typed observation and action spaces. Native `ScholaEnvironment` and `ScholaAgent` nodes provide Inspector configuration, agent discovery, and GDScript behavior hooks through the completed native adapters. The Godot training host connects these adapters to the episode lifecycle, with integration tests covering multiple environments and repeated episodes.
-
-### Execute an episode
-
-The lifecycle and coordinator validate agent results, track episode steps, handle terminal and truncated states, apply autoreset behavior, and preserve a stable environment order for a training session.
-
-### Train from Python
-
-The D2 demo sends definitions, resets, observations, rewards, and actions between Godot and a local tabular Q-learning trainer. The production connector loop is implemented and tested, while the final gRPC adapter remains future work.
-
-### Run a policy in Godot
-
-The runtime loads ONNX models, validates model inputs and outputs, maintains per-agent recurrent state, converts Godot values at the inference boundary, and executes policies without Python.
-
-## Project structure
-
-- [`Godot/src`](Godot/src) contains the production C++ core, Godot bindings, interoperability code, connector, lifecycle, and inference modules.
-- [`Godot/demo/d2`](Godot/demo/d2) contains the D2 training and inference demonstration.
-- [`Godot/demo/d1`](Godot/demo/d1) preserves the earlier C# interface prototype.
-- [`Godot/tests`](Godot/tests) contains core, inference, and Godot integration tests.
-- [`Godot/docs/user_stories`](Godot/docs/user_stories) contains the current user stories, ownership, acceptance criteria, and progress.
-- [`deliverables`](deliverables) contains course planning, reviews, contribution records, and meeting minutes.
-
-See the [Godot development guide](Godot/README.md) for the supported toolchain, dependency pins, build commands, test commands, module boundaries, and packaging design. The original MVP is preserved in the [D1 planning document](deliverables/D1/planning.md); current stories and progress are tracked in [`Godot/docs/user_stories`](Godot/docs/user_stories/README.md).
-
-## Development requirements
-
-Production development targets Godot 4.7.2 and C++17 GDExtensions. The repository pins `godot-cpp`, Catch2, GdUnit4, SCons, formatting tools, and ONNX Runtime versions. Building from source requires Git submodules, Python, SCons, a supported C++ compiler, and Godot; platform-specific commands are documented in the [Godot development guide](Godot/README.md#build-and-run).
-
-The architecture keeps reusable core logic independent from Godot, gRPC, Protocol Buffers, and ONNX Runtime. Training communication will use Schola's gRPC protocol, while exported policies use ONNX Runtime through the inference-only runtime add-on.
-
-## Deployment and GitHub workflow
-
-The D2 product is distributed as a versioned GitHub release with packaged Windows x86_64, Linux x86_64, and macOS arm64 demos. The production library is designed as separate runtime and training add-ons so exported games can omit training-only dependencies.
-
-Work is divided by user story and developed on named branches. Changes enter shared branches through pull requests, where another team member reviews the code and GitHub Actions checks formatting, native builds, unit tests, and Godot integration tests. Commit messages follow Conventional Commits, using prefixes such as `feat:`, `fix:`, `docs:`, and `test:`. Cross-story API or protocol changes are discussed with their producers and consumers before merge. The team tracks ownership and progress on [Trello](https://trello.com/b/Ry0Qkx2R).
-
-## Coding standards and guidelines
-
-C++ follows Godot's C++ style and the repository's pinned `clang-format` configuration. Python follows PEP 8 and is formatted with Black. New behavior requires focused tests, generated Protocol Buffer files must not be edited by hand, and engine-independent core code must not depend on Godot or transport libraries. The complete rules are in [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [Godot development contract](Godot/docs/development_contract.md).
-
-## License
-
-The project uses the [MIT License](LICENSE.txt), matching AMD Schola. It permits reuse, modification, and redistribution while requiring preservation of the copyright and license notice.
+- **Replace integration stand-ins (D2 review):** D3 replaces the scripted environment and lifecycle. The temporary JSON/TCP training connector remains and is labelled as temporary until the gRPC connector is finished.
+- **Keep the learning visible (TA demo feedback):** the D3 demo keeps episode statistics and a reward graph, so progress can be seen during training.
+- **One step callback (AMD):** separate reward, termination, truncation, and info callbacks were ambiguous, so `ScholaEnvironment` now uses one `_get_step_result(agent)` callback.
+- **No built-in step limit (AMD):** a built-in maximum could conflict with custom truncation logic, so it was removed and developers control truncation in `_get_step_result(agent)`.
+- **Blocking connector loop (AMD):** delaying actions and rewards harms reinforcement learning, so `poll_tick` was removed and the loop keeps its blocking `tick`.
+- **Clearer ONNX policy setup and errors (AMD):** `ScholaOnnxPolicy` now initializes from an agent through `initialize(agent)`, and US7 Godot classes report failures through one shared error path.
+- **Sequence length from the model (AMD):** we checked `max_state_sequence_length`. Unreal also sets it by hand, and ONNX Runtime's C API cannot read the metadata on individual inputs, so it stays manual for now and reading it from the model is proposed as [US14](Godot/docs/user_stories/US14.md).
 
 ## Deployed URL and access instructions
 
-The packaged demos are published with the [D2 GitHub release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2). Download the archive for Windows x86_64, Linux x86_64, or macOS arm64; extract it if necessary; and run the included application. The release is a fixed D2 snapshot, so later development will not change the submitted product.
+This is a native Godot plugin and desktop demo, so deployment means downloadable applications rather than a hosted web page.
 
-The packaged application includes a reference policy and supports manual control, space validation, and local ONNX inference. Running a new training session requires the developer setup described in the [D2 demo guide](Godot/demo/d2/README.md) because the trainer is a local Python process.
+- [GitHub releases](https://github.com/csc301-2026-f/20-AMD-Schola/releases): successful Godot CI runs on `main` publish commit-specific **D3 development** prereleases. Select a release with attached Windows x86_64, Linux x86_64, or macOS arm64 archives.
+- [D3 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D3): the course snapshot, available after the team pushes the `D3` tag and packaging succeeds. Until then, use a development prerelease or the source setup below.
+- [D3 submission tag workflow](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/d3-submission.yml): schedules the `D3` tag for November 6, 2026 at 11:30 p.m. Toronto time (November 7 at 04:30 UTC). The workflow never moves an existing `D3` tag. Rerunning it restarts packaging at the existing tag.
+- [Godot Actions](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml): PR checks and downloadable package artifacts. PRs build and check packages without publishing releases.
+
+Download the D3 application for [Windows x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip), [Linux x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz), or [macOS arm64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip). These canonical links become available automatically when the pushed `D3` tag's packaging workflow succeeds. The [validated candidate run](https://github.com/csc301-2026-f/20-AMD-Schola/actions/runs/42157175290) passed all checks at commit `4c02a76`, including exported reference-policy playback on all three platforms.
+
+Extract the archive for your platform and launch the included application. The package includes a deterministic reference ONNX policy for the default map; it is a shortest-path reference, not evidence of a learned policy. **Arrow keys** move the agent, **Policy** runs the bundled model with Python closed, and **Stop** returns to manual control. **Edit map** changes the layout. The policy fits the default map, so restore **Default** before using it after map edits.
+
+Training and the parallel-training viewer require the source checkout, Python packages, and a Godot executable. The packaged inference demonstration does not require Python. Unsigned applications may require your operating system's usual permission to open downloaded software.
+
+## Instructions
+
+For source setup, use Git, Python 3.12, Godot 4.7.2, and a C++17 compiler. On Windows use Visual Studio 2022 with Desktop development with C++; on Linux use a supported GCC or Clang toolchain; on macOS use Xcode command-line tools and `arch=arm64`. The [development guide](Godot/README.md#supported-toolchain) owns the full dependency and build instructions.
+
+From the repository root:
+
+```sh
+git submodule update --init --recursive
+python -m venv .venv
+```
+
+Activate the environment with `.venv\Scripts\Activate.ps1` in PowerShell or `source .venv/bin/activate` in a POSIX shell, then install:
+
+```sh
+python -m pip install --require-hashes -r Godot/requirements.txt
+python -m pip install -r Godot/demo/d3/python/requirements.txt
+python Godot/tools/setup_onnxruntime.py
+```
+
+Build the runtime needed by the D3 demo, without the unfinished production transport:
+
+```sh
+# Windows developer shell
+scons -C Godot schola platform=windows target=template_debug
+```
+
+On Linux use `platform=linux`; on macOS use `platform=macos arch=arm64`. Copy the runtime libraries into the demo's corresponding `addons/schola/bin/<platform>/` directory using the [D3 guide](Godot/demo/d3/README.md#run). Generate the default reference model, import, and launch:
+
+```sh
+python Godot/demo/d3/python/create_reference_policy.py
+python Godot/demo/d3/python/export_onnx.py
+godot --headless --path Godot/demo/d3 --editor --quit
+godot --path Godot/demo/d3
+```
+
+Here `godot` means your Godot 4.7.2 executable. For training from the editor, set the `Runner` node's `python_executable` to the absolute path of your virtual environment's Python before pressing F5.
+
+## Key use cases
+
+1. **Inspect an episode:** move with the arrow keys; reach the goal, hit a hazard, or reach the 40-step limit. Compare the displayed reward and outcome.
+2. **Train and deploy a policy:** select **Train**, let episodes accumulate, then **Stop** to save and export. Select **Policy** to reload the ONNX model and run it locally. Missing or incompatible models produce a message in the log panel.
+3. **Change the task:** select **Edit map**, move the goal or toggle hazards, then save. Retrain for the new layout; the observation does not encode hazards, so policies do not generalize to arbitrary maps.
+4. **Train in parallel:** select **Parallel training**, choose the instance and episode counts, and start. Separate headless Godot processes contribute experience to one shared Q-table. Use this workflow from the source project.
+
+## Non-functional requirements
+
+- **Input validation:** native spaces validate observations and actions. The runner rejects invalid Python actions before calling the host, and map validation rejects invalid dimensions, out-of-bounds goals, and hazards on the goal. Use **Check US2** for visible validation examples. See [space tests](Godot/tests/unit/spaces_test.cpp) and [D3 smoke checks](Godot/demo/d3/tests/d3_smoke.gd).
+- **Error handling and reliability:** the UI reports waiting, connected, training, closed, and error states. Training has connection and step timeouts. A closed host session requires a scene reload; **Reload** provides recovery. Native lifecycle tests cover reset, step, completion, routing, and failure behavior.
+- **Local communication:** the demo listens on loopback by default and requires no service credentials. It has no authentication layer and is intended for trusted local use. Production gRPC security and remote deployment remain outside the demonstrated D3 workflow.
+- **Access and interaction:** manual play uses arrow keys, the panel names actions and connection states, and outcomes have textual labels as well as color. Full keyboard access to map editing and screen-reader support have not been verified; we do not claim a completed accessibility audit.
+- **Packaging:** exported demos exclude `schola_training` and include ONNX Runtime. CI smoke-tests the source project and exported packages with a required model. Native dependency downloads use pinned versions and checksums; no deployment secret is needed beyond GitHub's scoped workflow token.
+
+The D2 review identified the need to replace integration stand-ins and keep the training-to-inference example small. D3 addresses the environment, lifecycle, and inference boundaries while explicitly retaining the temporary training connector. See the [D2 review](deliverables/D2/iteration-02-review.md) and [D3 report](deliverables/D3/product-evolution.md).
+
+## Testing and CI/CD
+
+[Godot CI](.github/workflows/godot.yml) checks C++ formatting, dependency setup, native builds, Catch2 unit/inference/transport suites, and GdUnit4 integration tests. Its D3 checks generate a reference model, verify host behavior and policy success, then train two instances for 20 total episodes, export the learned table, and load that model in Godot after the trainer exits. This short training check verifies integration, not learning quality.
+
+[D3 packaging](.github/workflows/d3-release.yml) builds runtime-only debug and release libraries for Windows, Linux, and macOS, checks the demo and exported package, and uploads archives. Relevant PRs must pass packaging as part of `Godot / required`. Successful runs on `main` automatically publish commit-specific development releases; pushing `D3` publishes the final snapshot. Manual dispatch and `D3-test-*` tags build artifacts without publishing. Jobs have explicit timeouts; native compilation has longer limits than lightweight checks.
+
+To run the D3 check locally after setup:
+
+```sh
+godot --headless --path Godot/demo/d3 -s res://tests/d3_smoke.gd -- --require-policy --expect-success
+```
+
+Use `--expect-success` with the default reference model; omit it for a newly trained model whose success rate is not yet established. See the [development guide](Godot/README.md) for the native and GdUnit4 test commands. Workflow definitions describe intended automation; the [Actions results](https://github.com/csc301-2026-f/20-AMD-Schola/actions) establish which revision and platforms have actually passed.
+
+## Project structure
+
+- [`Godot/src`](Godot/src): production C++ core, Godot bindings, inference, and transport work.
+- [`Godot/demo/d3`](Godot/demo/d3): current D3 example, trainer, and smoke checks.
+- [`Godot/tests`](Godot/tests): native and Godot integration suites.
+- [`Godot/docs/user_stories`](Godot/docs/user_stories): current scope, ownership, and remaining work.
+- [`deliverables/D3`](deliverables/D3): product-evolution report and contribution record.
+
+## D2 product
+
+The [D2 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2), [demo guide](Godot/demo/d2/README.md), and [video](https://youtu.be/AGgiJN7cSnE) preserve the submitted D2 implementation. Its 3D grid-world used scripted environment/lifecycle stand-ins and the earlier inference interface. D2 files and packages remain historical snapshots.
+
+## D1 prototype
+
+The [D1 prototype](Godot/demo/d1) and [video](https://youtu.be/zg4K3fiQjJw) preserve the initial C# interface experiment. The current port uses C++ GDExtensions.
+
+## Development requirements
+
+Use the [Godot development guide](Godot/README.md) for toolchain pins, builds, test commands, architecture, and packaging. The full training extension additionally requires the committed gRPC package installed by `Godot/tools/setup_grpc.py`; the D3 demo uses only the runtime extension.
+
+## Deployment and GitHub workflow
+
+Use feature branches and pull requests with meaningful descriptions and teammate review before merging. CI validates changes; the packaging workflow distributes successful `main` revisions. Follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [Godot development contract](Godot/docs/development_contract.md). Shared protocol changes must preserve Schola's cross-engine semantics.
 
 ## Project resources
 
-- [D2 iteration review](deliverables/D2/iteration-02-review.md)
-- [D2 individual contributions](deliverables/D2/Individual_Contributions_Deliverable2.md)
-- [D2 demo guide](Godot/demo/d2/README.md)
-- [D2 demo video](https://youtu.be/AGgiJN7cSnE)
-- [D1 interactive prototype](Godot/demo/d1)
-- [D1 prototype video](https://youtu.be/zg4K3fiQjJw)
-- [Godot development guide](Godot/README.md)
-- [D1 planning document](deliverables/D1/planning.md)
-- [Architecture diagram](deliverables/D1/d1-architecture-diagram.png)
-- [Team and stakeholder records](deliverables/team/)
-- [Meeting minutes](deliverables/team/minutes/)
+- [D3 report](deliverables/D3/product-evolution.md) and [individual contributions](deliverables/D3/Individual_Contributions_Deliverable3.md)
+- [Current stories](Godot/docs/user_stories/README.md) and [remaining integration work](Godot/docs/user_stories/remaining.md)
+- [Team meeting records](deliverables/team/minutes/)
 - [Trello board](https://trello.com/b/Ry0Qkx2R)
+- [Upstream Schola README](README-upstream.md)
 
-## D3 improvement highlight
+## License
 
-The D3 product-evolution report will compare the D2 release with the next integrated version. Its template is in [`deliverables/D3/product-evolution.md`](deliverables/D3/product-evolution.md).
+[MIT License](LICENSE.txt), matching AMD Schola.

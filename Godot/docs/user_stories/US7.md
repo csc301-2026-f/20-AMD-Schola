@@ -1,8 +1,8 @@
 # US7: Run and ship an ONNX policy
 
 - **Owner:** Bohdan
-- **Status:** In progress
-- **Last updated:** Nov. 4, 2026
+- **Status:** Complete
+- **Last updated:** Nov. 5, 2026
 
 ## Story
 
@@ -25,4 +25,4 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 - Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.
 - Windows debug and release exports run the policy without Python or the training add-on.
-- Remaining work includes a demonstration agent with learned behavior, exports on Linux and macOS, attention models from a real trainer, and reading the sequence length from model metadata.
+- The demonstration agent runs its trained policy in the D3 demo with Python closed.

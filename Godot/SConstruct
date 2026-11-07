@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 
+import json
 import sys
 from pathlib import Path
 
@@ -10,6 +11,59 @@ ONNXRUNTIME_RUNTIME_LIBRARY = {
     "windows": "onnxruntime.dll",
     "linux": "libonnxruntime.so.1",
     "macos": "libonnxruntime.1.dylib",
+}
+GRPC_DIR = Path("thirdparty/grpc")
+# Shared Schola wire contract; see docs/development_contract.md.
+PROTO_DIR = Path("../Proto")
+GENERATED_PROTO_DIR = Path("generated/proto")
+# GymService and the files it imports. Godot does not implement the imitation protocol.
+GYM_PROTOS = (
+    "DType",
+    "Spaces",
+    "Points",
+    "Definitions",
+    "State",
+    "StateUpdates",
+    "GymConnector",
+)
+GYM_SERVICE_PROTOS = ("GymConnector",)
+# Link order, dependents first. Names are for Linux and macOS archives.
+GRPC_LIBRARIES = (
+    "grpc++",
+    "grpc",
+    "gpr",
+    "upb_json_lib",
+    "upb_textformat_lib",
+    "upb_reflection_lib",
+    "upb_wire_lib",
+    "upb_message_lib",
+    "upb_mini_descriptor_lib",
+    "upb_mini_table_lib",
+    "upb_hash_lib",
+    "upb_mem_lib",
+    "upb_lex_lib",
+    "upb_base_lib",
+    "utf8_range_lib",
+    "address_sorting",
+    "re2",
+    "cares",
+    "ssl",
+    "crypto",
+    "protobuf",
+    "utf8_validity",
+    "utf8_range",
+    "z",
+)
+GRPC_WINDOWS_LIBRARY_NAMES = {
+    "protobuf": "libprotobuf",
+    "utf8_validity": "libutf8_validity",
+    "utf8_range": "libutf8_range",
+    "z": "zlibstatic",
+}
+GRPC_SYSTEM_LIBRARIES = {
+    "linux": ["pthread", "dl", "m", "rt"],
+    "macos": [],
+    "windows": ["ws2_32", "crypt32", "iphlpapi", "advapi32", "bcrypt", "dbghelp"],
 }
 
 environment = Environment(tools=["default"], PLATFORM="")
@@ -28,16 +82,20 @@ environment = SConscript(
 )
 environment.Append(CPPPATH=["src"])
 
-# Opt-in native driver for GdUnit4 adapter tests; omitted from shipped builds.
-if ARGUMENTS.get("integration_tests", "no") == "yes":
-    environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
-
 
 def sources_under(*directories):
     sources = []
     for directory in directories:
         sources.extend(str(path) for path in Path(directory).rglob("*.cpp"))
     return sorted(sources)
+
+
+def objects_in(directory, builder, sources, suffix):
+    # The suffix is explicit because SCons keeps ".pb" as the suffix of "Spaces.pb.cc".
+    return [
+        builder(f"{directory}/{Path(str(source)).with_suffix('')}{suffix}", source)
+        for source in sources
+    ]
 
 
 def use_onnxruntime(target_environment, install_directory):
@@ -61,11 +119,113 @@ def use_onnxruntime(target_environment, install_directory):
     )
 
 
-def build_extension(name, source_directories, addon_directory, configure=None):
-    extension_environment = environment.Clone()
-    install_directory = (
-        f"addons/{addon_directory}/bin/{extension_environment['platform']}"
+def check_grpc_install(target_environment):
+    run_setup = "Run: python tools/setup_grpc.py"
+    stamp_path = GRPC_DIR / "schola_grpc.json"
+    if not stamp_path.is_file():
+        print(f"gRPC is missing. {run_setup}")
+        sys.exit(1)
+    stamp = json.loads(stamp_path.read_text(encoding="utf-8"))
+    lock = json.loads(Path("dependencies.lock.json").read_text(encoding="utf-8"))
+    if (
+        stamp["grpc_commit"] != lock["grpc"]["commit"]
+        or stamp["protobuf_version"] != lock["protobuf"]["version"]
+    ):
+        print(
+            f"gRPC in {GRPC_DIR} ({stamp['grpc_tag']}) does not match dependencies.lock.json. {run_setup}"
+        )
+        sys.exit(1)
+    platform_name = target_environment["platform"]
+    arch = target_environment["arch"]
+    if stamp["platform"] != platform_name or stamp["arch"] != arch:
+        print(
+            f"gRPC in {GRPC_DIR} was built for {stamp['platform']} {stamp['arch']}, "
+            f"but this build targets {platform_name} {arch}. "
+            f"Build with arch={stamp['arch']}, or rerun tools/setup_grpc.py on a matching host."
+        )
+        sys.exit(1)
+
+
+def generate_gym_protos(target_environment):
+    executable_suffix = ".exe" if target_environment["platform"] == "windows" else ""
+    protoc = GRPC_DIR / "bin" / f"protoc{executable_suffix}"
+    grpc_cpp_plugin = GRPC_DIR / "bin" / f"grpc_cpp_plugin{executable_suffix}"
+    proto_files = [str(PROTO_DIR / f"{name}.proto") for name in GYM_PROTOS]
+
+    generated_sources = []
+    for name in GYM_PROTOS:
+        outputs = [f"{name}.pb.h", f"{name}.pb.cc"]
+        command = [
+            str(protoc),
+            f"--proto_path={PROTO_DIR.resolve()}",
+            f"--cpp_out={GENERATED_PROTO_DIR}",
+        ]
+        if name in GYM_SERVICE_PROTOS:
+            outputs += [f"{name}.grpc.pb.h", f"{name}.grpc.pb.cc"]
+            command += [
+                f"--grpc_out={GENERATED_PROTO_DIR}",
+                f"--plugin=protoc-gen-grpc={grpc_cpp_plugin}",
+            ]
+        command.append(f"{name}.proto")
+        # Every file depends on all protos it may import and on the generators.
+        targets = target_environment.Command(
+            [str(GENERATED_PROTO_DIR / output) for output in outputs],
+            proto_files + [str(protoc), str(grpc_cpp_plugin)],
+            [command],
+        )
+        generated_sources += [
+            target for target in targets if str(target).endswith(".cc")
+        ]
+    return generated_sources
+
+
+def use_grpc(target_environment):
+    platform_name = target_environment["platform"]
+    library_directory = GRPC_DIR / "lib"
+    library_prefix = target_environment.subst("$LIBPREFIX")
+    library_suffix = target_environment.subst("$LIBSUFFIX")
+
+    libraries = [
+        GRPC_WINDOWS_LIBRARY_NAMES.get(name, name)
+        if platform_name == "windows"
+        else name
+        for name in GRPC_LIBRARIES
+    ]
+    missing = [
+        name
+        for name in libraries
+        if not (library_directory / f"{library_prefix}{name}{library_suffix}").is_file()
+    ]
+    if missing:
+        print(
+            f"gRPC in {GRPC_DIR} is missing libraries {missing}. Run: python tools/setup_grpc.py --force"
+        )
+        sys.exit(1)
+    libraries += sorted(
+        path.name[len(library_prefix) : -len(library_suffix)]
+        for path in library_directory.glob(f"{library_prefix}absl_*{library_suffix}")
     )
+
+    target_environment.Append(
+        CPPPATH=[str(GRPC_DIR / "include"), str(GENERATED_PROTO_DIR)],
+        LIBPATH=[str(library_directory)],
+        LIBS=libraries + GRPC_SYSTEM_LIBRARIES[platform_name],
+    )
+    if platform_name == "linux":
+        # Abseil and upb archives depend on each other in both directions.
+        target_environment["_LIBFLAGS"] = (
+            "-Wl,--start-group " + target_environment["_LIBFLAGS"] + " -Wl,--end-group"
+        )
+    elif platform_name == "macos":
+        target_environment.Append(LINKFLAGS=["-framework", "CoreFoundation"])
+
+
+def build_extension(
+    name, source_directories, addon_directory, configure=None, extra_sources=()
+):
+    extension_environment = environment.Clone()
+    platform_name = extension_environment["platform"]
+    install_directory = f"addons/{addon_directory}/bin/{platform_name}"
     extra_targets = (
         configure(extension_environment, install_directory) if configure else []
     )
@@ -78,16 +238,53 @@ def build_extension(name, source_directories, addon_directory, configure=None):
         suffix,
         extension_environment.subst("$SHLIBSUFFIX"),
     )
-    sources = sources_under(*source_directories)
+    sources = sources_under(*source_directories) + list(extra_sources)
     if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+        # Keep test-only flags out of godot-cpp and the other target environments.
+        extension_environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
         sources += sources_under("tests/integration/native")
+    # Each extension compiles src/core with its own flags, so their objects are kept apart.
     library = extension_environment.SharedLibrary(
-        f"build/{extension_environment['platform']}/{library_filename}",
-        source=sources,
+        f"build/{platform_name}/{library_filename}",
+        source=objects_in(
+            f"build/{platform_name}/{name}",
+            extension_environment.SharedObject,
+            sources,
+            extension_environment.subst("$SHOBJSUFFIX"),
+        ),
     )
     installed_library = extension_environment.Install(install_directory, library)
     return [library, installed_library] + list(extra_targets)
 
+
+def configure_training(target_environment, install_directory):
+    use_grpc(target_environment)
+    return []
+
+
+def requires_grpc(target):
+    target = Path(str(target).replace("\\", "/"))
+    if target.as_posix() in ("unit_tests", "inference_tests", "schola"):
+        return False
+    if target.name in (
+        "schola_core_tests",
+        "schola_core_tests.exe",
+        "schola_inference_tests",
+        "schola_inference_tests.exe",
+    ):
+        return False
+    # Support direct runtime-library targets as well as the public alias.
+    return not target.name.startswith(("libschola.", "schola."))
+
+
+# SCons evaluates every builder before selecting requested targets. Avoid
+# configuring transport dependencies when only independent targets are requested.
+grpc_enabled = not COMMAND_LINE_TARGETS or any(
+    requires_grpc(target) for target in COMMAND_LINE_TARGETS
+)
+if grpc_enabled:
+    check_grpc_install(environment)
+    gym_proto_sources = generate_gym_protos(environment)
 
 runtime_targets = build_extension(
     "schola",
@@ -95,11 +292,17 @@ runtime_targets = build_extension(
     "schola",
     configure=use_onnxruntime,
 )
-training_targets = build_extension(
-    "schola_training",
-    ["src/core", "src/transport", "src/training"],
-    "schola_training",
-)
+Alias("schola", runtime_targets)
+training_targets = []
+if grpc_enabled:
+    training_targets = build_extension(
+        "schola_training",
+        ["src/core", "src/transport", "src/training"],
+        "schola_training",
+        configure=configure_training,
+        extra_sources=gym_proto_sources,
+    )
+    Alias("schola_training", training_targets)
 
 test_environment = environment.Clone()
 test_environment.Append(CPPPATH=["catch2/extras"])
@@ -144,5 +347,24 @@ inference_test_program = inference_test_environment.Program(
     ],
 )
 Alias("inference_tests", [inference_test_program, inference_test_runtime])
+
+if grpc_enabled:
+    transport_test_environment = test_environment.Clone()
+    use_grpc(transport_test_environment)
+    transport_test_sources = (
+        sources_under("src/core", "src/transport", "tests/transport")
+        + gym_proto_sources
+        + ["catch2/extras/catch_amalgamated.cpp"]
+    )
+    transport_test_program = transport_test_environment.Program(
+        "build/tests/schola_transport_tests",
+        source=objects_in(
+            "build/tests/transport",
+            transport_test_environment.Object,
+            transport_test_sources,
+            transport_test_environment.subst("$OBJSUFFIX"),
+        ),
+    )
+    Alias("transport_tests", transport_test_program)
 
 Default(*(runtime_targets + training_targets))
