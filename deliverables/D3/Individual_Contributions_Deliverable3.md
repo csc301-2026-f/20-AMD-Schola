@@ -29,6 +29,15 @@
 - Added parallel training to the demo: a launcher that starts N headless instances with their own ports and host sessions, a trainer that steps them in lockstep to learn one shared Q-table (3.0× faster with 4 instances, 5.0× with 8), and a single-window viewer showing a live board per instance ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
 - Added map editing to the demo (toggle hazards, move the goal, resize from 3×3 to 10×10, save to `user://d3_map.json`). Observation bounds follow the map size, and policies record their training map so playback warns on a mismatch. Also added the compact 2D HUD, export presets, the demo README, and the headless `d3_smoke.gd` test covering seeding, goal, hazard, timeout, custom maps, and ONNX playback ([PR #42](https://github.com/csc301-2026-f/20-AMD-Schola/pull/42)).
 
+## Isaac Tilahun - gRPC connector (US3) and Godot agent adapter (US1)
+
+- Built `GrpcConnector` (`Godot/src/transport/grpc/grpc_connector.cpp`), the server Schola's Python trainer connects to, taking it over from Sanjay. It answers Python's three calls: start, "what can I train?", and reset or step. gRPC receives each call on its own thread, but only Godot's main thread may touch the game, so the connector hands each call over and waits for the answer. It never hangs: every wait has a timeout, a Python disconnect ends the session, and game errors reach Python with the name of the call that failed. It accepts messages up to 100 MB, so camera-sized observations fit.
+- Wrote eight tests that run the connector over a real network connection on one machine, with a small C++ client playing Python (`Godot/tests/transport/grpc_connector_test.cpp`). One runs a full session with two environments of two agents each and checks that every action and reward reaches the right agent. One sends an 8 MB observation. The others break the session on purpose (Python never connects, goes silent, reports an error, or hangs up mid-call; the game fails; the port is taken) and check that it ends with a clear error instead of hanging. All 21 transport tests pass locally on Windows.
+- Built the transport on Windows for the first time and fixed what broke: a Windows macro named `ERROR` clashed with Schola's generated `ERROR` status value. Defining `NOGDI` for gRPC builds in `Godot/SConstruct` keeps it out. CI only builds on Linux, so it had not caught this.
+- Connected the connector to Guneev's message conversions from [PR #35](https://github.com/csc301-2026-f/20-AMD-Schola/pull/35), so it uses the same translation between Python's messages and Schola's types as the rest of US3.
+- For US1, wrote the Godot agent adapter (`godot_agent_adapter.*`), which lets a GDScript agent act as a Schola agent, and drafted the environment adapter's interface. Both shipped in [PR #34](https://github.com/csc301-2026-f/20-AMD-Schola/pull/34), where Sanjay finished the environment adapter.
+- Wrote the US3 slides and speaker script for the D3 demonstration, and kept the US3 progress notes current.
+
 **[Name]**, [Role]
 > [Specific contributions]
 
