@@ -218,7 +218,10 @@ def use_grpc(target_environment):
         )
     elif platform_name == "macos":
         target_environment.Append(LINKFLAGS=["-framework", "CoreFoundation"])
-
+    elif platform_name == "windows":
+        # <windows.h>, pulled in by gRPC, defines ERROR through <wingdi.h>,
+        # which breaks the generated Schola::ERROR enum value.
+        target_environment.Append(CPPDEFINES=["NOGDI"])
 
 def build_extension(
     name, source_directories, addon_directory, configure=None, extra_sources=()
