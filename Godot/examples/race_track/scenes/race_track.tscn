@@ -1,0 +1,48 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://examples/race_track/scripts/track.gd" id="1_track"]
+
+[sub_resource type="Curve3D" id="Curve3D_amd_track"]
+_data = {
+"points": PackedVector3Array(-37.9, 0, 0, 37.9, 0, 0, 0, 0, 0, -25.767, 0, -5.317, 25.767, 0, 5.317, 113.7, 0, 0, -1.35, 0, -24.033, 1.35, 0, 24.033, 154.6, 0, 31.9, 0.917, 0, -25.883, -0.917, 0, 25.883, 154.6, 0, 140.2, 14.1, 0, 0.2, -14.1, 0, -0.2, 112.3, 0, 187.2, 14.1, 0, 0.2, -14.1, 0, -0.2, 51.8, 0, 186.2, 0.167, 0, 12.533, -0.167, 0, -12.533, 17.954, 0, 155.759, -18.367, 0, 0.467, 18.367, 0, -0.467, 53.58, 0, 123.8, -21.5, 0, -0.067, 21.5, 0, 0.067, 90.2, 0, 134.8, 0.433, 0, 13.4, -0.433, 0, -13.4, 122.7, 0, 101.3, 17.967, 0, -0.333, -17.967, 0, 0.333, 90.9, 0, 66, 17.967, 0, -0.333, -17.967, 0, 0.333, 37.9, 0, 66, 6.567, 0, -7.8, -6.567, 0, 7.8, 3.7, 0, 74.2, -3.233, 0, -7.8, 3.233, 0, 7.8, -0.8, 0, 111.5, 13.367, 0, 0.2, -13.367, 0, -0.2, -26.1, 0, 136.2, 0.167, 0, 13.2, -0.167, 0, -13.2, -51.1, 0, 114.3, -0.3, 0, 13.2, 0.3, 0, -13.2, -51.1, 0, 41.8, -10.1, 0, 7.933, 10.1, 0, -7.933, -37.4, 0, 8.3, -16.033, 0, 0, 16.033, 0, 0, -3.5, 0, -0.3),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 19
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_grass"]
+albedo_color = Color(0.25, 0.45, 0.2, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ground"]
+material = SubResource("StandardMaterial3D_grass")
+size = Vector3(260, 1, 240)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
+size = Vector3(260, 1, 240)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_asphalt"]
+albedo_color = Color(0.2, 0.2, 0.22, 1)
+
+[node name="RaceTrack" type="Node3D"]
+
+[node name="Ground" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, -0.5, 93)
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("BoxMesh_ground")
+
+[node name="Shape" type="CollisionShape3D" parent="Ground"]
+shape = SubResource("BoxShape3D_ground")
+
+[node name="Track" type="Path3D" parent="." groups=["race_track"]]
+curve = SubResource("Curve3D_amd_track")
+script = ExtResource("1_track")
+
+[node name="Road" type="CSGPolygon3D" parent="Track"]
+polygon = PackedVector2Array(-5, 0, -5, 0.02, 5, 0.02, 5, 0)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_rotation = 1
+path_joined = true
+material = SubResource("StandardMaterial3D_asphalt")

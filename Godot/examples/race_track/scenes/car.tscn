@@ -1,0 +1,95 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://examples/race_track/scripts/race_track_agent.gd" id="1_agent"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_body"]
+size = Vector3(1.8, 0.6, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_paint"]
+albedo_color = Color(0.8, 0.1, 0.1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_body"]
+material = SubResource("StandardMaterial3D_paint")
+size = Vector3(1.8, 0.6, 4)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tire"]
+albedo_color = Color(0.08, 0.08, 0.08, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wheel"]
+material = SubResource("StandardMaterial3D_tire")
+top_radius = 0.4
+bottom_radius = 0.4
+height = 0.3
+
+[sub_resource type="ScholaBoxSpace" id="ScholaBoxSpace_observation"]
+low = PackedFloat32Array(-100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000)
+high = PackedFloat32Array(100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000)
+shape = PackedInt32Array(10)
+
+[sub_resource type="ScholaBoxSpace" id="ScholaBoxSpace_action"]
+low = PackedFloat32Array(-1, -1)
+high = PackedFloat32Array(1, 1)
+shape = PackedInt32Array(2)
+
+[node name="Car" type="VehicleBody3D"]
+mass = 1500.0
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+mesh = SubResource("BoxMesh_body")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("BoxShape3D_body")
+
+[node name="FrontLeft" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.45, 1.3)
+use_as_steering = true
+wheel_radius = 0.39
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="Mesh" type="MeshInstance3D" parent="FrontLeft"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="FrontRight" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.45, 1.3)
+use_as_steering = true
+wheel_radius = 0.39
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="Mesh" type="MeshInstance3D" parent="FrontRight"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="RearLeft" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9, 0.45, -1.3)
+use_as_traction = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="Mesh" type="MeshInstance3D" parent="RearLeft"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="RearRight" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9, 0.45, -1.3)
+use_as_traction = true
+wheel_radius = 0.4
+suspension_travel = 0.2
+suspension_stiffness = 40.0
+
+[node name="Mesh" type="MeshInstance3D" parent="RearRight"]
+transform = Transform3D(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+
+[node name="Camera" type="Camera3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 0.9659, 0.2588, 0, 0.2588, -0.9659, 0, 3.5, -8)
+
+[node name="Agent" type="ScholaAgent" parent="."]
+script = ExtResource("1_agent")
+observation_space = SubResource("ScholaBoxSpace_observation")
+action_space = SubResource("ScholaBoxSpace_action")
