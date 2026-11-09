@@ -10,10 +10,10 @@ namespace schola {
 namespace {
 
 template <typename Left, typename Right>
-bool same_agent_ids(const Left &p_left, const Right &p_right) {
-	return p_left.size() == p_right.size() &&
-			std::equal(p_left.begin(), p_left.end(), p_right.begin(),
-					[](const auto &p_a, const auto &p_b) { return p_a.first == p_b.first; });
+bool declared_agent_ids(const Left &p_left, const Right &p_right) {
+	return std::all_of(p_left.begin(), p_left.end(), [&](const auto &entry) {
+		return p_right.find(entry.first) != p_right.end();
+	});
 }
 
 } // namespace
@@ -80,13 +80,16 @@ Status EnvironmentLifecycle::reset(const ResetSettings &p_settings, InitialEnvir
 		state = LifecycleState::FAULTED;
 		return result;
 	}
-	if (!same_agent_ids(agents, definition.agents)) {
+	if (!declared_agent_ids(agents, definition.agents)) {
 		state = LifecycleState::FAULTED;
-		return Status::error(StatusCode::INVALID_DATA, "reset must return exactly the declared agents");
+		return Status::error(StatusCode::INVALID_DATA, "reset returned an undeclared agent");
 	}
 
-	r_initial_state.agents = std::move(agents);
 	last_state.agents.clear();
+	for (const auto &[agent_id, initial] : agents) {
+		last_state.agents.emplace(agent_id, AgentState{ initial.observation, 0.0f, false, false, initial.info });
+	}
+	r_initial_state.agents = std::move(agents);
 	episode_step_count = 0;
 	episode_num++;
 	state = LifecycleState::ACTIVE;
@@ -99,9 +102,8 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 				"environment is not in an active state");
 	}
 	size_t unfinished_count = 0;
-	for (const auto &[agent_id, agent_definition] : definition.agents) {
-		const auto previous = last_state.agents.find(agent_id);
-		if (previous != last_state.agents.end() && (previous->second.terminated || previous->second.truncated)) {
+	for (const auto &[agent_id, previous] : last_state.agents) {
+		if (previous.terminated || previous.truncated) {
 			continue;
 		}
 		++unfinished_count;
@@ -110,7 +112,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		}
 	}
 	if (p_actions.size() != unfinished_count) {
-		return Status::error(StatusCode::INVALID_ARGUMENT, "actions must contain only unfinished declared agents");
+		return Status::error(StatusCode::INVALID_ARGUMENT, "actions must contain only currently active agents");
 	}
 
 	std::map<AgentId, AgentState> step_states;
@@ -119,9 +121,19 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		state = LifecycleState::FAULTED;
 		return result;
 	}
-	if (!same_agent_ids(step_states, p_actions)) {
+	bool valid = declared_agent_ids(step_states, definition.agents);
+	for (const auto &[agent_id, action] : p_actions) {
+		valid = valid && step_states.count(agent_id) != 0;
+	}
+	for (const auto &[agent_id, value] : step_states) {
+		const auto previous = last_state.agents.find(agent_id);
+		if (previous != last_state.agents.end() && (previous->second.terminated || previous->second.truncated)) {
+			valid = false;
+		}
+	}
+	if (!valid) {
 		state = LifecycleState::FAULTED;
-		return Status::error(StatusCode::INVALID_DATA, "step must return exactly the agents that acted");
+		return Status::error(StatusCode::INVALID_DATA, "step must return all acting agents and only new, declared births");
 	}
 
 	episode_step_count++;
@@ -130,8 +142,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		last_state.agents[agent_id] = agent_state;
 	}
 
-	const bool all_agents_done = std::all_of(last_state.agents.begin(), last_state.agents.end(),
-			[](const auto &p_entry) { return p_entry.second.terminated || p_entry.second.truncated; });
+	const bool all_agents_done = !last_state.agents.empty() && std::all_of(last_state.agents.begin(), last_state.agents.end(), [](const auto &p_entry) { return p_entry.second.terminated || p_entry.second.truncated; });
 
 	state = all_agents_done ? LifecycleState::COMPLETE : LifecycleState::ACTIVE;
 	r_state = last_state;

@@ -37,6 +37,7 @@ enum class CoordinatorState {
 };
 
 struct EnvironmentDefinition {
+	// All possible agent IDs; reset and step states contain the active subset and terminal snapshots.
 	std::map<AgentId, InteractionDefinition> agents;
 };
 

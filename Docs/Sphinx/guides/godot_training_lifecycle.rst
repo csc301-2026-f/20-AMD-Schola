@@ -39,6 +39,26 @@ fixed until the session closes. Adding, freeing, or removing an environment
 during a session is unsupported. If a configured node disappears, the host
 closes the session instead of assigning its ID to another environment.
 
+Dynamic agent membership
+------------------------
+
+The training definition contains all possible agent IDs and their fixed spaces.
+Override ``ScholaEnvironment._get_possible_agents()`` to return definition-template
+nodes for future spawns; by default, the initial descendants supply definitions.
+Only live descendants participate. Reset rediscovers nodes after the reset hook,
+so episodes may start with different subsets and replacement node instances.
+
+New descendants receive an initial observation and zero reward on discovery and
+act on the next step. Departures receive a final terminated transition using the
+last observation and zero reward. Report custom terminal rewards through the
+normal hooks before removing a node. Finished IDs retire until reset; same-episode
+replacements require fresh declared IDs. Unused possible IDs do not hold an
+episode open. Completion still occurs when every observed agent finishes.
+
+Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
+vector interfaces still require a fixed population. Definitions are exchanged
+once; arbitrary new IDs or changed spaces require a new training definition.
+
 Episode completion
 ------------------
 

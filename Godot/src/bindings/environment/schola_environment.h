@@ -115,6 +115,12 @@ public:
 	 */
 	godot::TypedArray<ScholaAgent> get_agents() const;
 
+	/** Optional definition templates for every possible training ID, including future spawns.
+	 * Defaults to the current descendants. Templates are not owned or activated.
+	 */
+	GDVIRTUAL0RC(godot::TypedArray<ScholaAgent>, _get_possible_agents)
+	godot::TypedArray<ScholaAgent> get_possible_agents() const;
+
 	/**
 	 * The US1 core adapter for this node.
 	 *
