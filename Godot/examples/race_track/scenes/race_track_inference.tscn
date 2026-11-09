@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="2_car"]
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_race_track"]
+model_path = "res://examples/race_track/policies/race_track.onnx"
+
+[node name="RaceTrackInference" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 0, 50, 0)
+shadow_enabled = true
+
+[node name="RaceTrack" parent="." instance=ExtResource("1_race_track")]
+
+[node name="Car" parent="." instance=ExtResource("2_car")]
+
+[node name="InferenceStepper" type="ScholaInferenceStepper" parent="."]
+policy = SubResource("ScholaOnnxPolicy_race_track")
+agents = Array[NodePath]([NodePath("../Car/Agent")])
