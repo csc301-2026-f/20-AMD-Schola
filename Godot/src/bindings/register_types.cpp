@@ -2,6 +2,9 @@
 
 #include "bindings/register_types.h"
 
+#include "bindings/components/schola_actuator.h"
+#include "bindings/components/schola_sensor.h"
+
 #include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
 #include "bindings/lifecycle/schola_training_host.h"
@@ -23,6 +26,8 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaRuntimeProbe);
 	GDREGISTER_CLASS(ScholaEnvironment);
 	GDREGISTER_CLASS(ScholaAgent);
+	GDREGISTER_CLASS(ScholaSensor);
+	GDREGISTER_CLASS(ScholaActuator);
 	GDREGISTER_CLASS(ScholaTrainingHost);
 	GDREGISTER_ABSTRACT_CLASS(ScholaSpace);
 	GDREGISTER_CLASS(ScholaBoxSpace);
