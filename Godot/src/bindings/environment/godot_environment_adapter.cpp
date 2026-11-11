@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -26,6 +27,18 @@ namespace {
 
 std::string to_std_string(const godot::String &p_string) {
 	return p_string.utf8().get_data();
+}
+
+// queue_free() on a container does not mark its children as queued yet.
+bool is_live_member(const ScholaEnvironment *p_environment, const ScholaAgent *p_agent) {
+	bool member = false;
+	for (const godot::Node *ancestor = p_agent; ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (ancestor->is_queued_for_deletion()) {
+			return false;
+		}
+		member = member || ancestor == p_environment;
+	}
+	return member;
 }
 
 // Prefixes every message with the environment node's name so failures say
@@ -137,8 +150,7 @@ GodotEnvironmentAdapter::GodotEnvironmentAdapter(ScholaEnvironment *p_node) :
 		node(p_node) {}
 
 schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, schola::InteractionDefinition> &r_agents) {
-	// The agent set is fixed after the first success, so a second call is a
-	// caller bug rather than a refresh.
+	// Possible definitions are captured once; live nodes are rediscovered every operation.
 	if (initialized) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "initialize() was already called");
 	}
@@ -150,14 +162,13 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, to_std_string(godot::String("; ").join(errors)));
 	}
 
-	const godot::TypedArray<ScholaAgent> agent_nodes = node->get_agents();
+	const godot::TypedArray<ScholaAgent> agent_nodes = node->get_possible_agents();
 	if (agent_nodes.is_empty()) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "add a ScholaAgent node below this environment");
 	}
 
 	// Build everything in local variables first, so a failure part way
 	// through leaves this adapter and the caller's map untouched.
-	std::vector<AgentEntry> new_agents;
 	std::map<schola::AgentId, schola::InteractionDefinition> definitions;
 	for (int32_t index = 0; index < agent_nodes.size(); ++index) {
 		godot::Object *agent_object = agent_nodes[index];
@@ -181,18 +192,48 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 			return status;
 		}
 
-		AgentEntry entry;
-		entry.id = id;
-		entry.node_id = godot::ObjectID(agent_node->get_instance_id());
-		entry.action_space = definition.action_space;
-		new_agents.push_back(std::move(entry));
 		definitions.emplace(id, std::move(definition));
 	}
 
 	// Everything passed. Commit, then hand the definitions to the caller.
-	agents = std::move(new_agents);
+	this->definitions = definitions;
 	initialized = true;
 	r_agents = std::move(definitions);
+	return schola::Status::ok();
+}
+
+schola::Status GodotEnvironmentAdapter::collect_current_agents(std::vector<AgentEntry> &r_agents) const {
+	if (node->get_ancestor_environment() != nullptr) {
+		return environment_error(node, schola::StatusCode::INVALID_DATA, "Nested ScholaEnvironment nodes are unsupported");
+	}
+	std::set<schola::AgentId> seen;
+	const auto nodes = node->get_agents();
+	for (int32_t i = 0; i < nodes.size(); ++i) {
+		godot::Object *object = nodes[i];
+		auto *agent = godot::Object::cast_to<ScholaAgent>(object);
+		if (agent == nullptr || !is_live_member(node, agent)) {
+			continue;
+		}
+		const auto id = to_std_string(agent->get_resolved_agent_id());
+		const auto previous_node = episode_nodes.find(id);
+		if (previous_node != episode_nodes.end() && previous_node->second != godot::ObjectID(agent->get_instance_id())) {
+			return agent_error(id, schola::StatusCode::INVALID_DATA, "agent node was replaced before reset; use a new declared ID");
+		}
+		const auto declared = definitions.find(id);
+		if (declared == definitions.end() || !seen.insert(id).second) {
+			return agent_error(id, schola::StatusCode::INVALID_DATA, "agent ID must be declared and unique");
+		}
+		schola::InteractionDefinition definition;
+		auto status = agent->get_agent()->define(definition);
+		if (!status.is_ok()) {
+			return status;
+		}
+		if (definition.observation_space != declared->second.observation_space ||
+				definition.action_space != declared->second.action_space || definition.agent_type != declared->second.agent_type) {
+			return agent_error(id, schola::StatusCode::INCOMPATIBLE, "spawned agent differs from its declared definition");
+		}
+		r_agents.push_back({ id, godot::ObjectID(agent->get_instance_id()) });
+	}
 	return schola::Status::ok();
 }
 
@@ -222,27 +263,60 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 	const godot::Variant seed = p_settings.seed.has_value() ? godot::Variant(static_cast<int64_t>(*p_settings.seed)) : godot::Variant();
 	GDVIRTUAL_CALL_PTR(node, _reset_episode, seed, to_dictionary(p_settings.options));
 
-	// Read every agent's first observation of the fresh episode.
+	episode_nodes.clear();
+	// Observation callbacks can change the population. Discover births until
+	// every live ID has been observed, then publish only the final live roster.
 	std::map<schola::AgentId, schola::InitialAgentState> states;
-	for (const AgentEntry &entry : agents) {
-		ScholaAgent *agent_node = nullptr;
-		schola::Status status = find_agent_node(entry.id, entry.node_id, agent_node);
+	std::vector<AgentEntry> current;
+	while (true) {
+		current.clear();
+		auto status = collect_current_agents(current);
 		if (!status.is_ok()) {
 			return status;
 		}
+		bool observed_new_agent = false;
+		for (const AgentEntry &entry : current) {
+			if (episode_nodes.count(entry.id) != 0) {
+				continue;
+			}
+			ScholaAgent *agent_node = nullptr;
+			status = find_agent_node(entry.id, entry.node_id, agent_node);
+			if (!status.is_ok() || !is_live_member(node, agent_node)) {
+				continue;
+			}
 
-		schola::InitialAgentState state;
-		status = agent_node->get_agent()->observe(state.observation);
-		if (!status.is_ok()) {
-			return status;
+			observed_new_agent = true;
+			episode_nodes.emplace(entry.id, entry.node_id);
+			schola::InitialAgentState state;
+			status = agent_node->get_agent()->observe(state.observation);
+			if (!status.is_ok()) {
+				return status;
+			}
+			// Final membership, rather than a transient detachment, decides whether
+			// this initial observation belongs in the outgoing reset population.
+			states.emplace(entry.id, std::move(state));
 		}
-		states.emplace(entry.id, std::move(state));
+		// A scan without new observations runs no callbacks, so membership is stable.
+		if (!observed_new_agent) {
+			break;
+		}
+	}
+	std::set<schola::AgentId> live_ids;
+	for (const auto &entry : current) {
+		live_ids.insert(entry.id);
+	}
+	for (auto it = states.begin(); it != states.end();) {
+		if (live_ids.count(it->first) == 0) {
+			it = states.erase(it);
+		} else {
+			++it;
+		}
+	}
+	last_states.clear();
+	for (const auto &[id, state] : states) {
+		last_states.emplace(id, schola::AgentState{ state.observation, 0.0f, false, false, state.info });
 	}
 
-	// Everything passed. Every agent is back in the episode.
-	for (AgentEntry &entry : agents) {
-		entry.finished = false;
-	}
 	episode_active = true;
 	episode_step = 0;
 	r_states = std::move(states);
@@ -256,23 +330,28 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "step() called before reset()");
 	}
 
-	// Phase 1: check every action before anything moves.
-	for (const auto &[id, action] : p_actions) {
-		// C++17 lambdas cannot capture a structured binding, so name it first.
-		const schola::AgentId &wanted_id = id;
-		const auto entry = std::find_if(agents.begin(), agents.end(), [&wanted_id](const AgentEntry &p_entry) {
-			return p_entry.id == wanted_id;
-		});
-		if (entry == agents.end()) {
-			return agent_error(id, schola::StatusCode::NOT_FOUND, "not part of this environment");
+	std::vector<AgentEntry> current;
+	auto status = collect_current_agents(current);
+	if (!status.is_ok()) {
+		return status;
+	}
+	// Validate the full request before invoking any gameplay hooks.
+	size_t active_count = 0;
+	for (const auto &[id, previous] : last_states) {
+		if (!previous.terminated && !previous.truncated) {
+			++active_count;
+			const auto action = p_actions.find(id);
+			if (action == p_actions.end()) {
+				return agent_error(id, schola::StatusCode::INVALID_ARGUMENT, "missing action");
+			}
+			status = definitions.at(id).action_space.validate(action->second);
+			if (!status.is_ok()) {
+				return agent_error(id, status.get_code(), "rejected action: " + status.get_message());
+			}
 		}
-		if (entry->finished) {
-			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "already finished this episode");
-		}
-		const schola::Status status = entry->action_space.validate(action);
-		if (!status.is_ok()) {
-			return agent_error(id, status.get_code(), "rejected action: " + status.get_message());
-		}
+	}
+	if (p_actions.size() != active_count) {
+		return environment_error(node, schola::StatusCode::INVALID_ARGUMENT, "actions must name exactly the active agents");
 	}
 
 	// A missing _get_step_result() would otherwise only show up after every agent
@@ -280,94 +359,112 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 	if (!p_actions.empty() && !GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_step_result)) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() is not overridden");
 	}
-
-	// Line the actions up in scene-tree order, so agents always act in the
-	// order they appear in the editor, and make sure every node still exists.
-	struct PendingAgent {
-		AgentEntry *entry = nullptr;
-		const schola::Point *action = nullptr;
-		bool finished = false;
-	};
-	std::vector<PendingAgent> pending;
-	for (AgentEntry &entry : agents) {
+	for (const auto &entry : current) {
 		const auto action = p_actions.find(entry.id);
 		if (action == p_actions.end()) {
 			continue;
 		}
-		ScholaAgent *agent_node = nullptr;
-		const schola::Status status = find_agent_node(entry.id, entry.node_id, agent_node);
-		if (!status.is_ok()) {
-			return status;
+		ScholaAgent *agent = nullptr;
+		status = find_agent_node(entry.id, entry.node_id, agent);
+		// Another agent may have removed this one during its action.
+		if (!status.is_ok() || !is_live_member(node, agent)) {
+			continue;
 		}
-		pending.push_back({ &entry, &action->second });
-	}
-
-	// Phase 2a: every agent acts. The world starts changing here, so any
-	// failure from now on means the caller should end the session. Nodes are
-	// looked up again each time, since a script may free one mid-step.
-	for (const PendingAgent &item : pending) {
-		ScholaAgent *agent_node = nullptr;
-		schola::Status status = find_agent_node(item.entry->id, item.entry->node_id, agent_node);
-		if (!status.is_ok()) {
-			return status;
-		}
-		status = agent_node->get_agent()->act(*item.action);
+		status = agent->get_agent()->act(action->second);
 		if (!status.is_ok()) {
 			return status;
 		}
 	}
-
-	// Phase 2b: once everyone has acted, read back each agent's result, so
-	// every observation sees the same world.
 	std::map<schola::AgentId, schola::AgentState> states;
-	for (PendingAgent &item : pending) {
-		const schola::AgentId &id = item.entry->id;
-		ScholaAgent *agent_node = nullptr;
-		schola::Status status = find_agent_node(id, item.entry->node_id, agent_node);
+	std::set<schola::AgentId> result_ids;
+	while (true) {
+		current.clear();
+		status = collect_current_agents(current);
 		if (!status.is_ok()) {
 			return status;
 		}
-
-		schola::AgentState state;
-		status = agent_node->get_agent()->observe(state.observation);
-		if (!status.is_ok()) {
-			return status;
+		bool ran_callback = false;
+		for (const auto &entry : current) {
+			const auto previous = last_states.find(entry.id);
+			if (previous != last_states.end() && (previous->second.terminated || previous->second.truncated)) {
+				continue; // An ID is retired until the next environment reset.
+			}
+			ScholaAgent *agent = nullptr;
+			status = find_agent_node(entry.id, entry.node_id, agent);
+			if (!status.is_ok() || !is_live_member(node, agent)) {
+				continue;
+			}
+			auto observed = states.find(entry.id);
+			if (observed == states.end()) {
+				schola::AgentState state;
+				episode_nodes.emplace(entry.id, entry.node_id);
+				status = agent->get_agent()->observe(state.observation);
+				if (!status.is_ok()) {
+					return status;
+				}
+				// Keep the observation even if this callback detaches the node:
+				// another callback may reattach it before the final boundary.
+				observed = states.emplace(entry.id, std::move(state)).first;
+				ran_callback = true;
+			}
+			if (previous != last_states.end() && result_ids.count(entry.id) == 0) {
+				status = find_agent_node(entry.id, entry.node_id, agent);
+				if (!status.is_ok() || !is_live_member(node, agent)) {
+					continue; // Defer the result hook until this node is live again.
+				}
+				godot::Variant result;
+				if (!GDVIRTUAL_CALL_PTR(node, _get_step_result, agent, result)) {
+					return agent_error(entry.id, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() could not be called");
+				}
+				status = to_step_result(result, observed->second);
+				if (!status.is_ok()) {
+					return agent_error(entry.id, status.get_code(), "_get_step_result(): " + status.get_message());
+				}
+				result_ids.insert(entry.id);
+				ran_callback = true;
+			}
 		}
-
-		// _observe() is user code and may free an agent, so resolve it again
-		// before passing the node to the result hook.
-		status = find_agent_node(id, item.entry->node_id, agent_node);
-		if (!status.is_ok()) {
-			return status;
+		// Discover callback births and finish deferred results. Each ID is
+		// observed once and gets at most one result hook, so this is bounded.
+		if (!ran_callback) {
+			break;
 		}
-		godot::Variant result;
-		if (!GDVIRTUAL_CALL_PTR(node, _get_step_result, agent_node, result)) {
-			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() could not be called");
-		}
-		status = to_step_result(result, state);
-		if (!status.is_ok()) {
-			return agent_error(id, status.get_code(), "_get_step_result(): " + status.get_message());
-		}
-
-		item.finished = state.terminated || state.truncated;
-		states.emplace(id, std::move(state));
 	}
-
-	// Everything passed. Record who finished, and announce the end of the
-	// episode only on the step that finished the last agent.
-	bool finished_this_step = false;
-	for (const PendingAgent &item : pending) {
-		if (item.finished) {
-			item.entry->finished = true;
-			finished_this_step = true;
+	// This final scan ran no callbacks. Reconcile departures against that roster,
+	// including nodes removed and reattached by different callbacks in the batch.
+	std::set<schola::AgentId> live_ids;
+	for (const auto &entry : current) {
+		live_ids.insert(entry.id);
+	}
+	for (auto &[id, state] : states) {
+		if (state.terminated || state.truncated || live_ids.count(id) != 0) {
+			continue;
+		}
+		const auto previous = last_states.find(id);
+		if (previous != last_states.end()) {
+			state = previous->second;
+		}
+		state.reward = 0.0f;
+		state.terminated = true;
+	}
+	for (const auto &[id, previous] : last_states) {
+		if (!previous.terminated && !previous.truncated && states.count(id) == 0) {
+			auto terminal = previous;
+			terminal.reward = 0.0f;
+			terminal.terminated = true;
+			states.emplace(id, std::move(terminal));
 		}
 	}
-	const bool all_finished = std::all_of(agents.begin(), agents.end(), [](const AgentEntry &p_entry) {
-		return p_entry.finished;
-	});
+	for (const auto &[id, state] : states) {
+		last_states[id] = state;
+	}
 	++episode_step;
 	r_states = std::move(states);
-	if (finished_this_step && all_finished) {
+	const bool all_finished = !last_states.empty() && std::all_of(last_states.begin(), last_states.end(), [](const auto &entry) {
+		return entry.second.terminated || entry.second.truncated;
+	});
+	if (all_finished) {
+		episode_active = false;
 		node->emit_signal("episode_ended");
 	}
 	return schola::Status::ok();
@@ -381,8 +478,12 @@ schola::Status GodotEnvironmentAdapter::get_agents(std::vector<schola::Agent *> 
 	// Build the list locally, so a freed agent leaves the caller's vector
 	// untouched.
 	std::vector<schola::Agent *> result;
-	result.reserve(agents.size());
-	for (const AgentEntry &entry : agents) {
+	std::vector<AgentEntry> current;
+	auto collected = collect_current_agents(current);
+	if (!collected.is_ok()) {
+		return collected;
+	}
+	for (const AgentEntry &entry : current) {
 		ScholaAgent *agent_node = nullptr;
 		const schola::Status status = find_agent_node(entry.id, entry.node_id, agent_node);
 		if (!status.is_ok()) {

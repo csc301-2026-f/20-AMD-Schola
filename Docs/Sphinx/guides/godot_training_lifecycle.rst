@@ -39,6 +39,37 @@ fixed until the session closes. Adding, freeing, or removing an environment
 during a session is unsupported. If a configured node disappears, the host
 closes the session instead of assigning its ID to another environment.
 
+Dynamic agent membership
+------------------------
+
+Environment nodes must not be nested, even through grouping nodes. A nested
+``ScholaEnvironment`` reports an Inspector warning and training rejects the
+configuration. Multiple separate, non-nested environments in a scene are valid.
+
+The training definition contains all possible agent IDs and their fixed spaces.
+Override ``ScholaEnvironment._get_possible_agents()`` to return definition-template
+nodes for future spawns; by default, the initial descendants supply definitions.
+Only live descendants participate. Reset rediscovers nodes after the reset hook,
+so episodes may start with different subsets and replacement node instances.
+Reset also discovers births from initial observation callbacks and removes agents
+that leave during those callbacks before publishing the initial population.
+
+New descendants receive an initial observation and zero reward on discovery and
+act on the next step. Departures receive a final terminated transition using the
+last observation and zero reward. Report custom terminal rewards through the
+normal hooks before removing a node. Finished IDs retire until reset; same-episode
+replacements require fresh declared IDs. Unused possible IDs do not hold an
+episode open. Completion still occurs when every observed agent finishes.
+
+For a player respawn, use a fresh declared ID such as ``player_spawn_2`` after
+``player_spawn_1`` dies. Declare both IDs before training begins. Replacing a node
+with another using the same ID before reset is an error and closes the entire
+training session. IDs may be reused after reset.
+
+Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
+vector interfaces still require a fixed population. Definitions are exchanged
+once; arbitrary new IDs or changed spaces require a new training definition.
+
 Episode completion
 ------------------
 

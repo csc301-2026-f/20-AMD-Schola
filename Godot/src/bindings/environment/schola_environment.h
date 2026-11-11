@@ -107,13 +107,21 @@ public:
 	/**
 	 * Finds this environment's agents.
 	 *
-	 * Separate environment nodes in one scene are valid. A nested
-	 * ScholaEnvironment is not searched, so its agents are never counted
-	 * twice.
+	 * Separate non-nested environments in one scene are valid. Discovery
+	 * stops at environment nodes, but nesting itself is invalid configuration.
 	 *
 	 * @return The ScholaAgent descendants of this node, in scene-tree order.
 	 */
 	godot::TypedArray<ScholaAgent> get_agents() const;
+
+	/** Returns the nearest environment ancestor, or null for valid non-nested placement. */
+	ScholaEnvironment *get_ancestor_environment() const;
+
+	/** Optional definition templates for every possible training ID, including future spawns.
+	 * Defaults to the current descendants. Templates are not owned or activated.
+	 */
+	GDVIRTUAL0RC(godot::TypedArray<ScholaAgent>, _get_possible_agents)
+	godot::TypedArray<ScholaAgent> get_possible_agents() const;
 
 	/**
 	 * The US1 core adapter for this node.

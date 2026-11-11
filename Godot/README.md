@@ -154,8 +154,11 @@ manual editor persistence checks.
 Agent warning icons identify missing/invalid spaces and missing `_observe` or
 `_act` hooks. The environment also reports missing agents, missing
 `_get_step_result`, and duplicate resolved agent IDs, including the conflicting
-node paths. Nested environments are searched independently, so matching agent IDs
-across separate environments are allowed. `_reset_episode` is optional.
+node paths. Nested `ScholaEnvironment` nodes are unsupported: the Inspector warns
+and training rejects environments with an environment ancestor, including through
+grouping nodes. Separate non-nested environments may reuse agent IDs.
+See [the nesting decision](docs/decisions/environment-nesting.md).
+`_reset_episode` is optional.
 
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
@@ -270,6 +273,55 @@ godot --headless --path Godot \
 A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
 
 Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+
+## Dynamic training populations
+
+Training definitions declare all **possible agent IDs** and their spaces once.
+The active population may then change during an episode or between resets.
+By default, the initial `ScholaAgent` descendants supply those definitions.
+For future spawns, override `ScholaEnvironment._get_possible_agents()` to return
+an `Array[ScholaAgent]` of definition templates for all possible IDs. Templates
+may be outside the environment; the game owns their lifetime. Only actual
+`ScholaAgent` descendants participate in the episode.
+
+For example, keep definition-template nodes in a sibling container and assign
+references through an exported array on your environment script:
+
+```gdscript
+@export var agent_templates: Array[ScholaAgent] = []
+
+func _get_possible_agents() -> Array[ScholaAgent]:
+    return agent_templates
+```
+
+The array must include every possible ID, including agents present initially.
+Each spawned copy gets a unique unused ID from this declared roster.
+
+Spawn a descendant with a declared ID, matching spaces, and matching `agent_type`.
+Schola discovers it at the next step boundary and returns its first observation
+with zero reward; Python supplies its first action on the following step.
+Removing or freeing an active agent produces a terminal transition with its
+last observation and zero reward. For a custom death reward or final observation,
+report termination through the environment hooks before removing the node.
+Use `queue_free()` from gameplay callbacks, as usual in Godot.
+
+An ID that terminates or truncates is retired for the rest of that episode.
+A replacement in the same episode needs another declared ID; after reset,
+IDs may be reused and bound to entirely new nodes. Reset returns only the live
+population after `_reset_episode()`. Unused possible IDs never need actions and
+do not delay completion. An episode completes when all observed agents finish;
+spawn the next wave before that boundary to continue the same episode. A
+currently empty reset can be followed by an empty action map to discover births.
+
+For example, respawn a player as `player_spawn_2` after `player_spawn_1` dies,
+with both IDs declared by `_get_possible_agents()`. Reusing an ID for a different
+node before reset is an error and closes the entire training session. The next
+episode may reuse those IDs.
+
+This preserves the existing Python/protobuf possible-agent contract. It supports
+a varying population within a declared capacity, rather than adding new space
+definitions during training. Use a client supporting dynamic multi-agent rosters
+(such as RLlib); SB3's fixed-size vector interface still requires fixed populations.
 
 ## Directory structure
 

@@ -131,7 +131,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 					point);
 
 			if (!status.is_ok()) {
-				return status;
+				return schola::Status::error(status.get_code(),
+						"Agent '" + agent_id + "': rejected action: " + status.get_message());
 			}
 			decoded_actions.emplace(agent_id, std::move(point));
 		}
@@ -343,10 +344,31 @@ schola::Status ScholaTrainingHost::validate_environment_nodes() const {
 					"ScholaEnvironment for environment " + std::to_string(index) +
 							" was freed during the active training session");
 		}
-		if (godot::Object::cast_to<ScholaEnvironment>(object) == nullptr) {
+		auto *environment = godot::Object::cast_to<ScholaEnvironment>(object);
+		if (environment == nullptr) {
 			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 					"object for environment " + std::to_string(index) +
 							" is no longer a ScholaEnvironment");
+		}
+		if (environment->get_ancestor_environment() != nullptr) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
+		}
+	}
+	// Callbacks can introduce an unregistered nested environment. Validate the
+	// whole active scene, not just the IDs captured when the session started.
+	const godot::SceneTree *tree = get_tree();
+	godot::Node *scene_root = tree != nullptr ? tree->get_current_scene() : nullptr;
+	if (scene_root == nullptr) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"training session has no active scene");
+	}
+	std::vector<ScholaEnvironment *> scene_environments;
+	collect_environments(scene_root, scene_environments);
+	for (const auto *environment : scene_environments) {
+		if (environment->get_ancestor_environment() != nullptr) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
 		}
 	}
 	return schola::Status::ok();
@@ -360,6 +382,12 @@ schola::Status ScholaTrainingHost::fail_session(const schola::Status &p_failure)
 schola::Status ScholaTrainingHost::handle_coordinator_result(const schola::Status &p_status) {
 	if (!p_status.is_ok() && coordinator.get_state() == schola::CoordinatorState::FAULTED) {
 		return fail_session(p_status);
+	}
+	if (p_status.is_ok()) {
+		const schola::Status nodes = validate_environment_nodes();
+		if (!nodes.is_ok()) {
+			return fail_session(nodes);
+		}
 	}
 	return p_status;
 }
