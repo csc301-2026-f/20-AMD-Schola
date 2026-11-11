@@ -259,3 +259,71 @@ func test_in_place_ray_append_is_rejected_until_space_is_synchronized() -> void:
 	sensor.add_ray(NodePath("../Ray"))
 	assert_bool(sensor.get_configuration_errors().is_empty()).is_true()
 	assert_array(Array(sensor.space.shape)).contains_exactly([6])
+
+func test_velocity_sensor_reads_rotated_rigid_body_and_scaling() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/velocity_sensor_3d.gd").new()
+	sensor.component_id = "velocity"
+	agent.add_child(sensor)
+	var body := RigidBody3D.new()
+	body.name = "Body"
+	body.freeze = true
+	body.rotation.y = PI / 2.0
+	body.linear_velocity = Vector3(4, 2, 0)
+	agent.add_child(body)
+	sensor.body_path = NodePath("../Body")
+	sensor.velocity_scale = 2.0
+	sensor.axes = 1
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	var result: Dictionary = driver.call("step", environment, {"A": {"00000000:a": 0}})
+	assert_bool(result.ok).is_true()
+	var values: PackedFloat32Array = result.states.A.observation["00000000:velocity"]
+	assert_vector(Vector3(values[0], values[1], values[2])).is_equal_approx(Vector3(2, 0, 1), Vector3.ONE * 0.0001)
+	sensor.local_frame = false
+	sensor.axes = 0
+	result = driver.call("step", environment, {"A": {"00000000:a": 0}})
+	values = result.states.A.observation["00000000:velocity"]
+	assert_vector(Vector3(values[0], values[1], values[2])).is_equal_approx(Vector3(2, 1, 0), Vector3.ONE * 0.0001)
+	sensor.velocity_scale = 0.0
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+
+func test_velocity_sensor_supports_character_body_and_rejects_missing_body() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/velocity_sensor_3d.gd").new()
+	agent.add_child(sensor)
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+	var body := CharacterBody3D.new()
+	body.name = "Body"
+	body.velocity = Vector3(1, 2, 3)
+	agent.add_child(body)
+	sensor.body_path = NodePath("../Body")
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_true()
+	assert_array(Array(sensor._observe())).contains_exactly([1.0, 2.0, 3.0])
+
+func test_vehicle_actuator_smooths_controls_and_clears_them_on_reset() -> void:
+	_sensor("s")
+	var actuator: ScholaActuator = load("res://addons/schola/components/vehicle_actuator_3d.gd").new()
+	actuator.component_id = "controls"
+	agent.add_child(actuator)
+	assert_bool(actuator.get_configuration_errors().is_empty()).is_false()
+	var body := VehicleBody3D.new()
+	body.name = "Car"
+	body.freeze = true
+	agent.add_child(body)
+	actuator.body_path = NodePath("../Car")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	var result: Dictionary = driver.call("step", environment, {"A": {"00000000:controls": PackedFloat32Array([1, 1])}})
+	assert_bool(result.ok).is_true()
+	assert_float(body.engine_force).is_greater(0.0).is_less(7500.0)
+	assert_float(body.steering).is_less(0.0)
+	assert_float(body.brake).is_equal(0.0)
+	actuator.reset()
+	assert_float(body.engine_force).is_equal(0.0)
+	assert_float(body.steering).is_equal(0.0)
+	result = driver.call("step", environment, {"A": {"00000000:controls": PackedFloat32Array([0, -1])}})
+	assert_bool(result.ok).is_true()
+	assert_float(body.brake).is_greater(0.0).is_less(30.0)
+	assert_float(body.engine_force).is_equal(0.0)
+	actuator.reset()
+	assert_float(body.brake).is_equal(0.0)

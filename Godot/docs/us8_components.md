@@ -66,3 +66,20 @@ pawn input accumulation. Camera observations are outside US8.
 Run the native adapter and physics checks with the integration-test runtime build
 and `res://tests/integration/components_test.gd`, using the commands in the Godot
 README. No frozen milestone demo is required or modified.
+
+## Velocity and vehicle components
+
+- `ScholaVelocitySensor3D`: `body_path` accepts `RigidBody3D` (including
+  `VehicleBody3D`) or `CharacterBody3D`. Returns three linear velocity values.
+  `local_frame` defaults to true; disable for world coordinates. `axes` defaults
+  to Godot X/Y/Z; option 1 returns forward/right/up for vehicles facing +Z.
+  Values are divided by a finite positive `velocity_scale` (default 1 m/s).
+  The Box is unbounded so high speeds are not silently clipped.
+- `ScholaVehicleActuator3D`: `body_path` targets a `VehicleBody3D`. Two normalized
+  actions control steering and signed throttle/brake. Exported limits, gain and
+  rise/fall rates retain the RaceTrack defaults. Positive steering turns right
+  for the example's +Z-facing car. Call `reset()` when resetting an episode to
+  clear smoothing state and all three physics control properties.
+
+The [RaceTrack component demo](../examples/race_track/README.md) combines these
+with a track-specific sensor. Its agent has no direct observation/action hooks.
