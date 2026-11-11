@@ -4,7 +4,7 @@
 
 [ext_resource type="Script" path="res://addons/schola/components/velocity_sensor_3d.gd" id="2_velocity"]
 [ext_resource type="Script" path="res://addons/schola/components/vehicle_actuator_3d.gd" id="3_controls"]
-[ext_resource type="Script" path="res://examples/race_track/scripts/track_sensor.gd" id="4_track"]
+[ext_resource type="Script" path="res://addons/schola/components/path_sensor_3d.gd" id="4_track"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(1.8, 0.6, 4)
@@ -88,6 +88,8 @@ script = ExtResource("1_agent")
 
 [node name="Track" type="ScholaSensor" parent="Agent"]
 script = ExtResource("4_track")
+location_scale = 5.0
+axes = 1
 body_path = NodePath("../..")
 
 [node name="Velocity" type="ScholaSensor" parent="Agent"]
@@ -98,4 +100,5 @@ velocity_scale = 2.0
 
 [node name="Controls" type="ScholaActuator" parent="Agent"]
 script = ExtResource("3_controls")
+controls_scale = 100.0
 body_path = NodePath("../..")

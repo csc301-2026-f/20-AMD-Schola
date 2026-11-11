@@ -327,3 +327,48 @@ func test_vehicle_actuator_smooths_controls_and_clears_them_on_reset() -> void:
 	assert_float(body.engine_force).is_equal(0.0)
 	actuator.reset()
 	assert_float(body.brake).is_equal(0.0)
+
+func test_path_sensor_works_without_race_track_scripts() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/path_sensor_3d.gd").new()
+	agent.add_child(sensor)
+	var path := Path3D.new()
+	path.name = "Path"
+	path.curve = Curve3D.new()
+	path.curve.add_point(Vector3.ZERO)
+	path.curve.add_point(Vector3(0, 0, 10))
+	agent.add_child(path)
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = Vector3(2, 0, 5)
+	agent.add_child(body)
+	sensor.body_path = NodePath("../Body")
+	sensor.path_path = NodePath("../Path")
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_true()
+	var values: PackedFloat32Array = sensor._observe()
+	assert_vector(Vector3(values[0], values[1], values[2])).is_equal_approx(Vector3(-2, 0, 0), Vector3.ONE * 0.01)
+	assert_vector(Vector3(values[3], values[4], values[5])).is_equal_approx(Vector3(0, 0, 1), Vector3.ONE * 0.01)
+	sensor.location_scale = 2.0
+	sensor.axes = 1
+	values = sensor._observe()
+	assert_vector(Vector3(values[0], values[1], values[2])).is_equal_approx(Vector3(0, 1, 0), Vector3.ONE * 0.01)
+	sensor.path_path = NodePath("../Missing")
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+
+func test_keyboard_demo_disables_training_endings_and_tilt_ignores_heading() -> void:
+	var scene: Node = auto_free(load("res://examples/race_track/scenes/race_track_train.tscn").instantiate())
+	add_child(scene)
+	var env: RaceTrackEnvironment = scene.get_node("RaceTrackEnvironment")
+	var car: VehicleBody3D = env.get_node("Car")
+	car.rotation = Vector3(0, PI * 0.75, 0)
+	car.global_position = Vector3(10000, 0, 10000)
+	env.terminate_off_track = false
+	env.maximum_steps = 0
+	var state: Dictionary = env._get_step_result(null)
+	assert_bool(state.terminated).is_false()
+	assert_bool(state.truncated).is_false()
+	car.rotation.z = PI / 2.0
+	assert_bool(env._get_step_result(null).terminated).is_true()
+	env.terminate_on_tilt = false
+	assert_bool(env._get_step_result(null).terminated).is_false()
+	env.terminate_off_track = true
+	assert_bool(env._get_step_result(null).terminated).is_true()

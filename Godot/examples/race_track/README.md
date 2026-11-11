@@ -11,11 +11,12 @@ Open this worktree's `Godot/project.godot`, then open
 W applies throttle, S applies brakes, A/D steer, and R resets the episode.
 The HUD shows native host steps, speed, track observations, velocity, and reward.
 This is a keyboard controller through `ScholaTrainingHost`, not a trained policy.
-Episode endings automatically reset the car using the existing track rules.
+The keyboard scene disables off-track, tilt, and step-limit endings; press R to
+reset. The training scene retains configurable episode limits.
 
 The agent composes child nodes in this order:
 
-1. **Track** (`RaceTrackSensor`): six track-relative floats, specific to this example.
+1. **Track** (`ScholaPathSensor3D`): six track-relative floats, from a reusable sensor accepting any `Path3D`.
 2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
 3. **Controls** (`ScholaVehicleActuator3D`): two actions, with the original vehicle
    steering/throttle/brake gain and smoothing. Also reusable in other vehicle scenes.
@@ -45,7 +46,7 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, and start position | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
-| `scripts/track_sensor.gd` | Track-relative observation component | Track features |
+| `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
 | `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
 

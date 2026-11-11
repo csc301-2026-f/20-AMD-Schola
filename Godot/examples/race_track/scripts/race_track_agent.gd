@@ -8,6 +8,7 @@ var track: RaceTrackPath
 
 func _ready() -> void:
 	track = RaceTrackPath.find_in(get_tree())
+	$Track.path_path = $Track.get_path_to(track)
 	place_at_start()
 
 func place_at_start() -> void:

@@ -82,4 +82,8 @@ README. No frozen milestone demo is required or modified.
   clear smoothing state and all three physics control properties.
 
 The [RaceTrack component demo](../examples/race_track/README.md) combines these
-with a track-specific sensor. Its agent has no direct observation/action hooks.
+with `ScholaPathSensor3D`, which accepts any `Path3D` and reports the closest
+point offset and tangent in the observed body frame. Configure `body_path`,
+`path_path`, positive `location_scale`, and XYZ or +Z-forward axes.
+Vehicle `controls_scale` defaults to 1; the race car opts into its original
+gain of 100 in its scene. `steering_sign` is configurable for wheel orientation. Its agent has no direct observation/action hooks.

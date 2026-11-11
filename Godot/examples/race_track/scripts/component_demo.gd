@@ -46,6 +46,7 @@ func _physics_process(_delta: float) -> void:
 	var pedal := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
 	if smoke:
 		pedal = 0.01
+		steering = 0.005 if steps > 30 else 0.0
 	var result := host.step({"actions": [{agent.get_resolved_agent_id(): {action_key: PackedFloat32Array([steering, pedal])}}]})
 	if not _accept(result):
 		return
@@ -56,6 +57,10 @@ func _physics_process(_delta: float) -> void:
 	saw_velocity = saw_velocity or Vector3(velocity[0], velocity[1], velocity[2]).length() > 0.1
 	steps += 1
 	telemetry.text = "RACE TRACK / COMPOSED SENSORS + ACTUATOR\nW: throttle  S: brake  A/D: steer  R: reset\nKeyboard controller (no trained policy) → native host → components\nSteps: %d   Speed: %.1f m/s\nTrack [offset / 5m, direction]: %s\nVelocity [forward, right, up] / 2m/s: %s\nControls [steering, pedal]: %s\nReward: %.3f" % [steps, car.linear_velocity.length(), observation[keys[0]], velocity, Vector2(steering, pedal), state.reward]
+	if smoke and (state.terminated or state.truncated):
+		push_error("Keyboard demo unexpectedly ended the episode")
+		get_tree().quit(1)
+		return
 	if state.terminated or state.truncated:
 		running = _accept(host.reset({}))
 	if smoke and steps == 120:
