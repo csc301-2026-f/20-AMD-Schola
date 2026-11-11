@@ -2,9 +2,12 @@
 
 #include "bindings/environment/schola_agent.h"
 
+#include "bindings/components/schola_actuator.h"
+#include "bindings/components/schola_sensor.h"
 #include "bindings/environment/configuration_diagnostics.h"
 #include "bindings/environment/godot_agent_adapter.h"
 #include "bindings/environment/schola_environment.h"
+#include "bindings/spaces/schola_dict_space.h"
 #include "bindings/spaces/schola_space.h"
 
 #include <godot_cpp/core/class_db.hpp>
@@ -93,7 +96,21 @@ void ScholaAgent::set_observation_space(const godot::Ref<ScholaSpace> &p_observa
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_observation_space() const {
-	return observation_space;
+	if (schola::configuration::has_hook(this, "_observe")) {
+		return observation_space;
+	}
+	auto components = get_sensors();
+	if (components.empty()) {
+		return observation_space;
+	}
+	godot::Ref<ScholaDictSpace> combined;
+	combined.instantiate();
+	godot::Dictionary entries;
+	for (size_t i = 0; i < components.size(); ++i) {
+		entries[godot::String::num_int64(i).pad_zeros(8) + ":" + components[i]->get_resolved_component_id()] = components[i]->get_space();
+	}
+	combined->set_spaces(entries);
+	return combined;
 }
 
 void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space) {
@@ -104,7 +121,21 @@ void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_action_space() const {
-	return action_space;
+	if (schola::configuration::has_hook(this, "_act")) {
+		return action_space;
+	}
+	auto components = get_actuators();
+	if (components.empty()) {
+		return action_space;
+	}
+	godot::Ref<ScholaDictSpace> combined;
+	combined.instantiate();
+	godot::Dictionary entries;
+	for (size_t i = 0; i < components.size(); ++i) {
+		entries[godot::String::num_int64(i).pad_zeros(8) + ":" + components[i]->get_resolved_component_id()] = components[i]->get_space();
+	}
+	combined->set_spaces(entries);
+	return combined;
 }
 
 schola::Agent *ScholaAgent::get_agent() {
@@ -125,18 +156,20 @@ const schola::Agent *ScholaAgent::get_agent() const {
 
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	godot::PackedStringArray errors;
-	if (observation_space.is_null()) {
+	const auto effective_observation = get_observation_space();
+	const auto effective_action = get_action_space();
+	if (effective_observation.is_null()) {
 		errors.append("observation_space is not set");
 	} else {
-		const godot::String error = observation_space->get_definition_error();
+		const godot::String error = effective_observation->get_definition_error();
 		if (!error.is_empty()) {
 			errors.append("observation_space: " + error);
 		}
 	}
-	if (action_space.is_null()) {
+	if (effective_action.is_null()) {
 		errors.append("action_space is not set");
 	} else {
-		const godot::String error = action_space->get_definition_error();
+		const godot::String error = effective_action->get_definition_error();
 		if (!error.is_empty()) {
 			errors.append("action_space: " + error);
 		}
@@ -166,10 +199,10 @@ void ScholaAgent::_bind_methods() {
 
 godot::PackedStringArray ScholaAgent::_get_configuration_warnings() const {
 	godot::PackedStringArray warnings = get_configuration_errors();
-	if (!schola::configuration::has_hook(this, "_observe")) {
+	if (get_sensors().empty() && !schola::configuration::has_hook(this, "_observe")) {
 		warnings.append("Implement _observe() in this agent's script to return its observation.");
 	}
-	if (!schola::configuration::has_hook(this, "_act")) {
+	if (get_actuators().empty() && !schola::configuration::has_hook(this, "_act")) {
 		warnings.append("Implement _act(action) in this agent's script to apply an action.");
 	}
 	return warnings;
@@ -180,4 +213,30 @@ godot::String ScholaAgent::get_resolved_agent_id() const {
 
 godot::String ScholaAgent::get_resolved_agent_type() const {
 	return agent_type.is_empty() ? get_resolved_agent_id() : agent_type;
+}
+
+namespace {
+template <class T>
+void collect_components(const godot::Node *parent, std::vector<T *> &result) {
+	for (int i = 0; i < parent->get_child_count(); ++i) {
+		auto *child = parent->get_child(i);
+		if (godot::Object::cast_to<ScholaAgent>(child)) {
+			continue;
+		}
+		if (auto *component = godot::Object::cast_to<T>(child)) {
+			result.push_back(component);
+		}
+		collect_components(child, result);
+	}
+}
+} //namespace
+std::vector<ScholaSensor *> ScholaAgent::get_sensors() const {
+	std::vector<ScholaSensor *> result;
+	collect_components(this, result);
+	return result;
+}
+std::vector<ScholaActuator *> ScholaAgent::get_actuators() const {
+	std::vector<ScholaActuator *> result;
+	collect_components(this, result);
+	return result;
 }
