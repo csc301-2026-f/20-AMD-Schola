@@ -2,7 +2,7 @@
 
 A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAndSDKs/ScholaExamples/tree/main/Content/Examples/RaceTrack): a car learns to drive around a track. It is the US13 production example: it will train through Schola's Python tools over gRPC and run the exported ONNX policy in Godot with Python closed.
 
-The track, start position, spaces, observations, actions, reward, and episode rules were read from AMD's Unreal assets: the Blueprints' compiled code and default values, the `RaceTrackTrain` map, and the car's C++ source.
+The original example was derived from AMD’s Unreal assets. This local version deliberately changes course size, vehicle handling, and starting position for an arcade driving demo.
 
 ## Local component demo
 
@@ -24,7 +24,7 @@ The agent composes child nodes in this order:
 The agent script only handles placement/reset. It has no `_observe` or `_act`
 overrides, so the native adapter dispatches the child components.
 
-A deterministic headless check drives 120 native steps, checks observation shapes
+A deterministic headless check drives 360 native steps, checks observation shapes, acceleration, turning, upright stability
 and vehicle motion, and verifies that reset clears velocity and all controls:
 
 ```sh
@@ -52,9 +52,20 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 
 ## Track and car
 
-- The track is 19-point spline, about 1 km long, with a 10 m wide road. One point that sat 13 cm below the ground in AMD's map is set to ground level, so the road stays visible.
-- The car starts 0.7 m behind the track's start and 8.2 m left of its centre line, as placed in map.
-- The car weighs 1500 kg, steers its front wheels up to 40°, and drives its rear wheels. Its engine force and brakes are estimates and need tuning.
+- Course control points and handles use 45% of the original dimensions; road
+  width stays 10 m so the car still has room to turn. The loop ends at its start.
+- Both road edges have 1.2 m tall, 0.5 m thick solid walls, sampled every 1.5 m
+  with overlapping collision boxes. The start is on the centerline.
+- The 900 kg car has a shorter body, low center of mass, damped suspension,
+  grounded lateral grip and speed-dependent downforce. Pitch and roll are locked
+  for predictable flat-track arcade handling, while yaw and collisions remain physical.
+  This intentionally does not model banked tracks, loops, or realistic aerial rotation.
+- Full normalized input is 1, steering is limited to 28 degrees, and steering
+  reduces to 25% at 18 m/s. Engine force fades toward a 28 m/s top speed.
+  Braking remains available at that speed. Suspension and grip are scene/script settings.
+- `arcade_vehicle.gd` owns grounded grip; the reusable actuator owns controls,
+  optional speed-sensitive steering and optional engine speed limiting. These
+  speed options default to disabled for other scenes.
 
 ## Spaces
 
@@ -80,7 +91,9 @@ not assumed compatible. Renaming or reordering components also changes the layou
 1. Steering; positive turns right.
 2. Throttle when positive, brake when negative.
 
-Both are multiplied by 100, so small values already give full input. The inputs then move gradually toward that target, like Unreal's car physics does. The smoothing rates are estimates and are not verified.
+Inputs are normalized in [-1, 1] and smoothed before reaching the physics body.
+The keyboard supplies full throttle/brake or steering; speed-sensitive steering
+limits abrupt high-speed direction changes.
 
 ## Episode and reward
 

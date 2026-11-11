@@ -372,3 +372,40 @@ func test_keyboard_demo_disables_training_endings_and_tilt_ignores_heading() -> 
 	assert_bool(env._get_step_result(null).terminated).is_false()
 	env.terminate_off_track = true
 	assert_bool(env._get_step_result(null).terminated).is_true()
+
+func test_vehicle_speed_reduces_steering_and_limits_engine_force() -> void:
+	var body := VehicleBody3D.new()
+	body.name = "Car"
+	body.freeze = true
+	agent.add_child(body)
+	var actuator: ScholaActuator = load("res://addons/schola/components/vehicle_actuator_3d.gd").new()
+	agent.add_child(actuator)
+	actuator.body_path = NodePath("../Car")
+	actuator.steering_speed_reference = 10.0
+	actuator.minimum_steering_fraction = 0.25
+	actuator.top_speed = 20.0
+	actuator._steering = 1.0
+	actuator._throttle = 1.0
+	actuator._apply()
+	var slow_steering := absf(body.steering)
+	body.linear_velocity = Vector3(0, 0, 20)
+	actuator._apply()
+	assert_float(absf(body.steering)).is_equal_approx(slow_steering * 0.25, 0.0001)
+	assert_float(body.engine_force).is_equal(0.0)
+
+func test_compact_track_has_solid_walls_on_both_sides() -> void:
+	var scene: Node = auto_free(load("res://examples/race_track/scenes/race_track.tscn").instantiate())
+	add_child(scene)
+	var path: RaceTrackPath = scene.get_node("Track")
+	assert_float(path.curve.get_baked_length()).is_less(600.0)
+	assert_int(path.get_node("TrackWalls").get_child_count()).is_greater(100)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var origin := path.center_at(20) + Vector3.UP * 0.6
+	var across := Vector3.UP.cross(path.direction_at(20))
+	for side in [-1.0, 1.0]:
+		var query := PhysicsRayQueryParameters3D.create(origin, origin + across * side * 8.0)
+		var hit := path.get_world_3d().direct_space_state.intersect_ray(query)
+		assert_bool(hit.is_empty()).is_false()
+		if not hit.is_empty():
+			assert_object(hit.collider).is_equal(path.get_node("TrackWalls"))

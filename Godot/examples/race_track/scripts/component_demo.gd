@@ -9,6 +9,10 @@ var running := false
 var smoke := false
 var steps := 0
 var saw_velocity := false
+var peak_speed := 0.0
+var minimum_upright := 1.0
+var maximum_turn := 0.0
+var starting_forward := Vector3.ZERO
 var action_key: String
 
 func _ready() -> void:
@@ -25,6 +29,7 @@ func _ready() -> void:
 		return
 	action_key = agent.action_space.spaces.keys()[0]
 	running = _accept(host.reset({}))
+	starting_forward = car.global_basis.z
 
 func _accept(result: Dictionary) -> bool:
 	if result.status.code == 0:
@@ -45,8 +50,8 @@ func _physics_process(_delta: float) -> void:
 	var steering := float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 	var pedal := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
 	if smoke:
-		pedal = 0.01
-		steering = 0.005 if steps > 30 else 0.0
+		pedal = 1.0
+		steering = 0.6 if steps > 90 else 0.0
 	var result := host.step({"actions": [{agent.get_resolved_agent_id(): {action_key: PackedFloat32Array([steering, pedal])}}]})
 	if not _accept(result):
 		return
@@ -55,6 +60,9 @@ func _physics_process(_delta: float) -> void:
 	var keys: Array = agent.observation_space.spaces.keys()
 	var velocity: PackedFloat32Array = observation[keys[1]]
 	saw_velocity = saw_velocity or Vector3(velocity[0], velocity[1], velocity[2]).length() > 0.1
+	peak_speed = maxf(peak_speed, car.linear_velocity.length())
+	minimum_upright = minf(minimum_upright, car.global_basis.y.dot(Vector3.UP))
+	maximum_turn = maxf(maximum_turn, starting_forward.angle_to(car.global_basis.z))
 	steps += 1
 	telemetry.text = "RACE TRACK / COMPOSED SENSORS + ACTUATOR\nW: throttle  S: brake  A/D: steer  R: reset\nKeyboard controller (no trained policy) → native host → components\nSteps: %d   Speed: %.1f m/s\nTrack [offset / 5m, direction]: %s\nVelocity [forward, right, up] / 2m/s: %s\nControls [steering, pedal]: %s\nReward: %.3f" % [steps, car.linear_velocity.length(), observation[keys[0]], velocity, Vector2(steering, pedal), state.reward]
 	if smoke and (state.terminated or state.truncated):
@@ -63,7 +71,11 @@ func _physics_process(_delta: float) -> void:
 		return
 	if state.terminated or state.truncated:
 		running = _accept(host.reset({}))
-	if smoke and steps == 120:
+	if smoke and steps == 360:
+		if peak_speed < 5.0 or minimum_upright < 0.99 or maximum_turn < 0.1:
+			push_error("Arcade handling failed: peak speed %.2f, upright %.3f, turn %.3f" % [peak_speed, minimum_upright, maximum_turn])
+			get_tree().quit(1)
+			return
 		if observation.size() != 2 or observation[keys[0]].size() != 6 or velocity.size() != 3 or not saw_velocity:
 			push_error("Race track smoke: missing composed observations or vehicle motion")
 			get_tree().quit(1)
@@ -74,5 +86,5 @@ func _physics_process(_delta: float) -> void:
 			push_error("Race track smoke: reset did not clear physics and controls")
 			get_tree().quit(1)
 			return
-		print("RACE_TRACK_SMOKE_OK: native sensor composition, vehicle motion and reset verified")
+		print("RACE_TRACK_SMOKE_OK: 360 steps, peak %.2f m/s, upright %.3f, turn %.2f rad; native composition and reset verified" % [peak_speed, minimum_upright, maximum_turn])
 		get_tree().quit(0)

@@ -13,6 +13,10 @@ extends ScholaActuator
 @export var pedal_fall_rate: float = 10.0
 ## Steering sign depends on the vehicle orientation and wheel setup.
 @export_enum("Negative:-1", "Positive:1") var steering_sign: int = -1
+## Zero disables speed-sensitive steering / the engine speed cap.
+@export var steering_speed_reference: float = 0.0
+@export_range(0.05, 1.0) var minimum_steering_fraction: float = 0.25
+@export var top_speed: float = 0.0
 @export var body_path: NodePath
 var _steering := 0.0
 var _throttle := 0.0
@@ -44,8 +48,12 @@ func _act(action: Variant) -> void:
 
 func _apply() -> void:
 	var car := get_node(body_path) as VehicleBody3D
-	car.steering = steering_sign * _steering * deg_to_rad(maximum_steering_degrees)
-	car.engine_force = _throttle * maximum_engine_force
+	var speed := car.linear_velocity.length()
+	var steering_fraction := 1.0
+	if steering_speed_reference > 0.0:
+		steering_fraction = lerpf(1.0, minimum_steering_fraction, clampf(speed / steering_speed_reference, 0.0, 1.0))
+	car.steering = steering_sign * _steering * deg_to_rad(maximum_steering_degrees) * steering_fraction
+	car.engine_force = _throttle * maximum_engine_force * (clampf(1.0 - pow(speed / top_speed, 4.0), 0.0, 1.0) if top_speed > 0.0 else 1.0)
 	car.brake = _brake * maximum_brake
 
 
@@ -56,11 +64,13 @@ func _approach(current: float, target: float, rise_rate: float, fall_rate: float
 
 func _get_component_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
+	if not is_finite(minimum_steering_fraction) or minimum_steering_fraction < 0.05 or minimum_steering_fraction > 1.0:
+		errors.append("minimum_steering_fraction must be between 0.05 and 1.")
 	if steering_sign != -1 and steering_sign != 1:
 		errors.append("steering_sign must be -1 or 1.")
 	if not get_node_or_null(body_path) is VehicleBody3D:
 		errors.append("body_path must reference a VehicleBody3D.")
-	for value in [controls_scale, maximum_steering_degrees, maximum_engine_force, maximum_brake, steering_rise_rate, steering_fall_rate, pedal_rise_rate, pedal_fall_rate]:
+	for value in [steering_speed_reference, top_speed, controls_scale, maximum_steering_degrees, maximum_engine_force, maximum_brake, steering_rise_rate, steering_fall_rate, pedal_rise_rate, pedal_fall_rate]:
 		if not is_finite(value) or value < 0.0:
 			errors.append("Vehicle gains, limits, and smoothing rates must be finite and nonnegative.")
 			break

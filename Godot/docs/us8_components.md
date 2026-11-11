@@ -85,5 +85,9 @@ The [RaceTrack component demo](../examples/race_track/README.md) combines these
 with `ScholaPathSensor3D`, which accepts any `Path3D` and reports the closest
 point offset and tangent in the observed body frame. Configure `body_path`,
 `path_path`, positive `location_scale`, and XYZ or +Z-forward axes.
-Vehicle `controls_scale` defaults to 1; the race car opts into its original
-gain of 100 in its scene. `steering_sign` is configurable for wheel orientation. Its agent has no direct observation/action hooks.
+Vehicle `controls_scale` defaults to 1, also used by the arcade race car. `steering_sign` is configurable for wheel orientation. Its agent has no direct observation/action hooks.
+
+`ScholaVehicleActuator3D` also exposes `steering_speed_reference` and `top_speed`
+(in m/s). Zero disables each feature. Steering interpolates from full lock at rest
+to `minimum_steering_fraction` at the reference speed. Engine force fades to zero
+at top speed, without disabling brakes or imposing a hard velocity clamp.
