@@ -40,6 +40,7 @@ An explicit user request overrides this rule only for the specifically named fro
 
 ## Godot work
 
+- Nested `ScholaEnvironment` nodes are unsupported. An environment must not have another environment ancestor; ordinary grouping nodes between them do not change this rule. Show an Inspector warning and reject training for this configuration. Follow [the environment nesting decision](Godot/docs/decisions/environment-nesting.md); permissive legacy code or tests do not override it.
 - Read and follow the [Godot development contract](Godot/docs/development_contract.md) before changing files under `Godot/`.
 - Use [Godot/README.md](Godot/README.md) for supported dependencies, build commands, and tests.
 - Format changed Godot C++ with [Godot/.clang-format](Godot/.clang-format) and follow [Godot/.editorconfig](Godot/.editorconfig).

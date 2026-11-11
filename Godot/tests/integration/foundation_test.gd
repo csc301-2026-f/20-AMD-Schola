@@ -158,7 +158,7 @@ func test_agent_type_fallback_remains_empty_after_scene_round_trip() -> void:
 	assert_str(restored.call("get_resolved_agent_type")).is_equal("player_2")
 
 
-func test_duplicate_ids_are_scoped_to_the_nearest_environment() -> void:
+func test_duplicate_ids_are_scoped_to_separate_environments() -> void:
 	var environment: ScholaEnvironment = auto_free(ScholaEnvironment.new())
 	var first := ScholaAgent.new()
 	first.name = "First"
@@ -179,8 +179,8 @@ func test_duplicate_ids_are_scoped_to_the_nearest_environment() -> void:
 	assert_str(errors).contains("First")
 	assert_str(errors).contains("Second")
 
-	var nested := ScholaEnvironment.new()
-	environment.add_child(nested)
-	second.reparent(nested)
+	var separate: ScholaEnvironment = auto_free(ScholaEnvironment.new())
+	add_child(separate)
+	second.reparent(separate)
 	assert_bool(environment.get_configuration_errors().is_empty()).is_true()
-	assert_bool(nested.get_configuration_errors().is_empty()).is_true()
+	assert_bool(separate.get_configuration_errors().is_empty()).is_true()

@@ -120,6 +120,85 @@ func test_invalid_environment_names_node_and_public_diagnostic() -> void:
 	assert_str(_status_message(result)).contains("Add a ScholaAgent node")
 
 
+func test_nested_environments_are_rejected_through_grouping_nodes() -> void:
+	for grouped in [false, true]:
+		var root := _test_root()
+		var outer := _add_environment(root, "OuterEnvironment", "outer")
+		var container: Node = outer
+		if grouped:
+			container = Node.new()
+			outer.add_child(container)
+		var inner := _add_environment(container, "InnerEnvironment", "inner")
+		assert_str("; ".join(inner.get_configuration_errors())).contains("Nested ScholaEnvironment nodes are unsupported")
+		var host := _add_host(root)
+		var result := host.initialize_session()
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+		assert_str(_status_message(result)).contains("InnerEnvironment")
+		assert_str(_status_message(result)).contains("Nested ScholaEnvironment nodes are unsupported")
+
+
+func test_nesting_during_a_session_is_rejected_before_publishing_results() -> void:
+	for phase in ["define", "reset", "step", "reset_callback", "step_callback"]:
+		var root := _test_root()
+		var first := _add_environment(root, "First", "first")
+		var second := _add_environment(root, "Second", "second")
+		var host := _add_host(root)
+		assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+		assert_int(_status_code(host.set_autoreset_mode(AUTORESET_DISABLED))).is_equal(STATUS_OK)
+		var result: Dictionary
+		if phase == "define":
+			second.reparent(first)
+			result = host.define()
+		else:
+			assert_int(_status_code(host.define())).is_equal(STATUS_OK)
+			if phase == "reset_callback":
+				second.on_reset = func(): first.reparent(second)
+				result = host.reset({})
+			elif phase == "reset":
+				second.reparent(first)
+				result = host.reset({})
+			else:
+				assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+				if phase == "step_callback":
+					second.get_agents()[0].on_action = func(): first.reparent(second)
+				else:
+					second.reparent(first)
+				result = host.step({"actions": [{"first": 1}, {"second": 1}]})
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+		assert_str(_status_message(result)).contains("Nested ScholaEnvironment nodes are unsupported")
+		assert_object(result["value"]).is_null()
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
+
+
+func test_callbacks_cannot_introduce_unregistered_nested_environments() -> void:
+	for phase in ["reset", "action", "observe", "result"]:
+		var root := _test_root()
+		var environment := _add_environment(root, "Environment", "agent")
+		var agent = environment.get_agents()[0]
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		var introduce_nested := func():
+			var grouping := Node.new()
+			environment.add_child(grouping)
+			_add_environment(grouping, "NewNestedEnvironment", "nested_agent")
+		var result: Dictionary
+		if phase == "reset":
+			environment.on_reset = introduce_nested
+			result = host.reset({})
+		else:
+			assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+			match phase:
+				"action": agent.on_action = introduce_nested
+				"observe": agent.on_observe = introduce_nested
+				"result": environment.on_step_result = func(_agent): introduce_nested.call()
+			result = host.step({"actions": [{"agent": 1}]})
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+		assert_str(_status_message(result)).contains("NewNestedEnvironment")
+		assert_str(_status_message(result)).contains("Nested ScholaEnvironment nodes are unsupported")
+		assert_object(result["value"]).is_null()
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
+
+
 func test_discovery_order_becomes_stable_environment_ids() -> void:
 	var root := _test_root()
 	_add_environment(root, "FirstEnvironment", "first_agent")
@@ -399,6 +478,104 @@ func test_detached_templates_have_safe_configuration_diagnostics() -> void:
 	assert_int(errors.size()).is_equal(1)
 	assert_str(errors[0]).contains("Duplicate agent ID 'a'")
 	assert_str(errors[0]).contains("instance")
+
+
+func test_reset_discovers_births_from_initial_observation_callbacks() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	var first = environment.get_agents()[0]
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	first.on_observe = func():
+		first.on_observe = Callable()
+		var second = _add_agent(environment, "b", "b")
+		second.on_observe = func():
+			second.on_observe = Callable()
+			_add_agent(environment, "c", "c")
+	var initial := host.reset({})
+	assert_int(_status_code(initial)).is_equal(STATUS_OK)
+	assert_array(initial["value"][0].keys()).contains_exactly(["a", "b", "c"])
+	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 1, "c": 1}]}))).is_equal(STATUS_OK)
+
+
+func test_reset_skips_pending_agents_removed_by_an_observation() -> void:
+	for removal in ["free", "queue", "container"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var container := Node.new()
+		environment.add_child(container)
+		var second = _add_agent(container, "b", "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		first.on_observe = func():
+			first.on_observe = Callable()
+			match removal:
+				"free": second.free()
+				"queue": second.queue_free()
+				"container": container.queue_free()
+		var initial := host.reset({})
+		assert_int(_status_code(initial)).is_equal(STATUS_OK)
+		assert_array(initial["value"][0].keys()).contains_exactly(["a"])
+		assert_int(_status_code(host.step({"actions": [{"a": 1}]}))).is_equal(STATUS_OK)
+
+
+func test_reset_reconciles_departures_after_later_observations() -> void:
+	for removal in ["free", "detach", "container"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var container := Node.new()
+		environment.add_child(container)
+		first.reparent(container)
+		var second = _add_agent(environment, "b", "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		second.on_observe = func():
+			second.on_observe = Callable()
+			match removal:
+				"free": first.free()
+				"detach": container.remove_child(first)
+				"container": container.queue_free()
+		var initial := host.reset({})
+		assert_int(_status_code(initial)).is_equal(STATUS_OK)
+		assert_array(initial["value"][0].keys()).contains_exactly(["b"])
+		assert_int(_status_code(host.step({"actions": [{"b": 1}]}))).is_equal(STATUS_OK)
+		if removal == "detach":
+			first.free()
+
+
+func test_temporary_detachment_during_observation_uses_final_membership() -> void:
+	for phase in ["reset", "step"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var second = _add_agent(environment, "b", "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		if phase == "step":
+			assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		first.on_observe = func():
+			first.on_observe = Callable()
+			environment.remove_child(first)
+		second.on_observe = func():
+			second.on_observe = Callable()
+			environment.add_child(first)
+		var result: Dictionary
+		if phase == "reset":
+			result = host.reset({})
+			assert_int(_status_code(result)).is_equal(STATUS_OK)
+			assert_array(result["value"][0].keys()).contains_exactly(["a", "b"])
+		else:
+			result = host.step({"actions": [{"a": 1, "b": 2}]})
+			assert_int(_status_code(result)).is_equal(STATUS_OK)
+			var agents: Dictionary = result["value"]["state"][0]
+			assert_bool(agents["a"]["terminated"]).is_false()
+			assert_float(agents["a"]["reward"]).is_equal(1.0)
+			assert_int(agents["a"]["observation"]).is_equal(1)
+		var following := host.step({"actions": [{"a": 2, "b": 1}]})
+		assert_int(_status_code(following)).is_equal(STATUS_OK)
+		assert_bool(following["value"]["state"][0]["a"]["terminated"]).is_false()
 
 
 func test_queued_ancestor_removes_agents_in_every_step_callback() -> void:

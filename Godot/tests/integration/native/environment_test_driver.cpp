@@ -18,6 +18,10 @@ class ScholaEnvironmentTestDriver : public godot::RefCounted {
 	GDCLASS(ScholaEnvironmentTestDriver, godot::RefCounted)
 
 public:
+	godot::PackedStringArray configuration_warnings(ScholaEnvironment *p_node) {
+		return p_node->_get_configuration_warnings();
+	}
+
 	godot::Dictionary initialize(ScholaEnvironment *p_node) {
 		if (p_node == nullptr || p_node->get_environment() == nullptr) {
 			return missing_environment();
@@ -81,6 +85,7 @@ public:
 
 protected:
 	static void _bind_methods() {
+		godot::ClassDB::bind_method(godot::D_METHOD("configuration_warnings", "environment"), &ScholaEnvironmentTestDriver::configuration_warnings);
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
 		godot::ClassDB::bind_method(godot::D_METHOD("reset", "environment"), &ScholaEnvironmentTestDriver::reset);
 		godot::ClassDB::bind_method(godot::D_METHOD("step", "environment", "actions"), &ScholaEnvironmentTestDriver::step);

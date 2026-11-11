@@ -121,6 +121,15 @@ godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 	return agents;
 }
 
+ScholaEnvironment *ScholaEnvironment::get_ancestor_environment() const {
+	for (godot::Node *ancestor = get_parent(); ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (auto *environment = godot::Object::cast_to<ScholaEnvironment>(ancestor)) {
+			return environment;
+		}
+	}
+	return nullptr;
+}
+
 godot::TypedArray<ScholaAgent> ScholaEnvironment::get_possible_agents() const {
 	godot::TypedArray<ScholaAgent> result;
 	if (GDVIRTUAL_CALL(_get_possible_agents, result)) {
@@ -135,6 +144,9 @@ godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 
 godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks) const {
 	godot::PackedStringArray errors;
+	if (const auto *ancestor = get_ancestor_environment()) {
+		errors.append("Nested ScholaEnvironment nodes are unsupported: environment ancestor '" + godot::String(ancestor->get_name()) + "'. Move this environment outside that environment's subtree.");
+	}
 	if (p_include_hooks && !schola::configuration::has_hook(this, "_get_step_result")) {
 		errors.append("Implement _get_step_result(agent) in this environment's script to return reward and episode state.");
 	}

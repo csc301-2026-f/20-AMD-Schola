@@ -99,6 +99,21 @@ func test_minimal_result_defaults_and_reset_is_separate() -> void:
 	assert_int(environment.result_calls).is_equal(1)
 
 
+func test_nested_environment_has_an_inspector_warning_and_adapter_error() -> void:
+	var outer := _environment()
+	var grouping := Node.new()
+	outer.add_child(grouping)
+	var inner := TestEnvironment.new()
+	inner.name = "NestedEnvironment"
+	_add_agent(inner, "A")
+	grouping.add_child(inner)
+	var warnings: PackedStringArray = _driver.call("configuration_warnings", inner)
+	assert_str("; ".join(warnings)).contains("Nested ScholaEnvironment nodes are unsupported")
+	var result: Dictionary = _driver.call("initialize", inner)
+	assert_bool(result.ok).is_false()
+	assert_str(result.message).contains("Nested ScholaEnvironment nodes are unsupported")
+
+
 func test_all_agents_act_before_observation_and_result() -> void:
 	var environment := _environment(true)
 	environment.results = {

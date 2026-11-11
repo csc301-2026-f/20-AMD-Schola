@@ -42,11 +42,17 @@ closes the session instead of assigning its ID to another environment.
 Dynamic agent membership
 ------------------------
 
+Environment nodes must not be nested, even through grouping nodes. A nested
+``ScholaEnvironment`` reports an Inspector warning and training rejects the
+configuration. Multiple separate, non-nested environments in a scene are valid.
+
 The training definition contains all possible agent IDs and their fixed spaces.
 Override ``ScholaEnvironment._get_possible_agents()`` to return definition-template
 nodes for future spawns; by default, the initial descendants supply definitions.
 Only live descendants participate. Reset rediscovers nodes after the reset hook,
 so episodes may start with different subsets and replacement node instances.
+Reset also discovers births from initial observation callbacks and removes agents
+that leave during those callbacks before publishing the initial population.
 
 New descendants receive an initial observation and zero reward on discovery and
 act on the next step. Departures receive a final terminated transition using the

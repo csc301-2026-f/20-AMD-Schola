@@ -154,8 +154,11 @@ manual editor persistence checks.
 Agent warning icons identify missing/invalid spaces and missing `_observe` or
 `_act` hooks. The environment also reports missing agents, missing
 `_get_step_result`, and duplicate resolved agent IDs, including the conflicting
-node paths. Nested environments are searched independently, so matching agent IDs
-across separate environments are allowed. `_reset_episode` is optional.
+node paths. Nested `ScholaEnvironment` nodes are unsupported: the Inspector warns
+and training rejects environments with an environment ancestor, including through
+grouping nodes. Separate non-nested environments may reuse agent IDs.
+See [the nesting decision](docs/decisions/environment-nesting.md).
+`_reset_episode` is optional.
 
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
