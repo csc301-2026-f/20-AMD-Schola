@@ -55,6 +55,11 @@ normal hooks before removing a node. Finished IDs retire until reset; same-episo
 replacements require fresh declared IDs. Unused possible IDs do not hold an
 episode open. Completion still occurs when every observed agent finishes.
 
+For a player respawn, use a fresh declared ID such as ``player_spawn_2`` after
+``player_spawn_1`` dies. Declare both IDs before training begins. Replacing a node
+with another using the same ID before reset is an error and closes the entire
+training session. IDs may be reused after reset.
+
 Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
 vector interfaces still require a fixed population. Definitions are exchanged
 once; arbitrary new IDs or changed spaces require a new training definition.

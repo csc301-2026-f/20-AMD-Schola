@@ -91,6 +91,21 @@ func test_empty_scene_returns_actionable_status() -> void:
 	assert_str(_status_message(result)).contains("add at least one trainable environment")
 
 
+func test_invalid_action_error_identifies_the_agent() -> void:
+	for invalid_action in [99, "bad"]:
+		var root := _test_root()
+		var environment := _add_environment(root, "Environment", "first")
+		var second = _add_agent(environment, "Second", "second")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var result := host.step({"actions": [{"first": 1, "second": invalid_action}]})
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+		assert_str(_status_message(result)).contains("Agent 'second': rejected action:")
+		assert_object(environment.get_node("first").last_action).is_null()
+		assert_object(second.last_action).is_null()
+
+
 func test_invalid_environment_names_node_and_public_diagnostic() -> void:
 	var root := _test_root()
 	var environment := TestEnvironment.new() as ScholaEnvironment

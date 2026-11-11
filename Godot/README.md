@@ -310,6 +310,11 @@ do not delay completion. An episode completes when all observed agents finish;
 spawn the next wave before that boundary to continue the same episode. A
 currently empty reset can be followed by an empty action map to discover births.
 
+For example, respawn a player as `player_spawn_2` after `player_spawn_1` dies,
+with both IDs declared by `_get_possible_agents()`. Reusing an ID for a different
+node before reset is an error and closes the entire training session. The next
+episode may reuse those IDs.
+
 This preserves the existing Python/protobuf possible-agent contract. It supports
 a varying population within a declared capacity, rather than adding new space
 definitions during training. Use a client supporting dynamic multi-agent rosters

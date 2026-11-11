@@ -323,7 +323,7 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			}
 			status = definitions.at(id).action_space.validate(action->second);
 			if (!status.is_ok()) {
-				return status;
+				return agent_error(id, status.get_code(), "rejected action: " + status.get_message());
 			}
 		}
 	}

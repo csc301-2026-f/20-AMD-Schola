@@ -131,7 +131,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 					point);
 
 			if (!status.is_ok()) {
-				return status;
+				return schola::Status::error(status.get_code(),
+						"Agent '" + agent_id + "': rejected action: " + status.get_message());
 			}
 			decoded_actions.emplace(agent_id, std::move(point));
 		}
