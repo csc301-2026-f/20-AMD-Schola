@@ -1,9 +1,9 @@
 # US8: Compose agents from reusable sensors and actuators
 
 - **Owner:** Unassigned
-- **Status:** Approved; implementation progress not yet reported
+- **Status:** Implemented; native and Godot integration suites pass; fresh Codex 6.1 Sol medium review reports no remaining actionable findings
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 6, 2026
+- **Last updated:** Nov. 9, 2026
 
 ## Story
 
@@ -28,3 +28,9 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 - Camera observations are excluded from this story because rendering, image conversion, and GPU readback require separate design and performance validation.
 - This story does not introduce Godot-only observation or action semantics.
+
+## Implementation
+
+See [the component API guide](../us8_components.md) for native base nodes,
+GDScript implementations, ordering, direct-hook precedence, and Unreal mapping.
+Behavior is covered by `tests/integration/components_test.gd`.

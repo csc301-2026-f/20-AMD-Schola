@@ -17,6 +17,8 @@
 #include <vector>
 
 class ScholaSpace;
+class ScholaSensor;
+class ScholaActuator;
 
 // Godot-facing config node for one agent
 // When it has a ScholaEnvironment ancestor, that environment owns its training lifecycle
@@ -27,6 +29,8 @@ class ScholaAgent : public godot::Node {
 
 public:
 	ScholaAgent();
+	std::vector<ScholaSensor *> get_sensors() const;
+	std::vector<ScholaActuator *> get_actuators() const;
 	~ScholaAgent() override;
 
 	// IDs must be unique within one environment

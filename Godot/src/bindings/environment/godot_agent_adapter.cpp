@@ -2,9 +2,13 @@
 
 #include "bindings/environment/godot_agent_adapter.h"
 
+#include "bindings/components/schola_actuator.h"
+#include "bindings/components/schola_sensor.h"
+#include "bindings/environment/configuration_diagnostics.h"
 #include "bindings/environment/schola_agent.h"
 #include "bindings/spaces/schola_space.h"
 #include "interop/variant_conversion.h"
+#include <godot_cpp/variant/dictionary.hpp>
 
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/variant.hpp>
@@ -26,6 +30,7 @@ GodotAgentAdapter::GodotAgentAdapter(ScholaAgent *p_node) :
 		node(p_node) {}
 
 schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_definition) {
+	defined = false;
 	// Read the two space resources the developer set in the Inspector.
 	// godot::Ref is Godot's smart pointer for resources; it is null when the
 	// Inspector field was left empty.
@@ -51,10 +56,39 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 		return agent_error(node, status.get_code(), "action_space: " + status.get_message());
 	}
 
+	// Reject component errors before publishing an interaction definition.
+	if (!schola::configuration::has_hook(node, "_observe")) {
+		for (auto *component : node->get_sensors()) {
+			const auto errors = component->get_configuration_errors();
+			if (!errors.is_empty()) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
+			}
+		}
+	}
+	if (!schola::configuration::has_hook(node, "_act")) {
+		for (auto *component : node->get_actuators()) {
+			const auto errors = component->get_configuration_errors();
+			if (!errors.is_empty()) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
+			}
+		}
+	}
 	// Everything passed. Remember the spaces so observe() and act() can use
 	// them, and mark this agent as defined.
 	observation_space = new_observation_space;
 	action_space = new_action_space;
+	sensors.clear();
+	actuators.clear();
+	if (!schola::configuration::has_hook(node, "_observe")) {
+		for (auto *component : node->get_sensors()) {
+			sensors.emplace_back(component->get_instance_id());
+		}
+	}
+	if (!schola::configuration::has_hook(node, "_act")) {
+		for (auto *component : node->get_actuators()) {
+			actuators.emplace_back(component->get_instance_id());
+		}
+	}
 	defined = true;
 
 	// Fill in the caller's definition. agent_type is a godot::String, so it is
@@ -77,8 +111,28 @@ schola::Status GodotAgentAdapter::observe(schola::Point &r_observation) {
 	// never wrote an _observe() at all.
 	godot::Variant value;
 
-	if (!GDVIRTUAL_CALL_PTR(node, _observe, value)) {
+	const auto component_status = check_components();
+	if (!component_status.is_ok()) {
+		return component_status;
+	}
+	if (!sensors.empty()) {
+		godot::Dictionary values;
+		for (size_t i = 0; i < sensors.size(); ++i) {
+			auto *component = godot::Object::cast_to<ScholaSensor>(godot::ObjectDB::get_instance(sensors[i]));
+			godot::Variant observed;
+			if (!component || !component->observe_value(observed)) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "sensor missing or _observe() not implemented");
+			}
+			values[godot::String::utf8(observation_space.get_if<schola::DictSpace>()->entries[i].first.c_str())] = observed;
+		}
+		value = values;
+	} else if (!GDVIRTUAL_CALL_PTR(node, _observe, value)) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_observe() is not overridden");
+	}
+
+	const auto final_component_status = check_components();
+	if (!final_component_status.is_ok()) {
+		return final_component_status;
 	}
 
 	// Turn the Godot value into a core Point. Build it in a local variable
@@ -112,9 +166,65 @@ schola::Status GodotAgentAdapter::act(const schola::Point &p_action) {
 	// Turn the core Point into a Godot value and pass it to the developer's
 	// GDScript _act(). The call returns false if the script never wrote an
 	// _act() at all.
-	if (!GDVIRTUAL_CALL_PTR(node, _act, schola::point_to_variant(p_action))) {
+	const auto component_status = check_components();
+	if (!component_status.is_ok()) {
+		return component_status;
+	}
+	if (!actuators.empty()) {
+		const godot::Dictionary values = schola::point_to_variant(p_action);
+		for (size_t i = 0; i < actuators.size(); ++i) {
+			auto *component = godot::Object::cast_to<ScholaActuator>(godot::ObjectDB::get_instance(actuators[i]));
+			if (!component || !component->apply_value(values[godot::String::utf8(action_space.get_if<schola::DictSpace>()->entries[i].first.c_str())])) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "actuator missing or _act() not implemented");
+			}
+		}
+	} else if (!GDVIRTUAL_CALL_PTR(node, _act, schola::point_to_variant(p_action))) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_act() is not overridden");
 	}
 
+	return check_components();
+}
+
+schola::Status GodotAgentAdapter::check_components() const {
+	auto current_sensors = node->get_sensors();
+	auto current_actuators = node->get_actuators();
+	bool changed = (!sensors.empty() && schola::configuration::has_hook(node, "_observe")) || (!actuators.empty() && schola::configuration::has_hook(node, "_act"));
+	if (!sensors.empty()) {
+		changed = changed || current_sensors.size() != sensors.size();
+		for (size_t i = 0; !changed && i < sensors.size(); ++i) {
+			changed = godot::ObjectID(current_sensors[i]->get_instance_id()) != sensors[i];
+		}
+	}
+	if (!actuators.empty()) {
+		changed = changed || current_actuators.size() != actuators.size();
+		for (size_t i = 0; !changed && i < actuators.size(); ++i) {
+			changed = godot::ObjectID(current_actuators[i]->get_instance_id()) != actuators[i];
+		}
+	}
+	if (!sensors.empty()) {
+		for (auto *component : current_sensors) {
+			const auto errors = component->get_configuration_errors(false);
+			if (!errors.is_empty()) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
+			}
+		}
+	}
+	if (!actuators.empty()) {
+		for (auto *component : current_actuators) {
+			const auto errors = component->get_configuration_errors(false);
+			if (!errors.is_empty()) {
+				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
+			}
+		}
+	}
+	auto observation = node->get_observation_space();
+	auto action = node->get_action_space();
+	changed = changed || observation.is_null() || action.is_null();
+	if (!changed) {
+		changed = observation->to_space() != observation_space || action->to_space() != action_space;
+	}
+	if (changed) {
+		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "component layout or spaces changed; define the agent again");
+	}
 	return schola::Status::ok();
 }

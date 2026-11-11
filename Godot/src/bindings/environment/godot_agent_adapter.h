@@ -4,6 +4,8 @@
 
 #include "core/environment/agent.h"
 #include "core/spaces/space.h"
+#include <godot_cpp/core/object_id.hpp>
+#include <vector>
 
 class ScholaAgent;
 
@@ -62,4 +64,7 @@ private:
 	schola::Space observation_space;
 	schola::Space action_space;
 	bool defined = false;
+	std::vector<godot::ObjectID> sensors;
+	std::vector<godot::ObjectID> actuators;
+	schola::Status check_components() const;
 };
