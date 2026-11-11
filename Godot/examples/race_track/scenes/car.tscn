@@ -1,6 +1,10 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://examples/race_track/scripts/race_track_agent.gd" id="1_agent"]
+
+[ext_resource type="Script" path="res://addons/schola/components/velocity_sensor_3d.gd" id="2_velocity"]
+[ext_resource type="Script" path="res://addons/schola/components/vehicle_actuator_3d.gd" id="3_controls"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/track_sensor.gd" id="4_track"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(1.8, 0.6, 4)
@@ -20,16 +24,6 @@ material = SubResource("StandardMaterial3D_tire")
 top_radius = 0.4
 bottom_radius = 0.4
 height = 0.3
-
-[sub_resource type="ScholaBoxSpace" id="ScholaBoxSpace_observation"]
-low = PackedFloat32Array(-100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000, -100000)
-high = PackedFloat32Array(100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000)
-shape = PackedInt32Array(10)
-
-[sub_resource type="ScholaBoxSpace" id="ScholaBoxSpace_action"]
-low = PackedFloat32Array(-1, -1)
-high = PackedFloat32Array(1, 1)
-shape = PackedInt32Array(2)
 
 [node name="Car" type="VehicleBody3D"]
 mass = 1500.0
@@ -91,5 +85,17 @@ transform = Transform3D(-1, 0, 0, 0, 0.9659, 0.2588, 0, 0.2588, -0.9659, 0, 3.5,
 
 [node name="Agent" type="ScholaAgent" parent="."]
 script = ExtResource("1_agent")
-observation_space = SubResource("ScholaBoxSpace_observation")
-action_space = SubResource("ScholaBoxSpace_action")
+
+[node name="Track" type="ScholaSensor" parent="Agent"]
+script = ExtResource("4_track")
+body_path = NodePath("../..")
+
+[node name="Velocity" type="ScholaSensor" parent="Agent"]
+script = ExtResource("2_velocity")
+body_path = NodePath("../..")
+axes = 1
+velocity_scale = 2.0
+
+[node name="Controls" type="ScholaActuator" parent="Agent"]
+script = ExtResource("3_controls")
+body_path = NodePath("../..")

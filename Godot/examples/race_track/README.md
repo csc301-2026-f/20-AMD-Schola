@@ -4,7 +4,33 @@ A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAn
 
 The track, start position, spaces, observations, actions, reward, and episode rules were read from AMD's Unreal assets: the Blueprints' compiled code and default values, the `RaceTrackTrain` map, and the car's C++ source.
 
-## Status
+## Local component demo
+
+Open this worktree's `Godot/project.godot`, then open
+`res://examples/race_track/scenes/component_demo.tscn` and press F6.
+W applies throttle, S applies brakes, A/D steer, and R resets the episode.
+The HUD shows native host steps, speed, track observations, velocity, and reward.
+This is a keyboard controller through `ScholaTrainingHost`, not a trained policy.
+Episode endings automatically reset the car using the existing track rules.
+
+The agent composes child nodes in this order:
+
+1. **Track** (`RaceTrackSensor`): six track-relative floats, specific to this example.
+2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
+3. **Controls** (`ScholaVehicleActuator3D`): two actions, with the original vehicle
+   steering/throttle/brake gain and smoothing. Also reusable in other vehicle scenes.
+
+The agent script only handles placement/reset. It has no `_observe` or `_act`
+overrides, so the native adapter dispatches the child components.
+
+A deterministic headless check drives 120 native steps, checks observation shapes
+and vehicle motion, and verifies that reset clears velocity and all controls:
+
+```sh
+godot --headless --path Godot res://examples/race_track/scenes/component_demo.tscn -- --race-track-smoke
+```
+
+## Training and inference status
 
 - **Inference** works once a model exists at `policies/race_track.onnx`.
 - **Training** is not possible yet. Python reaches the scene only through the `ScholaTrainingConnector` node from US3, which is not implemented.
@@ -18,7 +44,9 @@ The track, start position, spaces, observations, actions, reward, and episode ru
 | `scenes/race_track_train.tscn` | Track, a `ScholaEnvironment` with the car, and `ScholaTrainingHost` | `Maps/RaceTrackTrain` |
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, and start position | `RaceTrackSpline` |
-| `scripts/race_track_agent.gd` | Observation and action | `RaceTrackAgent` |
+| `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
+| `scripts/track_sensor.gd` | Track-relative observation component | Track features |
+| `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
 
 ## Track and car
@@ -31,15 +59,20 @@ The track, start position, spaces, observations, actions, reward, and episode ru
 
 | | Space |
 |---|---|
-| Observation | Box of 10, each from -100000 to 100000 |
-| Action | Box of 2, each from -1 to 1 |
+| Observation | Dict: `00000000:Track` → Box(6), `00000001:Velocity` → Box(3) |
+| Action | Dict: `00000000:Controls` → Box(2), bounded [-1, 1] |
 
 **Observation**, all in the car's own frame, ordered forward, right, up:
 
 1. The closest point on the track centre, divided by 5 m (values 1-3).
 2. The track direction at that point (values 4-6).
 3. The car's velocity, divided by 2 m/s (values 7-9).
-4. Always 0 (value 10).
+The old trailing constant zero is removed. Track features retain bounds of
+[-100000, 100000]; velocity is unbounded and divided by 2 m/s.
+
+**Policy compatibility:** these dictionary spaces replace the original flat Box
+spaces. Train and export a fresh policy for this layout; old ONNX policies are
+not assumed compatible. Renaming or reordering components also changes the layout.
 
 **Action:**
 
@@ -59,7 +92,7 @@ AMD's Blueprint updates its stored track distance before computing progress, so 
 
 ## Running
 
-Open `Godot/project.godot`, open `scenes/race_track_inference.tscn`, and run it (F6). Without `policies/race_track.onnx`, the stepper reports that the model cannot be read.
+Open `Godot/project.godot`, open `res://examples/race_track/scenes/race_track_inference.tscn`, and run it (F6). Without `policies/race_track.onnx`, the stepper reports that the model cannot be read.
 
 Once the connector lands, training will use Schola's commands:
 
