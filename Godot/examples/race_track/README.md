@@ -9,6 +9,12 @@ The original example was derived from AMD’s Unreal assets. This local version 
 Open this worktree's `Godot/project.godot`, then open
 `res://examples/race_track/scenes/component_demo.tscn` and press F6.
 W applies throttle, S applies brakes, A/D steer, and R resets the episode.
+Above 7 m/s (about 25 km/h), tap S while turning to initiate a mild drift.
+Rear grip and lateral stabilization ease down, with a small capped yaw assist;
+release the brake or straighten out to recover grip smoothly. The HUD shows drift
+blend percentage. Drift thresholds, grip fractions and yaw assist are Inspector
+settings on the car’s `arcade_vehicle.gd` script.
+The mechanic reads physics control properties, so policy actions trigger it too.
 The HUD shows native host steps, speed, track observations, velocity, and reward.
 This is a keyboard controller through `ScholaTrainingHost`, not a trained policy.
 The keyboard scene disables off-track, tilt, and step-limit endings; press R to
@@ -25,7 +31,7 @@ The agent script only handles placement/reset. It has no `_observe` or `_act`
 overrides, so the native adapter dispatches the child components.
 
 A deterministic headless check drives 360 native steps, checks observation shapes, acceleration, turning, upright stability
-and vehicle motion, and verifies that reset clears velocity and all controls:
+and vehicle motion, and verifies brake-triggered drift and that reset clears velocity and all controls:
 
 ```sh
 godot --headless --path Godot res://examples/race_track/scenes/component_demo.tscn -- --race-track-smoke

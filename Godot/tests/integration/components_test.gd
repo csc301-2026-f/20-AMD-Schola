@@ -409,3 +409,41 @@ func test_compact_track_has_solid_walls_on_both_sides() -> void:
 		assert_bool(hit.is_empty()).is_false()
 		if not hit.is_empty():
 			assert_object(hit.collider).is_equal(path.get_node("TrackWalls"))
+
+func test_arcade_drift_requires_speed_braking_and_turning_and_recovers() -> void:
+	var body: VehicleBody3D = auto_free(load("res://examples/race_track/scripts/arcade_vehicle.gd").new())
+	var rear := VehicleWheel3D.new()
+	rear.use_as_traction = true
+	rear.wheel_friction_slip = 2.0
+	body.add_child(rear)
+	add_child(body)
+	body.freeze = true
+	body.linear_velocity = Vector3(0, 0, 12)
+	body.steering = -0.1
+	body._update_drift(0.2, true)
+	assert_float(body.drift_amount).is_equal(0.0)
+	body.brake = 30.0
+	body.linear_velocity = Vector3(0, 0, 2)
+	body._update_drift(0.2, true)
+	assert_float(body.drift_amount).is_equal(0.0)
+	body.linear_velocity = Vector3(0, 0, 12)
+	body.steering = 0.0
+	body._update_drift(0.2, true)
+	assert_float(body.drift_amount).is_equal(0.0)
+	body.steering = -0.1
+	body._update_drift(0.2, false)
+	assert_float(body.drift_amount).is_equal(0.0)
+	body._update_drift(0.2, true)
+	assert_float(body.drift_amount).is_greater(0.0).is_less(1.0)
+	assert_float(rear.wheel_friction_slip).is_less(2.0)
+	body.brake = 0.0
+	body._update_drift(0.1, true)
+	assert_float(body.drift_amount).is_greater(0.0).is_less(0.6)
+	body._update_drift(1.0, true)
+	assert_float(body.drift_amount).is_equal(0.0)
+	assert_float(rear.wheel_friction_slip).is_equal_approx(2.0, 0.0001)
+	body.brake = 30.0
+	body._update_drift(0.2, true)
+	body.reset_handling()
+	assert_float(body.drift_amount).is_equal(0.0)
+	assert_float(rear.wheel_friction_slip).is_equal_approx(2.0, 0.0001)

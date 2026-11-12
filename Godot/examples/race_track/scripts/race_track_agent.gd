@@ -16,3 +16,5 @@ func place_at_start() -> void:
 	car.linear_velocity = Vector3.ZERO
 	car.angular_velocity = Vector3.ZERO
 	controls.reset()
+	if car.has_method("reset_handling"):
+		car.call("reset_handling")
