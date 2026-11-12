@@ -460,3 +460,197 @@ func test_arcade_brake_tap_latches_drift_until_straightening_or_slowing() -> voi
 	body.reset_handling()
 	assert_float(body.drift_amount).is_equal(0.0)
 	assert_float(rear.wheel_friction_slip).is_equal_approx(2.0, 0.0001)
+
+func test_reusable_component_spaces_are_derived_and_not_saved() -> void:
+	for path in ["ray_cast_sensor_3d", "movement_actuator_3d", "velocity_sensor_3d", "path_sensor_3d", "vehicle_actuator_3d"]:
+		var component: Node = auto_free(load("res://addons/schola/components/" + path + ".gd").new())
+		for property in component.get_property_list():
+			if property.name == "space":
+				assert_int(property.usage & PROPERTY_USAGE_STORAGE).is_equal(0)
+				assert_int(property.usage & PROPERTY_USAGE_READ_ONLY).is_not_equal(0)
+
+func test_generated_rays_follow_explicit_rays_and_report_tracked_groups() -> void:
+	var eye := Node3D.new()
+	eye.name = "Eye"
+	agent.add_child(eye)
+	var ray := RayCast3D.new()
+	ray.name = "Ray"
+	ray.target_position = Vector3(10, 0, 0)
+	agent.add_child(ray)
+	var sensor: ScholaSensor = load("res://addons/schola/components/ray_cast_sensor_3d.gd").new()
+	sensor.component_id = "ray"
+	agent.add_child(sensor)
+	sensor.add_ray(NodePath("../Ray"))
+	sensor.origin_path = NodePath("../Eye")
+	sensor.num_rays = 3
+	sensor.ray_degrees = 90.0
+	sensor.ray_length = 10.0
+	var groups: Array[StringName] = [&"wall", &"enemy"]
+	sensor.tracked_groups = groups
+	assert_array(Array(sensor.space.shape)).contains_exactly([16])
+	var targets: PackedVector3Array = sensor.get_generated_ray_targets()
+	assert_float(targets[0].x).is_less(0.0)
+	assert_vector(targets[1]).is_equal_approx(Vector3(0, 0, -10), Vector3.ONE * 0.0001)
+	assert_float(targets[2].x).is_greater(0.0)
+	_actuator("a")
+	var obstacle := StaticBody3D.new()
+	obstacle.add_to_group(&"wall")
+	var collision := CollisionShape3D.new()
+	collision.shape = BoxShape3D.new()
+	obstacle.add_child(collision)
+	obstacle.position = Vector3(0, 0, -5)
+	agent.add_child(obstacle)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_true()
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	var result: Dictionary = driver.call("step", environment, {"A": {"00000000:a": 0}})
+	assert_bool(result.ok).is_true()
+	var values: Array = Array(result.states.A.observation["00000000:ray"])
+	assert_array(values.slice(0, 4)).contains_exactly([0.0, 0.0, 0.0, 0.0])
+	assert_array(values.slice(4, 8)).contains_exactly([0.0, 0.0, 0.0, 0.0])
+	assert_array(values.slice(8, 11)).contains_exactly([1.0, 0.0, 1.0])
+	assert_float(values[11]).is_equal_approx(0.45, 0.001)
+	assert_array(values.slice(12, 16)).contains_exactly([0.0, 0.0, 0.0, 0.0])
+	sensor.ray_length = 0.0
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+
+func test_full_circle_rays_do_not_overlap_and_need_an_origin() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/ray_cast_sensor_3d.gd").new()
+	agent.add_child(sensor)
+	sensor.num_rays = 4
+	sensor.ray_degrees = 360.0
+	# The agent sits below a plain Node environment, so there is no Node3D ancestor.
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+	var targets: PackedVector3Array = sensor.get_generated_ray_targets()
+	assert_vector(targets[0]).is_equal_approx(Vector3(0, 0, 10), Vector3.ONE * 0.0001)
+	assert_vector(targets[1]).is_equal_approx(Vector3(-10, 0, 0), Vector3.ONE * 0.0001)
+	assert_vector(targets[2]).is_equal_approx(Vector3(0, 0, -10), Vector3.ONE * 0.0001)
+	assert_vector(targets[3]).is_equal_approx(Vector3(10, 0, 0), Vector3.ONE * 0.0001)
+
+func test_movement_axis_toggles_keep_disabled_velocity_and_support_rigid_bodies() -> void:
+	_sensor("s")
+	var movement: ScholaActuator = load("res://addons/schola/components/movement_actuator_3d.gd").new()
+	movement.component_id = "move"
+	agent.add_child(movement)
+	var body := CharacterBody3D.new()
+	body.name = "Body"
+	body.velocity = Vector3(0, -9, 0)
+	agent.add_child(body)
+	movement.body_path = NodePath("../Body")
+	movement.has_y = false
+	movement.minimum_speed = -2.0
+	movement.maximum_speed = 2.0
+	movement.speed_scale = 0.5
+	assert_array(Array(movement.space.shape)).contains_exactly([2])
+	assert_array(Array(movement.space.low)).contains_exactly([-2.0])
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	assert_bool(driver.call("step", environment, {"A": {"00000000:move": PackedFloat32Array([2, 1])}}).ok).is_true()
+	assert_vector(body.velocity).is_equal_approx(Vector3(1, -9, 0.5), Vector3.ONE * 0.0001)
+	var rigid := RigidBody3D.new()
+	rigid.name = "Rigid"
+	rigid.freeze = true
+	rigid.rotation.y = PI / 2.0
+	agent.add_child(rigid)
+	movement.body_path = NodePath("../Rigid")
+	movement.local_frame = false
+	assert_bool(movement.get_configuration_errors().is_empty()).is_true()
+	movement._act(PackedFloat32Array([-2, 2]))
+	assert_vector(rigid.linear_velocity).is_equal_approx(Vector3(-1, 0, 1), Vector3.ONE * 0.0001)
+	movement.has_x = false
+	movement.has_z = false
+	assert_bool(movement.get_configuration_errors().is_empty()).is_false()
+	movement.has_x = true
+	movement.minimum_speed = 3.0
+	assert_bool(movement.get_configuration_errors().is_empty()).is_false()
+
+func test_velocity_sensor_component_selection_and_bound() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/velocity_sensor_3d.gd").new()
+	sensor.component_id = "velocity"
+	agent.add_child(sensor)
+	var body := CharacterBody3D.new()
+	body.name = "Body"
+	body.velocity = Vector3(1, 0, 5)
+	agent.add_child(body)
+	sensor.body_path = NodePath("../Body")
+	sensor.axes = 1
+	sensor.has_y = false
+	sensor.has_z = false
+	sensor.bound = 2.0
+	assert_array(Array(sensor.space.shape)).contains_exactly([1])
+	assert_array(Array(sensor.space.high)).contains_exactly([2.0])
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	var result: Dictionary = driver.call("step", environment, {"A": {"00000000:a": 0}})
+	assert_bool(result.ok).is_true()
+	assert_array(Array(result.states.A.observation["00000000:velocity"])).contains_exactly([2.0])
+	sensor.has_x = false
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+
+func test_path_sensor_selects_features_progress_and_look_ahead() -> void:
+	var sensor: ScholaSensor = load("res://addons/schola/components/path_sensor_3d.gd").new()
+	agent.add_child(sensor)
+	var path := Path3D.new()
+	path.name = "Path"
+	path.curve = Curve3D.new()
+	path.curve.add_point(Vector3.ZERO)
+	path.curve.add_point(Vector3(0, 0, 10))
+	agent.add_child(path)
+	var body := Node3D.new()
+	body.name = "Body"
+	body.position = Vector3(0, 0, 2)
+	agent.add_child(body)
+	sensor.body_path = NodePath("../Body")
+	sensor.path_path = NodePath("../Path")
+	sensor.include_location = false
+	sensor.include_direction = false
+	sensor.include_progress = true
+	assert_array(Array(sensor.space.shape)).contains_exactly([1])
+	var values: PackedFloat32Array = sensor._observe()
+	assert_float(values[0]).is_equal_approx(0.2, 0.01)
+	sensor.include_location = true
+	sensor.has_y = false
+	sensor.look_ahead = 3.0
+	assert_array(Array(sensor.space.shape)).contains_exactly([3])
+	assert_array(Array(sensor.space.low)).contains_exactly([-100000.0, -100000.0, 0.0])
+	assert_array(Array(sensor.space.high)).contains_exactly([100000.0, 100000.0, 1.0])
+	values = sensor._observe()
+	assert_vector(Vector3(values[0], values[1], values[2])).is_equal_approx(Vector3(0, 3, 0.2), Vector3.ONE * 0.01)
+	sensor.look_ahead = 100.0
+	values = sensor._observe()
+	assert_float(values[1]).is_equal_approx(8.0, 0.01)
+	sensor.include_location = false
+	sensor.include_progress = false
+	assert_bool(sensor.get_configuration_errors().is_empty()).is_false()
+
+func test_vehicle_pedal_modes_change_layout_and_controls() -> void:
+	_sensor("s")
+	var actuator: ScholaActuator = load("res://addons/schola/components/vehicle_actuator_3d.gd").new()
+	actuator.component_id = "controls"
+	agent.add_child(actuator)
+	var body := VehicleBody3D.new()
+	body.name = "Car"
+	body.freeze = true
+	agent.add_child(body)
+	actuator.body_path = NodePath("../Car")
+	actuator.pedal_mode = 1
+	assert_array(Array(actuator.space.shape)).contains_exactly([3])
+	assert_array(Array(actuator.space.low)).contains_exactly([-1.0, 0.0, 0.0])
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	assert_bool(driver.call("step", environment, {"A": {"00000000:controls": PackedFloat32Array([0, 1, 1])}}).ok).is_true()
+	assert_float(body.engine_force).is_greater(0.0)
+	assert_float(body.brake).is_greater(0.0)
+	assert_float(body.steering).is_equal(0.0)
+	actuator.reset()
+	actuator.has_steering = false
+	actuator.pedal_mode = 0
+	assert_array(Array(actuator.space.shape)).contains_exactly([1])
+	actuator._act(PackedFloat32Array([-1]))
+	assert_float(body.brake).is_greater(0.0)
+	assert_float(body.steering).is_equal(0.0)
+	actuator.pedal_mode = 2
+	assert_bool(actuator.get_configuration_errors().is_empty()).is_false()

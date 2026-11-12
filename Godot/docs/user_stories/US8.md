@@ -3,7 +3,7 @@
 - **Owner:** Unassigned
 - **Status:** Implemented; native and Godot integration suites pass; fresh Codex 6.1 Sol medium review reports no remaining actionable findings
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 9, 2026
+- **Last updated:** Nov. 12, 2026
 
 ## Story
 
@@ -33,4 +33,6 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 See [the component API guide](../us8_components.md) for native base nodes,
 GDScript implementations, ordering, direct-hook precedence, and Unreal mapping.
+The reusable nodes derive their spaces from exported settings, including
+Unreal-style generated rays, tracked groups, and per-axis movement bounds.
 Behavior is covered by `tests/integration/components_test.gd`.

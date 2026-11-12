@@ -69,4 +69,5 @@ rays = Array[NodePath]([NodePath("../Body/Front"), NodePath("../Body/Left"), Nod
 script = ExtResource("4")
 component_id = "movement"
 body_path = NodePath("../Body")
+minimum_speed = -3.0
 maximum_speed = 3.0
