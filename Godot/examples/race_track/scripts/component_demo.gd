@@ -14,6 +14,7 @@ var minimum_upright := 1.0
 var maximum_turn := 0.0
 var starting_forward := Vector3.ZERO
 var saw_drift := false
+var saw_drift_dust := false
 var action_key: String
 
 func _ready() -> void:
@@ -65,6 +66,9 @@ func _physics_process(_delta: float) -> void:
 	minimum_upright = minf(minimum_upright, car.global_basis.y.dot(Vector3.UP))
 	maximum_turn = maxf(maximum_turn, starting_forward.angle_to(car.global_basis.z))
 	saw_drift = saw_drift or float(car.get("drift_amount")) > 0.05
+	for child in car.get_children():
+		if child is CPUParticles3D and child.emitting:
+			saw_drift_dust = true
 	steps += 1
 	telemetry.text = "RACE TRACK / COMPOSED SENSORS + ACTUATOR\nW: throttle  S: brake/drift  A/D: steer  R: reset\nKeyboard controller (no trained policy) → native host → components\nSteps: %d   Speed: %.1f m/s  Drift: %.0f%%\nTrack [offset / 5m, direction]: %s\nVelocity [forward, right, up] / 2m/s: %s\nControls [steering, pedal]: %s\nReward: %.3f" % [steps, car.linear_velocity.length(), float(car.get("drift_amount")) * 100.0, observation[keys[0]], velocity, Vector2(steering, pedal), state.reward]
 	if smoke and (state.terminated or state.truncated):
@@ -74,7 +78,7 @@ func _physics_process(_delta: float) -> void:
 	if state.terminated or state.truncated:
 		running = _accept(host.reset({}))
 	if smoke and steps == 360:
-		if not saw_drift or peak_speed < 5.0 or minimum_upright < 0.99 or maximum_turn < 0.1:
+		if not saw_drift_dust or not saw_drift or peak_speed < 5.0 or minimum_upright < 0.99 or maximum_turn < 0.1:
 			push_error("Arcade handling failed: peak speed %.2f, upright %.3f, turn %.3f" % [peak_speed, minimum_upright, maximum_turn])
 			get_tree().quit(1)
 			return
@@ -88,5 +92,5 @@ func _physics_process(_delta: float) -> void:
 			push_error("Race track smoke: reset did not clear physics and controls")
 			get_tree().quit(1)
 			return
-		print("RACE_TRACK_SMOKE_OK: 360 steps, peak %.2f m/s, upright %.3f, turn %.2f rad; brake drift, native composition and reset verified" % [peak_speed, minimum_upright, maximum_turn])
+		print("RACE_TRACK_SMOKE_OK: 360 steps, peak %.2f m/s, upright %.3f, turn %.2f rad; brake drift and dust emission, native composition and reset verified" % [peak_speed, minimum_upright, maximum_turn])
 		get_tree().quit(0)

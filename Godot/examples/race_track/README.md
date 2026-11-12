@@ -12,7 +12,8 @@ W applies throttle, S applies brakes, A/D steer, and R resets the episode.
 Above 7 m/s (about 25 km/h), tap S while turning to initiate a mild drift.
 Rear grip and lateral stabilization ease down, with a small capped yaw assist;
 release the brake or straighten out to recover grip smoothly. The HUD shows drift
-blend percentage. Drift thresholds, grip fractions and yaw assist are Inspector
+blend percentage, and small fading dust puffs behind the rear tires show when
+they are sliding on the ground. Drift thresholds, grip fractions and yaw assist are Inspector
 settings on the car’s `arcade_vehicle.gd` script.
 The mechanic reads physics control properties, so policy actions trigger it too.
 The HUD shows native host steps, speed, track observations, velocity, and reward.
