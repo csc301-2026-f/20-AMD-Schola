@@ -265,6 +265,13 @@ godot --headless --path Godot \
   --ignoreHeadlessMode -a res://tests/integration/ui_test.gd
 ```
 
+## Reusable sensors and actuators
+
+See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
+nodes, ordered agent composition, and the reusable 3D ray, velocity, movement, and vehicle components.
+Open [the interactive US8 example](examples/us8_components/README.md) to try
+keyboard movement, automatic control, and live ray observations with F6.
+
 ## Running a trained policy
 
 A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
