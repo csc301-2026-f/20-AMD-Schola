@@ -15,6 +15,7 @@ var maximum_turn := 0.0
 var starting_forward := Vector3.ZERO
 var saw_drift := false
 var saw_drift_dust := false
+var saw_sustained_drift := false
 var action_key: String
 
 func _ready() -> void:
@@ -52,8 +53,8 @@ func _physics_process(_delta: float) -> void:
 	var steering := float(Input.is_physical_key_pressed(KEY_D)) - float(Input.is_physical_key_pressed(KEY_A))
 	var pedal := float(Input.is_physical_key_pressed(KEY_W)) - float(Input.is_physical_key_pressed(KEY_S))
 	if smoke:
-		pedal = -1.0 if steps >= 140 and steps < 152 else 1.0
-		steering = 0.6 if steps > 90 else 0.0
+		pedal = -1.0 if steps >= 105 and steps < 111 else 1.0
+		steering = 0.6 if steps > 95 else 0.0
 	var result := host.step({"actions": [{agent.get_resolved_agent_id(): {action_key: PackedFloat32Array([steering, pedal])}}]})
 	if not _accept(result):
 		return
@@ -66,6 +67,8 @@ func _physics_process(_delta: float) -> void:
 	minimum_upright = minf(minimum_upright, car.global_basis.y.dot(Vector3.UP))
 	maximum_turn = maxf(maximum_turn, starting_forward.angle_to(car.global_basis.z))
 	saw_drift = saw_drift or float(car.get("drift_amount")) > 0.05
+	if smoke and steps > 120 and pedal > 0.0 and car.brake < 1.0 and float(car.get("drift_amount")) > 0.5:
+		saw_sustained_drift = true
 	for child in car.get_children():
 		if child is CPUParticles3D and child.emitting:
 			saw_drift_dust = true
@@ -78,7 +81,7 @@ func _physics_process(_delta: float) -> void:
 	if state.terminated or state.truncated:
 		running = _accept(host.reset({}))
 	if smoke and steps == 360:
-		if not saw_drift_dust or not saw_drift or peak_speed < 5.0 or minimum_upright < 0.99 or maximum_turn < 0.1:
+		if not saw_sustained_drift or not saw_drift_dust or not saw_drift or peak_speed < 5.0 or minimum_upright < 0.99 or maximum_turn < 0.1:
 			push_error("Arcade handling failed: peak speed %.2f, upright %.3f, turn %.3f" % [peak_speed, minimum_upright, maximum_turn])
 			get_tree().quit(1)
 			return

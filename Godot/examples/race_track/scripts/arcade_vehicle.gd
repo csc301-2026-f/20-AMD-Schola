@@ -7,9 +7,13 @@ extends VehicleBody3D
 @export var drift_minimum_speed: float = 7.0
 @export var drift_grip_fraction: float = 0.4
 @export var drift_rear_tire_fraction: float = 0.65
-@export var drift_yaw_assist: float = 6.0
-@export var drift_maximum_yaw_speed: float = 1.2
+@export var drift_yaw_assist: float = 18.0
+@export var drift_maximum_yaw_speed: float = 2.0
+@export var drift_exit_speed: float = 4.5
+@export var drift_straighten_delay: float = 0.25
 var drift_amount := 0.0
+var _drift_active := false
+var _straight_time := 0.0
 var _rear_grip: Dictionary = {}
 var _drift_dust: Dictionary = {}
 
@@ -21,6 +25,8 @@ func _ready() -> void:
 
 func reset_handling() -> void:
 	drift_amount = 0.0
+	_drift_active = false
+	_straight_time = 0.0
 	_restore_tire_grip()
 	for dust in _drift_dust.values():
 		dust.emitting = false
@@ -29,8 +35,13 @@ func reset_handling() -> void:
 
 func _update_drift(delta: float, grounded: bool) -> void:
 	var speed := linear_velocity.dot(global_basis.z)
-	var wants_drift := grounded and speed >= drift_minimum_speed and brake > 1.0 and absf(steering) > 0.035
-	drift_amount = move_toward(drift_amount, 1.0 if wants_drift else 0.0, delta * (3.0 if wants_drift else 2.0))
+	# Brake initiates the slide; continued braking is not required to hold it.
+	if grounded and speed >= drift_minimum_speed and brake > 1.0 and absf(steering) > 0.035:
+		_drift_active = true
+	_straight_time = _straight_time + delta if absf(steering) < 0.02 else 0.0
+	if not grounded or speed < drift_exit_speed or _straight_time >= drift_straighten_delay:
+		_drift_active = false
+	drift_amount = move_toward(drift_amount, 1.0 if _drift_active else 0.0, delta * (3.0 if _drift_active else 2.0))
 	_restore_tire_grip()
 
 func _restore_tire_grip() -> void:

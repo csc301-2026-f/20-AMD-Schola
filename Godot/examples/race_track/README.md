@@ -11,7 +11,9 @@ Open this worktree's `Godot/project.godot`, then open
 W applies throttle, S applies brakes, A/D steer, and R resets the episode.
 Above 7 m/s (about 25 km/h), tap S while turning to initiate a mild drift.
 Rear grip and lateral stabilization ease down, with a small capped yaw assist;
-release the brake or straighten out to recover grip smoothly. The HUD shows drift
+release the brake and keep steering to sustain it. Straighten out for 0.25 s
+or slow below 4.5 m/s to recover grip smoothly. Drift yaw assistance is stronger
+than normal cornering, with a 2 rad/s assist limit. The HUD shows drift
 blend percentage, and small fading dust puffs behind the rear tires show when
 they are sliding on the ground. Drift thresholds, grip fractions and yaw assist are Inspector
 settings on the car’s `arcade_vehicle.gd` script.
