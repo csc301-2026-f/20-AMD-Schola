@@ -154,6 +154,13 @@ public:
 	/** True between a successful start() and the end of the session. */
 	bool is_running() const;
 
+	/**
+	 * True once the session ended because Python sent CLOSE, rather than
+	 * because of a timeout, a disconnect, or an error on either side. Cleared
+	 * by start().
+	 */
+	bool ended_normally() const;
+
 private:
 	// Runs one update on the backend and sends the matching reply.
 	Status run_update(const ConnectorUpdate &p_update);
@@ -163,6 +170,7 @@ private:
 
 	Connector *connector = nullptr; // Not owned; null when no session is running.
 	TrainingBackend *backend = nullptr; // Not owned; null when no session is running.
+	bool closed_by_python = false;
 };
 
 } // namespace schola

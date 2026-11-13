@@ -22,6 +22,7 @@ Status ConnectorLoop::start(Connector &p_connector, TrainingBackend &p_backend, 
 	}
 	connector = &p_connector;
 	backend = &p_backend;
+	closed_by_python = false;
 
 	Status status = connector->open();
 	if (!status.is_ok()) {
@@ -89,6 +90,10 @@ bool ConnectorLoop::is_running() const {
 	return connector != nullptr;
 }
 
+bool ConnectorLoop::ended_normally() const {
+	return closed_by_python;
+}
+
 Status ConnectorLoop::run_update(const ConnectorUpdate &p_update) {
 	switch (p_update.kind) {
 		case UpdateKind::RESET: {
@@ -116,6 +121,7 @@ Status ConnectorLoop::run_update(const ConnectorUpdate &p_update) {
 			break;
 		}
 		case UpdateKind::CLOSE:
+			closed_by_python = true;
 			stop();
 			return Status::error(StatusCode::CLOSED, "Python closed the training session.");
 	}
