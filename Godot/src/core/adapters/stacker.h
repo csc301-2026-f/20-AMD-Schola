@@ -30,26 +30,54 @@ struct StackerSettings {
  */
 class Stacker : public ObservationAdapter {
 public:
+	/**
+	 * @brief Creates a stacker with the given history settings.
+	 * @param[in] p_settings History length and default point, validated by configure().
+	 */
 	explicit Stacker(StackerSettings p_settings);
 
-	/** @brief Checks stack_size and default_point, then builds the stacked space. Also resets the history. */
+	/**
+	 * @brief Validates the settings, builds the stacked space, and resets history on success.
+	 * @param[in] p_input_space Space of the unstacked observations.
+	 * @param[out] r_output_space Space of the stacked observations.
+	 * @return OK on success, or an error describing the invalid settings or space.
+	 */
 	Status configure(const Space &p_input_space, Space &r_output_space) override;
+
 	/** @brief Fills every history slot with the default point. */
 	void reset() override;
+
 	/**
 	 * @brief Adds p_input as the newest observation, dropping the oldest, and fills r_output with the stack.
 	 * An invalid p_input leaves the history unchanged.
+	 *
+	 * @param[in] p_input New observation in the configured input space.
+	 * @param[out] r_output Stacked observation in newest-first order.
+	 * @return OK on success, INVALID_ARGUMENT for an incompatible input, or
+	 * FAILED_PRECONDITION if the stacker needs successful configuration.
 	 */
 	Status adapt(const Point &p_input, Point &r_output) override;
 
 	/** @return Number of real observations in the history, from 0 to stack_size. */
 	int32_t get_num_valid() const;
+
+	/** @return The history length and default-point settings. */
 	const StackerSettings &get_settings() const;
 
 protected:
-	/** @brief Checks that p_unstacked_space is a kind this stacker supports and fills r_stacked_space. */
+	/**
+	 * @brief Builds the stacked space for the given input space.
+	 * @param[in] p_unstacked_space Space of a single observation.
+	 * @param[out] r_stacked_space Space of the combined history.
+	 * @return OK on success, or an error describing an unsupported space or invalid settings.
+	 */
 	virtual Status make_stacked_space(const Space &p_unstacked_space, Space &r_stacked_space) const = 0;
-	/** @brief Fills r_stacked with the current history, which holds stack_size points from newest to oldest. */
+
+	/**
+	 * @brief Combines the history into a stacked point.
+	 * @param[in] p_history The stack_size points from newest to oldest, including default padding.
+	 * @param[out] r_stacked Point in the configured stacked space.
+	 */
 	virtual void make_stacked_point(const std::deque<Point> &p_history, Point &r_stacked) const = 0;
 
 private:
@@ -61,6 +89,7 @@ private:
 
 /** @brief Settings for stacking Box observations. */
 struct BoxStackerSettings {
+	/** @brief History length and default-point settings. */
 	StackerSettings stacker;
 	/**
 	 * @brief The dimension that holds the history, in [0, rank] when adding a new dimension and in [0, rank)
@@ -81,8 +110,13 @@ struct BoxStackerSettings {
  */
 class BoxStacker : public Stacker {
 public:
+	/**
+	 * @brief Creates a Box stacker.
+	 * @param[in] p_settings History and dimension settings, validated by configure().
+	 */
 	explicit BoxStacker(BoxStackerSettings p_settings);
 
+	/** @return The history and dimension settings. */
 	const BoxStackerSettings &get_box_settings() const;
 
 protected:
@@ -100,6 +134,10 @@ private:
  */
 class DictStacker : public Stacker {
 public:
+	/**
+	 * @brief Creates a Dict stacker.
+	 * @param[in] p_settings History length and default point, validated by configure().
+	 */
 	explicit DictStacker(StackerSettings p_settings);
 
 protected:
