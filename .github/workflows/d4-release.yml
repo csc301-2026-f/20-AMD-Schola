@@ -1,0 +1,87 @@
+name: Publish D4 release
+
+on:
+  schedule:
+    # 11:30 p.m. Toronto time on November 27.
+    - cron: "30 4 28 11 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: d4-release
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check branch and date
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "Run this workflow from main."
+            exit 1
+          fi
+          if [[ "$EVENT" == schedule ]]; then
+            [[ "$(date -u +%F)" == 2026-11-28 ]] || exit 1
+          fi
+
+  packages:
+    needs: guard
+    uses: ./.github/workflows/godot-packages.yml
+
+  release:
+    needs: packages
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: D4
+    steps:
+      - name: Download validated packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: d3-package-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish packages
+        run: |
+          set -euo pipefail
+          TARGET=$GITHUB_SHA
+          assets=(
+            release-assets/Schola-D3-Windows-x86_64.zip
+            release-assets/Schola-D3-Linux-x86_64.tar.gz
+            release-assets/Schola-D3-macOS-arm64.zip
+          )
+          for asset in "${assets[@]}"; do
+            [[ -s "$asset" ]] || { echo "Missing package: $asset"; exit 1; }
+          done
+
+          repo="repos/$GITHUB_REPOSITORY"
+          existing=$(gh api "$repo/git/matching-refs/tags/$TAG" \
+            --jq ".[] | select(.ref == \"refs/tags/$TAG\") | .ref")
+          if [[ -z "$existing" ]]; then
+            gh api --method POST "$repo/git/refs" -f ref="refs/tags/$TAG" -f sha="$TARGET"
+          fi
+          tagged_sha=$(gh api "$repo/commits/$TAG" --jq .sha)
+          [[ "$tagged_sha" == "$TARGET" ]] || { echo "$TAG points to $tagged_sha. Expected $TARGET."; exit 1; }
+
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            uploaded=$(gh api "$repo/releases/tags/$TAG" \
+              --jq '.assets[] | select(.state == "uploaded" and .size > 0) | .name')
+            for asset in "${assets[@]}"; do
+              if ! grep -Fxq -- "${asset##*/}" <<< "$uploaded"; then
+                gh release upload "$TAG" "$asset" --clobber --repo "$GITHUB_REPOSITORY"
+              fi
+            done
+          else
+            gh release create "$TAG" "${assets[@]}" --verify-tag --repo "$GITHUB_REPOSITORY" \
+              --title "Deliverable ${TAG#D}" \
+              --notes "Schola for Godot demo packages built and smoke-tested at commit $TARGET. The archives use the D3 demo project and filenames."
+          fi
+          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
