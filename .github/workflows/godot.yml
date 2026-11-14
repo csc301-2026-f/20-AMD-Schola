@@ -36,7 +36,7 @@ jobs:
               --jq '.[].filename' > changed-files.txt
             while IFS= read -r path; do
               case "$path" in
-                .github/workflows/godot.yml|.github/workflows/d3-release.yml|.gitmodules|Godot/*|Proto/*)
+                .github/workflows/godot.yml|.github/workflows/godot-packages.yml|.gitmodules|Godot/*|Proto/*)
                   relevant=true
                   break
                   ;;
@@ -341,12 +341,10 @@ jobs:
           if-no-files-found: ignore
 
   packages:
-    name: Godot / D3 packages
+    name: Godot / desktop packages
     needs: [changes, format, build, prebuilt-windows, smoke]
     if: needs.changes.outputs.godot == 'true'
-    permissions:
-      contents: write
-    uses: ./.github/workflows/d3-release.yml
+    uses: ./.github/workflows/godot-packages.yml
 
   required:
     name: Godot / required
