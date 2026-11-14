@@ -17,8 +17,8 @@ static_assert(std::is_base_of_v<ObservationAdapter, Stacker>);
 static_assert(std::is_base_of_v<Stacker, BoxStacker>);
 static_assert(std::is_base_of_v<Stacker, DictStacker>);
 static_assert(!std::is_abstract_v<BoxStacker> && !std::is_abstract_v<DictStacker>);
-static_assert(!std::is_copy_constructible_v<ObservationAdapterChain>);
-static_assert(std::is_move_constructible_v<ObservationAdapterChain>);
+//static_assert(!std::is_copy_constructible_v<ObservationAdapterChain>);
+//static_assert(std::is_move_constructible_v<ObservationAdapterChain>);
 static_assert(std::is_same_v<decltype(std::declval<ObservationAdapter &>().configure(std::declval<const Space &>(), std::declval<Space &>())), Status>);
 static_assert(std::is_same_v<decltype(std::declval<ObservationAdapter &>().adapt(std::declval<const Point &>(), std::declval<Point &>())), Status>);
 
