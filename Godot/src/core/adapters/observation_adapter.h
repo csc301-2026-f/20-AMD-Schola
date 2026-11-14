@@ -34,9 +34,6 @@ public:
 	 */
 	virtual Status configure(const Space &p_input_space, Space &r_output_space) = 0;
 
-	/** @brief Clears episode state. Called at the beginning of every episode. */
-	virtual void reset() = 0;
-
 	/**
 	 * @brief Transforms one observation.
 	 * @param[in] p_input Observation in the configured input space.
@@ -45,6 +42,9 @@ public:
 	 * FAILED_PRECONDITION if the most recent configure() call failed or configure() has never been called.
 	 */
 	virtual Status adapt(const Point &p_input, Point &r_output) = 0;
+
+	/** @brief Clears episode state. Called at the beginning of every episode. */
+	virtual void reset() = 0;
 };
 
 // This class might be a little overdone so gonna do this for now.

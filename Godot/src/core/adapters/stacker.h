@@ -36,6 +36,12 @@ public:
 	 */
 	explicit Stacker(StackerSettings p_settings);
 
+	/** @return Number of real observations in the history, from 0 to stack_size. */
+	int32_t get_num_valid() const;
+
+	/** @return The history length and default-point settings. */
+	const StackerSettings &get_settings() const;
+
 	/**
 	 * @brief Validates the settings, builds the stacked space, and resets history on success.
 	 * @param[in] p_input_space Space of the unstacked observations.
@@ -43,9 +49,6 @@ public:
 	 * @return OK on success, or an error describing the invalid settings or space.
 	 */
 	Status configure(const Space &p_input_space, Space &r_output_space) override;
-
-	/** @brief Fills every history slot with the default point. */
-	void reset() override;
 
 	/**
 	 * @brief Adds p_input as the newest observation, dropping the oldest, and fills r_output with the stack.
@@ -58,11 +61,8 @@ public:
 	 */
 	Status adapt(const Point &p_input, Point &r_output) override;
 
-	/** @return Number of real observations in the history, from 0 to stack_size. */
-	int32_t get_num_valid() const;
-
-	/** @return The history length and default-point settings. */
-	const StackerSettings &get_settings() const;
+	/** @brief Fills every history slot with the default point. */
+	void reset() override;
 
 protected:
 	/**
