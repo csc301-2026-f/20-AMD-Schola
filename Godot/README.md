@@ -312,6 +312,8 @@ Contains shared status and identifier values, engine-independent environment int
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
 
+`src/core/adapters/` defines `schola::ObservationAdapter`, which transforms an agent's observations and reports the resulting space before training or inference, and `schola::ObservationAdapterChain`, an agent's ordered list of adapters. `schola::BoxStacker` and `schola::DictStacker` keep a fixed-size observation history with the ordering and stacked-space rules of Unreal Schola's stackers: index 0 is the newest observation. Adapter instances hold per-agent episode state and are reset at the beginning of each episode.
+
 ### `src/bindings`
 
 Adapts the core abstractions to user-facing Godot nodes, resources, the Inspector, and the engine lifecycle. User-facing Godot APIs belong here. The `src/runtime` and `src/training` composition roots may use the minimal Godot registration APIs needed to assemble and initialize their extensions; they must not define user-story APIs.
@@ -359,6 +361,7 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US7: Run and ship an ONNX policy | `src/core/policy/`, `src/core/stepper/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
+| US10: Stack recent observations | `src/core/adapters/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
