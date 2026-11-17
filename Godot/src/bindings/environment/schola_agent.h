@@ -2,6 +2,10 @@
 
 #pragma once
 
+#include "bindings/adapters/schola_observation_adapter.h"
+
+#include <godot_cpp/variant/typed_array.hpp>
+
 #include "core/environment/agent.h"
 
 #include <godot_cpp/classes/node.hpp>
@@ -54,6 +58,9 @@ public:
 
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource
+	void set_observation_adapters(const godot::TypedArray<ScholaObservationAdapter> &p_adapters);
+	godot::TypedArray<ScholaObservationAdapter> get_observation_adapters() const;
+
 	void set_observation_space(const godot::Ref<ScholaSpace> &p_observation_space);
 	godot::Ref<ScholaSpace> get_observation_space() const;
 	void set_action_space(const godot::Ref<ScholaSpace> &p_action_space);
@@ -117,6 +124,7 @@ private:
 	godot::String agent_id;
 	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;
+	godot::TypedArray<ScholaObservationAdapter> observation_adapters;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
 	std::unique_ptr<schola::Agent> agent_adapter;

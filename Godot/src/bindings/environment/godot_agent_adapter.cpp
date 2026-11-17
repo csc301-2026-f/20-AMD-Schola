@@ -51,6 +51,32 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 		return agent_error(node, status.get_code(), "action_space: " + status.get_message());
 	}
 
+	schola::Space adapted_space = new_observation_space;
+	decltype(observation_adapters) adapters;
+	const auto resources = node->get_observation_adapters();
+	for (int64_t i = 0; i < resources.size(); ++i) {
+		const godot::Ref<ScholaObservationAdapter> resource = resources[i];
+		const std::string property = "observation_adapters[" + std::to_string(i) + "]: ";
+		if (resource.is_null()) {
+			return agent_error(node, schola::StatusCode::INVALID_ARGUMENT, property + "resource is unset");
+		}
+
+		std::unique_ptr<schola::ObservationAdapter> adapter;
+		status = resource->create(adapted_space, adapter);
+		schola::Space output_space;
+		if (status.is_ok()) {
+			status = adapter->configure(adapted_space, output_space);
+		}
+		if (!status.is_ok()) {
+			return agent_error(node, status.get_code(), property + status.get_message());
+		}
+
+		adapter->reset();
+		adapted_space = std::move(output_space);
+		adapters.push_back(std::move(adapter));
+	}
+	observation_adapters = std::move(adapters);
+
 	// Everything passed. Remember the spaces so observe() and act() can use
 	// them, and mark this agent as defined.
 	observation_space = new_observation_space;
@@ -59,7 +85,7 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 
 	// Fill in the caller's definition. agent_type is a godot::String, so it is
 	// converted to a std::string the same way as the agent ID.
-	r_definition.observation_space = new_observation_space;
+	r_definition.observation_space = std::move(adapted_space);
 	r_definition.action_space = new_action_space;
 	r_definition.agent_type = node->get_resolved_agent_type().utf8().get_data();
 	return schola::Status::ok();
@@ -90,9 +116,24 @@ schola::Status GodotAgentAdapter::observe(schola::Point &r_observation) {
 		return agent_error(node, status.get_code(), "_observe() returned a bad value: " + status.get_message());
 	}
 
+	for (std::size_t i = 0; i < observation_adapters.size(); ++i) {
+		schola::Point output;
+		const auto adapted = observation_adapters[i]->adapt(observation, output);
+		if (!adapted.is_ok()) {
+			return agent_error(node, adapted.get_code(), "observation_adapters[" + std::to_string(i) + "]: " + adapted.get_message());
+		}
+		observation = std::move(output);
+	}
+
 	// Success: hand the Point to the caller without copying it again.
 	r_observation = std::move(observation);
 	return schola::Status::ok();
+}
+
+void GodotAgentAdapter::reset_observation_history() {
+	for (const auto &adapter : observation_adapters) {
+		adapter->reset();
+	}
 }
 
 schola::Status GodotAgentAdapter::act(const schola::Point &p_action) {
