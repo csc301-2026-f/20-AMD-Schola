@@ -60,6 +60,28 @@ public:
 	godot::Ref<ScholaSpace> get_action_space() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
+	/** Returns whether this script or a base script defines _define_spaces(), without executing it. */
+	bool has_code_defined_spaces() const;
+
+	/**
+	 * Optional GDScript space-definition hook for US15.
+	 *
+	 * Contract: return a Dictionary with "observation" and "action" entries,
+	 * each a non-null ScholaSpace. An override supplies both spaces and takes
+	 * precedence over Inspector assignments; invalid results must not fall back.
+	 * Variant preserves malformed return values for agent-specific validation.
+	 *
+	 * Resolution will run before runtime configuration validation and retain the
+	 * first valid core-space snapshot until the configured scene is recreated.
+	 * Use deterministic, pre-initialization configuration without gameplay side
+	 * effects. Inspector warnings must never execute this hook. Inspector getters
+	 * continue to return authored resources rather than resolved definitions.
+	 *
+	 * Binding only: invocation, validation, and snapshot caching are implemented
+	 * in subsequent US15 steps; startup does not consume this hook yet.
+	 */
+	GDVIRTUAL0R(godot::Variant, _define_spaces)
+
 	// === US1 Additions Below ===
 
 	/**
