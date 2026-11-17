@@ -36,6 +36,12 @@ var driver: RefCounted
 var environment: ComponentEnvironment
 var agent: ScholaAgent
 
+func before(
+	_do_skip := not ClassDB.class_exists("ScholaEnvironmentTestDriver"),
+	_skip_reason := "Build with integration_tests=yes to run the component suite."
+) -> void:
+	pass
+
 func before_test() -> void:
 	driver = ClassDB.instantiate("ScholaEnvironmentTestDriver")
 	environment = auto_free(ComponentEnvironment.new())
