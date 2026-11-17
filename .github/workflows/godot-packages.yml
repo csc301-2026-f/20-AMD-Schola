@@ -1,19 +1,15 @@
-name: D3 release packages
+name: Godot desktop packages
 
 on:
   workflow_dispatch:
   workflow_call:
-  push:
-    tags:
-      - D3
-      - "D3-test-*"
 
 permissions:
   contents: read
 
 concurrency:
-  group: d3-packages-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/tags/D3' }}
+  group: godot-packages-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 env:
   GODOT_VERSION: 4.7.2
@@ -288,50 +284,3 @@ jobs:
           name: d3-diagnostics-${{ matrix.platform }}-${{ matrix.arch }}
           path: ${{ runner.temp }}/d3-package-smoke*.log
           if-no-files-found: ignore
-
-  release:
-    name: Publish validated D3 packages
-    timeout-minutes: 5
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/tags/D3')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/tags/D3')
-    needs: package
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - name: Download release packages
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: d3-package-*
-          path: release-assets
-          merge-multiple: true
-
-      - name: Publish final or development release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ "$GITHUB_REF" = "refs/tags/D3" ]; then
-            tag=D3
-            title="Deliverable 3"
-            flags=(--verify-tag)
-          else
-            tag="d3-main-$GITHUB_SHA"
-            title="D3 development ${GITHUB_SHA:0:7}"
-            flags=(--target "$GITHUB_SHA" --prerelease --latest=false)
-          fi
-          cat > release-notes.md <<EOF
-          Schola for Godot D3 demo for Windows x86_64, Linux x86_64, and macOS arm64.
-
-          Includes a deterministic reference ONNX policy for the default map. Manual play and policy playback need no Python installation. Training and parallel training require the source checkout and Python dependencies; see the [D3 guide](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/Godot/demo/d3/README.md).
-
-          Native host, map validation, and ONNX smoke checks run against each package before publication. Training currently uses the demo's localhost JSON/TCP connector, not production gRPC.
-
-          Built from commit $GITHUB_SHA. Development releases preserve their own commit-specific tags; the D3 release is the course submission snapshot.
-          EOF
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $tag already exists; leaving its assets unchanged."
-          else
-            gh release create "$tag" release-assets/* \
-              --repo "$GITHUB_REPOSITORY" "${flags[@]}" \
-              --title "$title" --notes-file release-notes.md
-          fi
-          echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
