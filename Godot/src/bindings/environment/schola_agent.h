@@ -71,14 +71,11 @@ public:
 	 * precedence over Inspector assignments; invalid results must not fall back.
 	 * Variant preserves malformed return values for agent-specific validation.
 	 *
-	 * Resolution will run before runtime configuration validation and retain the
-	 * first valid core-space snapshot until the configured scene is recreated.
-	 * Use deterministic, pre-initialization configuration without gameplay side
+	 * The first successful define() calls this hook once and saves a copy of
+	 * both spaces until the scene is recreated (see GodotAgentAdapter). Use
+	 * deterministic, pre-initialization configuration without gameplay side
 	 * effects. Inspector warnings must never execute this hook. Inspector getters
 	 * continue to return authored resources rather than resolved definitions.
-	 *
-	 * Binding only: invocation, validation, and snapshot caching are implemented
-	 * in subsequent US15 steps; startup does not consume this hook yet.
 	 */
 	GDVIRTUAL0R(godot::Variant, _define_spaces)
 

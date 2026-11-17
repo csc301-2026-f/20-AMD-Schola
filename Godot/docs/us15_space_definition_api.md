@@ -4,11 +4,17 @@
 
 Steps 1-2 expose the optional `_define_spaces()` virtual hook, the metadata-only
 `has_code_defined_spaces()` query on `ScholaAgent`, and the static `ScholaSpaces`
-resource constructors. Runtime invocation, validation of callback results, snapshot
-caching, startup integration, and updated warning behavior are subsequent steps.
-Defining this callback alone does not configure runtime spaces yet; initialization
-still reads Inspector assignments. Factory-created resources can already be used
-wherever existing space resources are accepted.
+resource constructors.
+
+Step 3 adds the resolver in `GodotAgentAdapter`. The first successful `define()`
+calls the hook (or reads the Inspector when there is no hook), validates both
+spaces, and saves a copy. Later `define()`, `observe()`, and `act()` calls use that
+copy. Callers that reach `define()` directly, such as `ScholaOnnxPolicy` and the
+stepper, already use code-defined spaces.
+
+Still pending: the configuration checks in `GodotEnvironmentAdapter::initialize()`
+and `ScholaTrainingHost` run before `define()` and still reject empty Inspector
+fields (step 4), and editor warnings still report them (step 5).
 
 ## Callback return value and precedence
 
@@ -121,9 +127,12 @@ The following is the contract for the remaining implementation steps:
    If resolution succeeds but a later initialization stage fails, the snapshot is
    retained. Applying changed configuration then requires scene recreation.
 
-These rules apply to Inspector-authored and callback-authored spaces. They change
-the current adapter behavior, which refreshes cached spaces on every successful
-`define()` call; that behavior has not changed in step 1.
+These rules apply to Inspector-authored and callback-authored spaces. Before step 3,
+the adapter re-read the Inspector on every `define()` call. It now keeps the first
+successful result.
+
+A `define()` call made while `_define_spaces()` is still running fails instead of
+recursing.
 
 Callbacks must construct definitions deterministically from configuration available
 before session initialization. Do not depend on episode state, `_ready()` ordering,

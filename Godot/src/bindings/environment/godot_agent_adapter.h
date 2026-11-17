@@ -27,12 +27,12 @@ public:
 	explicit GodotAgentAdapter(ScholaAgent *p_node);
 
 	/**
-	 * Reads the node's Inspector spaces and agent_type.
+	 * Returns the agent's spaces and agent_type.
 	 *
-	 * Fails with FAILED_PRECONDITION if either space is unset, or with the
-	 * space's own error if its definition is invalid. Safe to call more than
-	 * once, since training and inference may both define the same agent;
-	 * each call refreshes the cached spaces.
+	 * The first successful call resolves the spaces: from _define_spaces() if
+	 * the script has it, otherwise from the Inspector. Later calls return that
+	 * same saved copy, so training, inference and every step agree on one
+	 * definition. A failed call saves nothing and can be retried.
 	 */
 	schola::Status define(schola::InteractionDefinition &r_definition) override;
 
@@ -55,11 +55,17 @@ public:
 	schola::Status act(const schola::Point &p_action) override;
 
 private:
+	// Fills the saved spaces once; does nothing after the first success.
+	schola::Status resolve_spaces();
+
 	ScholaAgent *node = nullptr; // Not owned.
 
-	// Cached by define(): observe() needs the shape to convert into, and
-	// act() needs it to reject a bad action.
+	// Saved by the first successful define() and kept for this node's
+	// lifetime. They are plain values, not resources, so editing a resource
+	// later cannot change them. observe() and act() read them every step.
 	schola::Space observation_space;
 	schola::Space action_space;
 	bool defined = false;
+	// True while _define_spaces() runs, to stop it from re-entering define().
+	bool resolving = false;
 };

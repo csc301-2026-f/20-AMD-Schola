@@ -2,8 +2,10 @@
 
 // Test-only bridge so GdUnit4 exercises the actual C++ Environment interface.
 // Compiled and registered only with integration_tests=yes.
+#include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
 #include "core/environment/environment.h"
+#include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/ref_counted.hpp>
@@ -23,6 +25,21 @@ public:
 			return missing_environment();
 		}
 		return response(p_node->get_environment()->initialize(definitions));
+	}
+
+	// Calls define() on one agent, the same way training and inference do.
+	godot::Dictionary define_agent(ScholaAgent *p_agent) {
+		if (p_agent == nullptr) {
+			return response(schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "Pass a valid ScholaAgent node."));
+		}
+		schola::InteractionDefinition definition;
+		const schola::Status status = p_agent->get_agent()->define(definition);
+		godot::Dictionary result = response(status);
+		if (status.is_ok()) {
+			result["observation"] = schola::space_to_dictionary(definition.observation_space);
+			result["action"] = schola::space_to_dictionary(definition.action_space);
+		}
+		return result;
 	}
 
 	godot::Dictionary reset(ScholaEnvironment *p_node) {
@@ -82,6 +99,7 @@ public:
 protected:
 	static void _bind_methods() {
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
+		godot::ClassDB::bind_method(godot::D_METHOD("define_agent", "agent"), &ScholaEnvironmentTestDriver::define_agent);
 		godot::ClassDB::bind_method(godot::D_METHOD("reset", "environment"), &ScholaEnvironmentTestDriver::reset);
 		godot::ClassDB::bind_method(godot::D_METHOD("step", "environment", "actions"), &ScholaEnvironmentTestDriver::step);
 	}
