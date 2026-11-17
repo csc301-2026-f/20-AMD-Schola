@@ -1,9 +1,9 @@
 # US9: Test an environment without Python
 
 - **Owner:** Unassigned
-- **Status:** Approved; implementation progress not yet reported
+- **Status:** Approved; standalone workflow pending
 - **Priority:** Stretch goal
-- **Last updated:** Nov. 6, 2026
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -22,6 +22,10 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 - Invalid actions and environment failures produce the same structured errors as a real training session.
 - The workflow requires no Python process, gRPC connection, or training dependency.
 - Tests demonstrate at least one complete episode, including reset and terminal-state handling.
+
+## Progress
+
+The native, test-only `ScholaEnvironmentTestDriver` exercises reset and step, with additional adapter tests open in [PR #53](https://github.com/csc301-2026-f/20-AMD-Schola/pull/53). No production manual connector or standalone debugging workflow appeared in the reviewed PR and branch history.
 
 ## Scope limits
 
