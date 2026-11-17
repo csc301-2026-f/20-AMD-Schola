@@ -7,7 +7,6 @@
 #include "core/spaces/point.h"
 #include "core/spaces/space.h"
 
-#include <cstdint>
 #include <deque>
 #include <optional>
 
@@ -125,6 +124,7 @@ protected:
 
 private:
 	BoxStackerSettings box_settings;
+	mutable size_t values_per_block = 0;
 };
 
 /**

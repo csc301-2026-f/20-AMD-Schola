@@ -1,9 +1,7 @@
 // Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
-
-#include "stacker.h"
+#include "core/adapters/stacker.h"
 
 #include "core/adapters/observation_adapter.h"
-#include "core/adapters/stacker.h"
 #include "core/common/status.h"
 #include "core/spaces/point.h"
 #include "core/spaces/space.h"
@@ -11,10 +9,12 @@
 #include <cstdint>
 #include <deque>
 #include <optional>
+#include <utility>
 
 namespace schola {
 
-Stacker::Stacker(StackerSettings p_settings) : settings(p_settings) {}
+Stacker::Stacker(StackerSettings p_settings)
+		: settings(std::move(p_settings)) {}
 
 int32_t Stacker::get_num_valid() const {
 	return num_valid;
