@@ -13,8 +13,8 @@
 
 namespace schola {
 
-DictStacker::DictStacker(StackerSettings p_settings)
-		: Stacker(std::move(p_settings)) {}
+DictStacker::DictStacker(StackerSettings p_settings) :
+		Stacker(std::move(p_settings)) {}
 
 Status DictStacker::make_stacked_space(const Space &p_unstacked_space, Space &r_stacked_space) const {
 	DictSpace stacked;

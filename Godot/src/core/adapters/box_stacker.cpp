@@ -29,8 +29,8 @@ void append_stack(std::vector<float> &r_values, std::size_t p_input_size,
 
 } // namespace
 
-BoxStacker::BoxStacker(BoxStackerSettings p_settings)
-		: Stacker(p_settings.stacker),
+BoxStacker::BoxStacker(BoxStackerSettings p_settings) :
+		Stacker(p_settings.stacker),
 		box_settings(std::move(p_settings)) {}
 
 const BoxStackerSettings &BoxStacker::get_box_settings() const {
