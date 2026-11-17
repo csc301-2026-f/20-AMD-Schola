@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "core/adapters/observation_adapter.h"
 #include "core/environment/agent.h"
 #include "core/spaces/space.h"
+
+#include <memory>
+#include <vector>
 
 class ScholaAgent;
 
@@ -54,7 +58,10 @@ public:
 	 */
 	schola::Status act(const schola::Point &p_action) override;
 
+	void reset_observation_history() override;
+
 private:
+	std::vector<std::unique_ptr<schola::ObservationAdapter>> observation_adapters;
 	ScholaAgent *node = nullptr; // Not owned.
 
 	// Cached by define(): observe() needs the shape to convert into, and

@@ -6,8 +6,8 @@ This document records work that is not represented as a separate active user sto
 
 These tasks complete or validate existing stories rather than introducing new product capabilities:
 
-- Complete the production end-to-end path across the Godot environment, lifecycle, gRPC transport, Python client, and ONNX inference components.
-- Test installation, training, export, inference, and packaging from a clean checkout.
+- Land the scene-level connector from [US3](US3.md) and connect it to the [US13 RaceTrack example](US13.md).
+- Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. Include the simultaneous-agent training run tracked in [US12](US12.md).
 - Document the approved move from the specification's preferred C# implementation to the C++ GDExtension architecture.
 - Maintain setup, usage, architecture, troubleshooting, and packaging documentation.
 - Verify error behavior and Inspector configuration warnings consistently across Godot-facing APIs.

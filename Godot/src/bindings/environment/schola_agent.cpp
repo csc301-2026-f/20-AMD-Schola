@@ -85,6 +85,14 @@ godot::String ScholaAgent::get_agent_type() const {
 	return agent_type;
 }
 
+void ScholaAgent::set_observation_adapters(const godot::TypedArray<ScholaObservationAdapter> &p_adapters) {
+	observation_adapters = p_adapters.duplicate();
+}
+
+godot::TypedArray<ScholaObservationAdapter> ScholaAgent::get_observation_adapters() const {
+	return observation_adapters;
+}
+
 void ScholaAgent::set_observation_space(const godot::Ref<ScholaSpace> &p_observation_space) {
 	disconnect_space_signals();
 	observation_space = p_observation_space;
@@ -160,6 +168,11 @@ void ScholaAgent::_bind_methods() {
 	GDVIRTUAL_BIND(_act, "action");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "agent_id"), "set_agent_id", "get_agent_id");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "agent_type"), "set_agent_type", "get_agent_type");
+	godot::ClassDB::bind_method(godot::D_METHOD("set_observation_adapters", "adapters"), &ScholaAgent::set_observation_adapters);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_observation_adapters"), &ScholaAgent::get_observation_adapters);
+	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::ARRAY, "observation_adapters", godot::PROPERTY_HINT_TYPE_STRING,
+						 godot::String::num_int64(godot::Variant::OBJECT) + "/" + godot::String::num_int64(godot::PROPERTY_HINT_RESOURCE_TYPE) + ":ScholaObservationAdapter"),
+			"set_observation_adapters", "get_observation_adapters");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::OBJECT, "observation_space", godot::PROPERTY_HINT_RESOURCE_TYPE, "ScholaSpace"), "set_observation_space", "get_observation_space");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::OBJECT, "action_space", godot::PROPERTY_HINT_RESOURCE_TYPE, "ScholaSpace"), "set_action_space", "get_action_space");
 }

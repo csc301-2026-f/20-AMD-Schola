@@ -1,8 +1,8 @@
 # US2: Declare observation and action spaces
 
 - **Owner:** Jimmy
-- **Status:** Core and Godot resources complete; protobuf round-trip tests wired into transport CI
-- **Last updated:** Nov. 5, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -19,6 +19,7 @@ As a Godot developer, I want to define observation and action spaces using reusa
 
 ## Progress
 
+- Space and point resources landed in [PR #30](https://github.com/csc301-2026-f/20-AMD-Schola/pull/30), followed by final validation and consistency fixes in [PR #36](https://github.com/csc301-2026-f/20-AMD-Schola/pull/36) ([`f5bfd2b`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/f5bfd2b)). The transport path and its tests landed in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47). Programmatic space definitions are tracked in [US15](US15.md).
 - The current union-type approach was compared with the alternative proposed at the Oct. 23 partner meeting.
 - The team confirmed the union-type approach because it avoids unnecessary complexity.
 - Core spaces, points, and Inspector resources are implemented and merged in #30, including Box, Discrete, MultiDiscrete, MultiBinary, and Dict.

@@ -273,7 +273,9 @@ godot --headless --path Godot \
 
 ## Running a trained policy
 
-A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
+A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)` with an observation in the agent's final, adapted space.
+
+Add a `ScholaStacker` Resource to the agent's `observation_adapters` array to give the policy recent observations. Keep the agent's `observation_space` and `_observe()` output in the original format. The agent applies Resources in array order and reports the final space to the trainer or policy. Set the output kind to Box for axis-based stacking or Dict for slot-suffixed keys. Slot zero is newest. An unset `default_point` uses the input space's default. Agents can share a stacker Resource and each agent keeps its own history. Training resets history automatically at episode start. With local inference, call the stepper's `reset_state(agent)` or `reset_states()` when starting an episode.
 
 Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
 
@@ -317,6 +319,8 @@ Godot/
 Contains shared status and identifier values, engine-independent environment interfaces, space and point types, agent state, lifecycle coordination, the connector loop, and the policy and stepper contracts. It must not reference Godot, gRPC, Protocol Buffer, or ONNX Runtime libraries.
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
+
+`src/core/adapters/` defines `schola::ObservationAdapter`, which transforms an agent's observations and reports the resulting space before training or inference. The Godot agent binding owns and applies the adapters in configuration order. `schola::BoxStacker` and `schola::DictStacker` keep a fixed-size observation history with the ordering and stacked-space rules of Unreal Schola's stackers. Index 0 is the newest observation. Adapter instances hold per-agent episode state and reset at the beginning of each episode.
 
 ### `src/bindings`
 
@@ -365,6 +369,7 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US7: Run and ship an ONNX policy | `src/core/policy/`, `src/core/stepper/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
+| US10: Stack recent observations | `src/core/adapters/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
