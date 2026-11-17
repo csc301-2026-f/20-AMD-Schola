@@ -24,8 +24,8 @@ struct StackerSettings {
 };
 
 /**
- * @brief Keeps the last stack_size observations and outputs them as one stacked observation. Index 0 is the
- * newest observation and the highest index is the oldest, matching Unreal Schola's UStackerBase.
+ * @brief Combines a fixed-length observation history into one observation.
+ * Index 0 holds the newest observation. The highest index holds the oldest slot.
  */
 class Stacker : public ObservationAdapter {
 public:
@@ -91,8 +91,8 @@ struct BoxStackerSettings {
 	/** @brief History length and default-point settings. */
 	StackerSettings stacker;
 	/**
-	 * @brief The dimension that holds the history, in [0, rank] when adding a new dimension and in [0, rank)
-	 * when expanding one. Unreal Schola clamps an out-of-range index; Godot reports it instead.
+	 * @brief Axis for the history. Valid indices are [0, rank] for insertion and [0, rank) for
+	 * expansion. Configuration returns INVALID_ARGUMENT for an out-of-range index.
 	 */
 	int32_t stack_dimension = 0;
 	/**
@@ -104,8 +104,8 @@ struct BoxStackerSettings {
 };
 
 /**
- * @brief Stacks Box observations into one Box, matching Unreal Schola's UBoxStacker. Values stay row-major,
- * low and high are repeated for each history slot, and dtype is unchanged.
+ * @brief Combines Box observations along the configured axis in row-major order.
+ * The bounds follow the same layout as the values, and the input dtype is preserved.
  */
 class BoxStacker : public Stacker {
 public:
@@ -128,9 +128,9 @@ private:
 };
 
 /**
- * @brief Stacks observations into one Dict, matching Unreal Schola's UDictStacker. A Dict entry "key" becomes
- * "key_0" (newest) through "key_<stack_size - 1>" (oldest). Any other space becomes "Point_0" through
- * "Point_<stack_size - 1>". Entries are then sorted by key like every DictSpace.
+ * @brief Combines observations into a Dict with one suffix per history slot.
+ * A Dict entry named `key` becomes `key_0` through `key_<stack_size - 1>`. Other inputs use
+ * `Point_0` through `Point_<stack_size - 1>`. Output entries are sorted lexicographically by key.
  */
 class DictStacker : public Stacker {
 public:
