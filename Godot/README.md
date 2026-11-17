@@ -314,7 +314,7 @@ Contains shared status and identifier values, engine-independent environment int
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
 
-`src/core/adapters/` defines `schola::ObservationAdapter`, which transforms an agent's observations and reports the resulting space before training or inference, and `schola::ObservationAdapterChain`, an agent's ordered list of adapters. `schola::BoxStacker` and `schola::DictStacker` keep a fixed-size observation history with the ordering and stacked-space rules of Unreal Schola's stackers: index 0 is the newest observation. Adapter instances hold per-agent episode state and are reset at the beginning of each episode.
+`src/core/adapters/` defines `schola::ObservationAdapter`, which transforms an agent's observations and reports the resulting space before training or inference. The Godot agent binding owns and applies the adapters in configuration order. `schola::BoxStacker` and `schola::DictStacker` keep a fixed-size observation history with the ordering and stacked-space rules of Unreal Schola's stackers. Index 0 is the newest observation. Adapter instances hold per-agent episode state and reset at the beginning of each episode.
 
 ### `src/bindings`
 
