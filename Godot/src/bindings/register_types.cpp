@@ -12,6 +12,7 @@
 #include "bindings/spaces/schola_multi_binary_space.h"
 #include "bindings/spaces/schola_multi_discrete_space.h"
 #include "bindings/spaces/schola_space.h"
+#include "bindings/spaces/schola_spaces.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
@@ -30,6 +31,7 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaMultiDiscreteSpace);
 	GDREGISTER_CLASS(ScholaMultiBinarySpace);
 	GDREGISTER_CLASS(ScholaDictSpace);
+	GDREGISTER_ABSTRACT_CLASS(ScholaSpaces);
 #ifdef SCHOLA_INTEGRATION_TESTS
 	register_schola_environment_test_driver();
 #endif

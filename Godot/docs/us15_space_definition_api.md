@@ -2,11 +2,13 @@
 
 ## Implementation status
 
-Step 1 exposes the optional `_define_spaces()` virtual hook and the metadata-only
-`has_code_defined_spaces()` query on `ScholaAgent`. Runtime invocation, validation,
-snapshot caching, startup integration, factory helpers, and updated warning behavior
-are subsequent steps. Defining this callback alone does not configure runtime
-spaces yet; initialization still reads Inspector assignments.
+Steps 1-2 expose the optional `_define_spaces()` virtual hook, the metadata-only
+`has_code_defined_spaces()` query on `ScholaAgent`, and the static `ScholaSpaces`
+resource constructors. Runtime invocation, validation of callback results, snapshot
+caching, startup integration, and updated warning behavior are subsequent steps.
+Defining this callback alone does not configure runtime spaces yet; initialization
+still reads Inspector assignments. Factory-created resources can already be used
+wherever existing space resources are accepted.
 
 ## Callback return value and precedence
 
@@ -23,20 +25,16 @@ Additional entries are reserved and must be rejected by the future resolver to
 catch misspelled or unsupported fields. Resources use existing space types,
 validation, bounds broadcasting, nested Dict ordering, and serialization semantics.
 
-For example, this uses existing constructors rather than the planned factories:
+For example:
 
 ```gdscript
 extends ScholaAgent
 
 func _define_spaces() -> Dictionary:
-    var observation := ScholaBoxSpace.new()
-    observation.shape = PackedInt32Array([1, 30, 32])
-    observation.low = PackedFloat32Array([0.0])
-    observation.high = PackedFloat32Array([1.0])
-
-    var action := ScholaDiscreteSpace.new()
-    action.n = 5
-    return {"observation": observation, "action": action}
+    return {
+        "observation": ScholaSpaces.box([1, 30, 32], 0.0, 1.0),
+        "action": ScholaSpaces.discrete(5),
+    }
 ```
 
 The native hook returns `Variant` so malformed results can reach the resolver and
@@ -49,6 +47,58 @@ the hook supplies both spaces and takes precedence over both assignments. An
 invalid result is an error; it never falls back to Inspector values or mixes
 sources. Inspector properties and their getters continue to expose the authored
 assignments. Resolution must not overwrite them or change saved scenes.
+
+## Space constructors
+
+`ScholaSpaces` is a static utility class; call its methods directly without creating
+an instance. Every call returns a new resource of the existing concrete type.
+
+| Method | Return type | Arguments |
+| --- | --- | --- |
+| `box(shape, low, high, dtype = FLOAT32)` | `ScholaBoxSpace` | `PackedInt32Array` shape, two scalar numeric bounds, integer dtype |
+| `box_bounds(shape, low = [], high = [], dtype = FLOAT32)` | `ScholaBoxSpace` | `PackedInt32Array` shape, two `PackedFloat32Array` bounds, integer dtype |
+| `discrete(n)` | `ScholaDiscreteSpace` | Integer choice count |
+| `multi_discrete(nvec)` | `ScholaMultiDiscreteSpace` | `PackedInt32Array` choice counts |
+| `multi_binary(n)` | `ScholaMultiBinarySpace` | Integer binary element count |
+| `dict(spaces)` | `ScholaDictSpace` | Dictionary mapping String keys to space resources |
+
+Godot converts compatible plain array literals to the packed argument types.
+`box()` stores one bound per side; existing Box conversion broadcasts those bounds
+across the explicit shape. `box_bounds()` supports empty bounds (unbounded for
+floating dtypes), singleton broadcasting, and row-major per-element arrays. It also
+preserves existing shape inference when the supplied shape is empty.
+
+```gdscript
+var image := ScholaSpaces.box([3, 30, 32], 0, 255, ScholaSpaces.UINT8)
+var position := ScholaSpaces.box_bounds([3], [-10, -5, 0], [10, 5, 100])
+var velocity := ScholaSpaces.box_bounds([3]) # Unbounded float32.
+var limbs := {}
+for limb in ["left", "right"]:
+    limbs[limb] = ScholaSpaces.dict({
+        "position": ScholaSpaces.box([3], -1, 1),
+        "contact": ScholaSpaces.discrete(2),
+    })
+var observation := ScholaSpaces.dict({
+    "image": image,
+    "limbs": ScholaSpaces.dict(limbs),
+})
+```
+
+Named dtype constants use the existing core/Inspector values: `FLOAT32`, `UINT8`,
+`UINT16`, `UINT32`, `UINT64`, `INT8`, `INT16`, `INT32`, `INT64`, `FLOAT16`, `FLOAT64`,
+and `BOOL`. Dtype selects the space's declared type; bounds retain the existing
+float32 storage and representability limits.
+
+Constructors assign resource properties and do not clamp, normalize, or throw for
+invalid definitions. Call `get_definition_error()` on the result to validate it,
+just as with an Inspector-authored resource. Invalid sizes, shapes, bounds, dtype
+values, and Dict entries remain available for correction and produce existing
+resource diagnostics. Godot's ordinary typed-call checks apply to arguments of
+the wrong type. Dict constructors preserve the existing sharing of child resources
+and Dictionary assignments; they do not deep-copy their children.
+
+These resources use standard Godot saving/loading. No generated-resource authoring
+workflow or custom serialization format is introduced.
 
 ## Initialization and snapshot lifetime
 
