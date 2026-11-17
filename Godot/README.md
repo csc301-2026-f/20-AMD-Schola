@@ -217,11 +217,17 @@ To exercise the C++ adapter through GdUnit4, build with the test-only driver ena
 scons -C Godot platform=windows target=template_debug integration_tests=yes
 godot --headless --path Godot --import
 godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
-  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd
+  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd \
+  -a res://tests/integration/environment_adapter_test.gd
 ```
 
+`environment_step_result_test.gd` covers result parsing and callback order.
+`environment_adapter_test.gd` covers the rest of the adapter contract:
+initialization, seeded resets, action checks before any agent moves, staggered
+episode endings, freed agents, and `get_agents()` order.
+
 Use the platform appropriate to your machine. Normal builds omit the driver;
-the adapter suite is skipped when it is unavailable.
+the adapter suites are skipped when it is unavailable.
 
 The driver is a test-only bridge, not a production training host. Running an
 ordinary scene does not automatically initialize, reset, or step its environments.
