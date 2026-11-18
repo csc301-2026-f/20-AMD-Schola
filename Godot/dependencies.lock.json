@@ -53,6 +53,14 @@
       }
     },
     "package_path": "Godot/vendor/onnxruntime",
-    "note": "Offline, checksum-verified recovery packages. Upstream archive URLs and hashes below are retained as historical provenance; installation uses adjacent vendored manifests."
+    "note": "Offline packages repacked from the hash-pinned, Microsoft-author-signed and NuGet.org-repository-signed NuGet package. Historical GitHub archive URLs/hashes remain below for reference only. See vendor/onnxruntime/VERIFICATION.md.",
+    "source_package": {
+      "ecosystem": "nuget",
+      "id": "Microsoft.ML.OnnxRuntime",
+      "version": "1.30.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.30.0/microsoft.ml.onnxruntime.1.30.0.nupkg",
+      "sha256": "30df119bd9164eaa187666d93147448fdd4a9a1a3caf83f1505daf7af2d1c5d2",
+      "commit": "f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7"
+    }
   }
 }

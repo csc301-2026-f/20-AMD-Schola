@@ -1,15 +1,46 @@
 {
   "file": "macos-arm64.tar.gz",
-  "sha256": "b2484dc293505349ce379be8010d508ed3b87636d059046df8fd409c92fb3773",
+  "sha256": "ae6124ba9860ae165ff406541a2f5f25658bb6a738584727ccf0d9396377c6ad",
   "host": "macos-arm64",
   "version": "1.30.0",
-  "upstream_archive": {
-    "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-osx-arm64-1.30.0.tgz",
-    "sha256": "6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012"
+  "source_package": {
+    "ecosystem": "nuget",
+    "id": "Microsoft.ML.OnnxRuntime",
+    "version": "1.30.0",
+    "url": "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.30.0/microsoft.ml.onnxruntime.1.30.0.nupkg",
+    "sha256": "30df119bd9164eaa187666d93147448fdd4a9a1a3caf83f1505daf7af2d1c5d2",
+    "commit": "f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7"
   },
-  "provenance": "Runtime recovered from project CI run 44039915487, d3-package-macos-arm64 artifact. Headers and licenses from saved Windows 1.30.0 installation. See schola_recovery.json inside archive for exact hashes and member paths.",
+  "source_members": {
+    "include/onnxruntime_cxx_api.h": "build/native/include/onnxruntime_cxx_api.h",
+    "include/onnxruntime_cxx_inline.h": "build/native/include/onnxruntime_cxx_inline.h",
+    "include/onnxruntime_c_api.h": "build/native/include/onnxruntime_c_api.h",
+    "include/onnxruntime_env_config_keys.h": "build/native/include/onnxruntime_env_config_keys.h",
+    "include/onnxruntime_ep_c_api.h": "build/native/include/onnxruntime_ep_c_api.h",
+    "include/onnxruntime_ep_device_ep_metadata_keys.h": "build/native/include/onnxruntime_ep_device_ep_metadata_keys.h",
+    "include/onnxruntime_error_code.h": "build/native/include/onnxruntime_error_code.h",
+    "include/onnxruntime_experimental_cxx_api.h": "build/native/include/onnxruntime_experimental_cxx_api.h",
+    "include/onnxruntime_experimental_c_api.h": "build/native/include/onnxruntime_experimental_c_api.h",
+    "include/onnxruntime_float16.h": "build/native/include/onnxruntime_float16.h",
+    "include/onnxruntime_lite_custom_op.h": "build/native/include/onnxruntime_lite_custom_op.h",
+    "include/onnxruntime_run_options_config_keys.h": "build/native/include/onnxruntime_run_options_config_keys.h",
+    "include/onnxruntime_session_options_config_keys.h": "build/native/include/onnxruntime_session_options_config_keys.h",
+    "include/onnxruntime_experimental_c_api.inc": "build/native/include/onnxruntime_experimental_c_api.inc",
+    "include/provider_options.h": "build/native/include/provider_options.h",
+    "include/cpu_provider_factory.h": "build/native/include/cpu_provider_factory.h",
+    "lib/libonnxruntime.dylib": "runtimes/osx-arm64/native/libonnxruntime.dylib",
+    "README.md": "README.md",
+    "LICENSE": "LICENSE",
+    "ThirdPartyNotices.txt": "ThirdPartyNotices.txt",
+    "Privacy.md": "Privacy.md",
+    "lib/libonnxruntime.1.dylib": "runtimes/osx-arm64/native/libonnxruntime.dylib"
+  },
+  "generated_metadata": [
+    "VERSION_NUMBER",
+    "GIT_COMMIT_ID"
+  ],
   "files": {
-    "GIT_COMMIT_ID": "11bbfd0b31d39a2c06f699ed0620fd5aa9d70870cd7d863f62224a7cd20de3cf",
+    "GIT_COMMIT_ID": "e3ac2af7231ab288696b808bec8b2c9d84f8fbc660bb94dd401670337013779c",
     "include/cpu_provider_factory.h": "e2f658eeace78d79a8df82f233dcdeea135db498a77766156054bfc0d1d06c21",
     "include/onnxruntime_c_api.h": "ba4b1aadb97304365b2c29caf0a2b7940ee3cadc68c718cf984b51abb54b658a",
     "include/onnxruntime_cxx_api.h": "26cb8a1ba8a29c9b61aa1c045e6f7d9f9d912c9ad46c71ff5a143245d1e9cd2f",
@@ -25,16 +56,12 @@
     "include/onnxruntime_lite_custom_op.h": "d65413bf8ca63fb71efcb0f9e14f996736367cf72ea3421d18b3370def1e483b",
     "include/onnxruntime_run_options_config_keys.h": "38cfec5817e67990f242bbf7177db730a4d60f5ed256b4832f02ac38c3fd6d06",
     "include/onnxruntime_session_options_config_keys.h": "1b51e02d986119145f0b033003a144403092ce6d9de6c072b67a8d93e2fe6bdb",
-    "include/onnxruntime_training_c_api.h": "f920338841fce3ba9976882a8ec20155462298c12486a4e0bb6af29306d26330",
-    "include/onnxruntime_training_cxx_api.h": "c4e31c020e3a087c751b31358bb97891ff1c11c5c6c47565e2fc2c1200ecf844",
-    "include/onnxruntime_training_cxx_inline.h": "0a1b67caad64a7fc5a7aa489c8e4dc57ba11ba2d3c18b398a81ee3d864a50383",
     "include/provider_options.h": "74f8accd5b30fbfe8abb24ca279e634657b446bf5b9be520badaaebcea63cade",
-    "lib/libonnxruntime.1.dylib": "bcc9110f9d638a119de2db7afb3ba9a1da8085f0cb3401e1c48ae1caf450b6fa",
-    "lib/libonnxruntime.dylib": "bcc9110f9d638a119de2db7afb3ba9a1da8085f0cb3401e1c48ae1caf450b6fa",
+    "lib/libonnxruntime.1.dylib": "bffaa6ef856dba2c26f09c7c0e7018fd1562625f3485292c7ad28b83748c6879",
+    "lib/libonnxruntime.dylib": "bffaa6ef856dba2c26f09c7c0e7018fd1562625f3485292c7ad28b83748c6879",
     "LICENSE": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
     "Privacy.md": "a1e6108942be2f56d9ea93c342462d5ec15fd0510603dae7a654f417e0d4e95f",
-    "README.md": "c38719ffdef4a1c49c7e9b7e63dd7aabcad784926cd7211083d2e186fb2be4b5",
-    "schola_recovery.json": "4e2430bf51334aca70cf961d01dfab5d22d7ff4f154c32bde74176c4d6c6cfaa",
+    "README.md": "0b3f809f9c7714f81e5add4594b2cbfa61f54b2354cd8abc9d799e7f3772a6cc",
     "ThirdPartyNotices.txt": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622",
     "VERSION_NUMBER": "170c8de7b3538c9633cbfe5a3e544b94e2c456aae96a9258cd553af20fc1242d"
   }
