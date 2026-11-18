@@ -274,7 +274,8 @@ godot --headless --path Godot \
 ## Reusable sensors and actuators
 
 See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
-nodes, ordered agent composition, and the reusable 3D ray and movement components.
+nodes, ordered agent composition, ray sensing, movement, rotation, teleportation,
+and real/fake camera components, including rendered color/depth capture tests.
 Open [the interactive US8 example](examples/us8_components/README.md) to try
 keyboard movement, automatic control, and live ray observations with F6.
 

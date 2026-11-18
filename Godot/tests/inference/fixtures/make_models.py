@@ -58,6 +58,15 @@ def box_scale():
     )
 
 
+def camera_components():
+    return model(
+        "camera_components",
+        [helper.make_node("Flatten", ["00000000:camera"], ["00000000:move"], axis=1)],
+        [tensor("00000000:camera", TensorProto.FLOAT, [BATCH, 3, 1, 1])],
+        [tensor("00000000:move", TensorProto.FLOAT, [BATCH, 3])],
+    )
+
+
 def discrete():
     return model(
         "discrete",
@@ -193,6 +202,7 @@ def bad_state_int():
 
 
 MODELS = {
+    "camera_components": camera_components,
     "box_scale": box_scale,
     "discrete": discrete,
     "multi_discrete": multi_discrete,
@@ -217,6 +227,10 @@ def check_outputs():
 
     f32, i64, i8 = np.float32, np.int64, np.int8
     expected = {
+        "camera_components": (
+            {"00000000:camera": np.array([[[[0.25]], [[0.5]], [[0.75]]]], f32)},
+            {"00000000:move": np.array([[0.25, 0.5, 0.75]], f32)},
+        ),
         "box_scale": (
             {"obs": np.array([[1, 2, 3]], f32)},
             {"action": np.array([[2, 4, 6]], f32)},
