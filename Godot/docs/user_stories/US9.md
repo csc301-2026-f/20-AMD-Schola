@@ -1,7 +1,7 @@
 # US9: Test an environment without Python
 
 - **Owner:** Shahyar
-- **Status:** Implemented on feature branch; focused integration tests pass
+- **Status:** Complete
 - **Priority:** Stretch goal
 - **Last updated:** Nov. 18, 2026
 
@@ -25,9 +25,8 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 
 ## Progress
 
-Implementation is on `Shahyar/us9-headless-python`; a PR has not been opened.
-The five focused tests and 13 existing host tests passed together in rendered mode; the five
-focused tests also passed headlessly.
+The five focused tests and 13 existing host tests passed together in rendered
+mode; the five focused tests also passed headlessly.
 
 The [manual environment example](../../examples/manual_environment/README.md)
 uses the production `ScholaTrainingHost` API to initialize, define, reset, and
