@@ -129,6 +129,15 @@ const schola::Agent *ScholaAgent::get_agent() const {
 
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	godot::PackedStringArray errors;
+
+	// With _define_spaces(), the Inspector space fields are never used, so
+	// empty or invalid ones aren't errors. The callback's own result can only
+	// be checked by running it, which define() does at startup. This check
+	// must never run it: the editor calls it constantly for warning icons.
+	if (has_code_defined_spaces()) {
+		return errors;
+	}
+
 	if (observation_space.is_null()) {
 		errors.append("observation_space is not set");
 	} else {

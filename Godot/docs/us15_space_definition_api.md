@@ -12,9 +12,24 @@ spaces, and saves a copy. Later `define()`, `observe()`, and `act()` calls use t
 copy. Callers that reach `define()` directly, such as `ScholaOnnxPolicy` and the
 stepper, already use code-defined spaces.
 
-Still pending: the configuration checks in `GodotEnvironmentAdapter::initialize()`
-and `ScholaTrainingHost` run before `define()` and still reject empty Inspector
-fields (step 4), and editor warnings still report them (step 5).
+Step 4 connects startup:
+
+- `ScholaAgent.get_configuration_errors()` skips the space checks when the script
+  implements `_define_spaces()`, because the Inspector fields are unused. It still
+  never runs the callback. So `ScholaEnvironment.get_configuration_errors()`, which
+  both the environment adapter and the training host check first, accepts
+  callback-only agents.
+- `GodotEnvironmentAdapter::initialize()` then calls `define()` on each agent,
+  which runs and checks the callback.
+- `ScholaTrainingHost.initialize_session()` resolves every agent's spaces right
+  after the configuration check. A broken callback therefore fails at session
+  start with `INVALID_DATA`, naming the environment and the agent, just like a
+  broken Inspector field. The agent keeps what it resolved, so the later `define()`
+  from Python reuses it without running the callback again.
+
+Editor warnings call the same configuration check, so they also stop reporting
+empty Inspector space fields on callback agents. Step 5 still has to update the
+Inspector help text and add any callback-specific hints.
 
 ## Callback return value and precedence
 
@@ -27,8 +42,8 @@ must return a Dictionary with these required String keys:
 | `observation` | A non-null `ScholaSpace` resource |
 | `action` | A non-null `ScholaSpace` resource |
 
-Additional entries are reserved and must be rejected by the future resolver to
-catch misspelled or unsupported fields. Resources use existing space types,
+Any other key is rejected and named in the error, so a misspelling such as
+`observations` is reported as itself. Resources use existing space types,
 validation, bounds broadcasting, nested Dict ordering, and serialization semantics.
 
 For example:
@@ -45,8 +60,9 @@ func _define_spaces() -> Dictionary:
 
 The native hook returns `Variant` so malformed results can reach the resolver and
 receive an agent-specific diagnostic. A Dictionary return annotation is recommended
-in user scripts. The resolver will check the return type, keys, resource types,
-and both resource definitions before publishing either space.
+in user scripts. The resolver checks the return type, keys, resource types,
+and both resource definitions before saving either space. Errors start with
+`Agent '<id>':` and name the entry, for example `_define_spaces()["action"] is null`.
 
 When the hook is absent, Inspector assignments supply both spaces. When present,
 the hook supplies both spaces and takes precedence over both assignments. An
@@ -108,7 +124,7 @@ workflow or custom serialization format is introduced.
 
 ## Initialization and snapshot lifetime
 
-The following is the contract for the remaining implementation steps:
+Steps 3 and 4 implement these rules:
 
 1. Training and standalone inference resolve spaces on the main thread before
    runtime configuration checks and agent-definition consumption.
@@ -142,8 +158,9 @@ or gameplay side effects. Loops and helper functions are permitted.
 
 `has_code_defined_spaces()` inspects script metadata, including base scripts, and
 does not execute the hook. Ordinary Inspector warning queries must also remain
-metadata-only, including for tool scripts. Later warning integration will recognize
-callback configuration without treating unused Inspector fields as missing spaces.
+metadata-only, including for tool scripts. Since step 4, the configuration check
+behind those warnings uses this query to skip the space checks for callback agents,
+so unused Inspector fields are not reported as missing spaces.
 
 Discovering the actual callback result requires evaluating it on a configured
 instance. Results do not automatically appear in Inspector fields. Editor preview,

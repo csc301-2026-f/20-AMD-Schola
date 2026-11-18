@@ -118,6 +118,8 @@ public:
 	// Returns every invalid Inspector configuration; empty when the configuration is valid
 	// Reports missing observation or action spaces and invalid US2 space definitions
 	// Space errors name the observation or action property and include the US2 validation reason
+	// Agents with _define_spaces() skip the space checks: their fields are unused, and the
+	// callback is only run (and checked) by define() at startup, never by this method.
 	godot::PackedStringArray get_configuration_errors() const;
 	// Adds missing behavior hooks to resource errors for Godot's warning icons.
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook

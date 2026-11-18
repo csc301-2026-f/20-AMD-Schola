@@ -2,7 +2,9 @@
 
 #include "bindings/lifecycle/schola_training_host.h"
 
+#include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
+#include "core/environment/interaction_definition.h"
 
 #include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
@@ -53,6 +55,32 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 	for (int64_t i = 0; i < p_node->get_child_count(); ++i) {
 		collect_environments(p_node->get_child(i), r_environments);
 	}
+}
+
+// Works out every agent's spaces now, at session start. The configuration
+// check never runs _define_spaces(), so without this a broken callback
+// would only show up later, when Python asks for the definition. Each agent
+// keeps what it resolved, so training's later define() calls get the same
+// spaces back without running the callback again.
+schola::Status resolve_agent_spaces(const ScholaEnvironment *p_environment) {
+	const godot::TypedArray<ScholaAgent> agents = p_environment->get_agents();
+	for (int64_t i = 0; i < agents.size(); ++i) {
+		godot::Object *agent_object = agents[i];
+		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(agent_object);
+		if (agent == nullptr) {
+			continue;
+		}
+
+		// Only the error matters here; the agent saves the spaces itself.
+		schola::InteractionDefinition unused;
+		const schola::Status status = agent->get_agent()->define(unused);
+		if (!status.is_ok()) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + describe_node(p_environment) +
+							" has invalid configuration: " + status.get_message());
+		}
+	}
+	return schola::Status::ok();
 }
 
 godot::Dictionary encode_status(const schola::Status &status) {
@@ -291,6 +319,11 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
 					"ScholaEnvironment " + describe_node(environment_node) +
 							" has invalid configuration: " + join_configuration_errors(configuration_errors));
+		}
+
+		const schola::Status spaces_status = resolve_agent_spaces(environment_node);
+		if (!spaces_status.is_ok()) {
+			return spaces_status;
 		}
 
 		schola::Environment *environment = environment_node->get_environment();
