@@ -159,10 +159,6 @@ schola::Status GodotAgentAdapter::observe(schola::Point &r_observation) {
 	if (!runtime_status.is_ok()) {
 		return runtime_status;
 	}
-	const auto pre_dispatch_status = check_components();
-	if (!pre_dispatch_status.is_ok()) {
-		return pre_dispatch_status;
-	}
 	if (!sensors.empty()) {
 		godot::Dictionary values;
 		for (size_t i = 0; i < sensors.size(); ++i) {
@@ -171,20 +167,11 @@ schola::Status GodotAgentAdapter::observe(schola::Point &r_observation) {
 			if (!component || !component->observe_value(observed)) {
 				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "sensor missing or _observe() not implemented");
 			}
-			const auto dispatch_status = check_components();
-			if (!dispatch_status.is_ok()) {
-				return dispatch_status;
-			}
 			values[godot::String::utf8(observation_space.get_if<schola::DictSpace>()->entries[i].first.c_str())] = observed;
 		}
 		value = values;
 	} else if (!GDVIRTUAL_CALL_PTR(node, _observe, value)) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_observe() is not overridden");
-	}
-
-	const auto final_component_status = check_components();
-	if (!final_component_status.is_ok()) {
-		return final_component_status;
 	}
 
 	// Turn the Godot value into a core Point. Build it in a local variable
@@ -241,10 +228,6 @@ schola::Status GodotAgentAdapter::act(const schola::Point &p_action) {
 	if (!runtime_status.is_ok()) {
 		return runtime_status;
 	}
-	const auto pre_dispatch_status = check_components();
-	if (!pre_dispatch_status.is_ok()) {
-		return pre_dispatch_status;
-	}
 	if (!actuators.empty()) {
 		const godot::Dictionary values = schola::point_to_variant(p_action);
 		for (size_t i = 0; i < actuators.size(); ++i) {
@@ -252,16 +235,12 @@ schola::Status GodotAgentAdapter::act(const schola::Point &p_action) {
 			if (!component || !component->apply_value(values[godot::String::utf8(action_space.get_if<schola::DictSpace>()->entries[i].first.c_str())])) {
 				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "actuator missing or _act() not implemented");
 			}
-			const auto dispatch_status = check_components();
-			if (!dispatch_status.is_ok()) {
-				return dispatch_status;
-			}
 		}
 	} else if (!GDVIRTUAL_CALL_PTR(node, _act, schola::point_to_variant(p_action))) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_act() is not overridden");
 	}
 
-	return check_components();
+	return schola::Status::ok();
 }
 
 schola::Status GodotAgentAdapter::check_runtime_components() const {
@@ -332,10 +311,6 @@ schola::Status GodotAgentAdapter::check_components() {
 	}
 	if (changed) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "component layout or spaces changed; define the agent again");
-	}
-	const auto runtime_status = check_runtime_components();
-	if (!runtime_status.is_ok()) {
-		return runtime_status;
 	}
 	validated_revision = revision;
 	return schola::Status::ok();

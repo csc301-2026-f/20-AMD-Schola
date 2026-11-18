@@ -425,3 +425,30 @@ func test_invalid_ray_configuration_prevents_any_actuator_dispatch() -> void:
 	sensor.rays.append(NodePath("../Ray")) # No property setter or revision notification.
 	assert_bool(driver.call("step", environment, {"A": {"00000000:a": 1}}).ok).is_false()
 	assert_int(actuator.calls).is_equal(0)
+
+func test_unrelated_tree_churn_does_not_invalidate_agent_layout() -> void:
+	_sensor("s")
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	var revision: int = driver.call("interaction_revision", agent)
+	for index in 16:
+		var unrelated := Node.new()
+		add_child(unrelated)
+		unrelated.add_child(Node.new())
+		unrelated.free()
+	assert_int(driver.call("interaction_revision", agent)).is_equal(revision)
+	assert_bool(driver.call("step", environment, {"A": {"00000000:a": 1}}).ok).is_true()
+
+func test_nested_component_order_changes_invalidate_layout() -> void:
+	var branch := Node.new()
+	agent.add_child(branch)
+	var first := _sensor("first", branch)
+	var second := _sensor("second", branch)
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	branch.move_child(second, 0)
+	assert_bool(driver.call("reset", environment).ok).is_false()
+	branch.move_child(first, 0)
+	assert_bool(driver.call("reset", environment).ok).is_true()

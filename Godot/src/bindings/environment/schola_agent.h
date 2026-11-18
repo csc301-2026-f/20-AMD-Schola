@@ -125,6 +125,9 @@ protected:
 
 private:
 	void on_script_changed();
+	void refresh_structure_watches();
+	void disconnect_structure_watches();
+	std::vector<godot::ObjectID> structure_watches;
 	void disconnect_space_signals();
 	void connect_space_signals();
 	void refresh_configuration_warnings();

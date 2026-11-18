@@ -21,6 +21,7 @@ ScholaAgent::ScholaAgent() {
 }
 
 ScholaAgent::~ScholaAgent() {
+	disconnect_structure_watches();
 	schola::configuration::disconnect_scripts(watched_scripts, callable_mp(this, &ScholaAgent::on_script_changed));
 	disconnect_space_signals();
 }
@@ -33,11 +34,11 @@ void ScholaAgent::on_script_changed() {
 void ScholaAgent::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:
-			get_tree()->connect("tree_changed", callable_mp(this, &ScholaAgent::invalidate_interaction));
+			refresh_structure_watches();
 			on_script_changed();
 			break;
 		case NOTIFICATION_EXIT_TREE:
-			get_tree()->disconnect("tree_changed", callable_mp(this, &ScholaAgent::invalidate_interaction));
+			disconnect_structure_watches();
 			refresh_configuration_warnings();
 			break;
 		case NOTIFICATION_PATH_RENAMED:
@@ -63,6 +64,43 @@ void ScholaAgent::connect_space_signals() {
 		if (space.is_valid() && !space->is_connected("changed", callback)) {
 			space->connect("changed", callback);
 		}
+	}
+}
+
+void ScholaAgent::disconnect_structure_watches() {
+	const auto callback = callable_mp(this, &ScholaAgent::refresh_structure_watches);
+	for (auto id : structure_watches) {
+		auto *watched = godot::Object::cast_to<godot::Node>(godot::ObjectDB::get_instance(id));
+		if (!watched) {
+			continue;
+		}
+		if (watched->is_connected("child_order_changed", callback)) {
+			watched->disconnect("child_order_changed", callback);
+		}
+	}
+	structure_watches.clear();
+}
+
+// child_order_changed covers child additions, removals and reordering.
+void ScholaAgent::refresh_structure_watches() {
+	invalidate_interaction();
+	disconnect_structure_watches();
+	std::vector<godot::Node *> pending{ this };
+	const auto callback = callable_mp(this, &ScholaAgent::refresh_structure_watches);
+	while (!pending.empty()) {
+		auto *current = pending.back();
+		pending.pop_back();
+		structure_watches.emplace_back(current->get_instance_id());
+		current->connect("child_order_changed", callback);
+		for (int i = 0; i < current->get_child_count(); ++i) {
+			auto *child = current->get_child(i);
+			if (!godot::Object::cast_to<ScholaAgent>(child)) {
+				pending.push_back(child);
+			}
+		}
+	}
+	if (godot::Engine::get_singleton()->is_editor_hint()) {
+		refresh_configuration_warnings();
 	}
 }
 

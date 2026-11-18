@@ -24,13 +24,14 @@ agent. Training environments initialize once; recreate the environment/session.
 The adapter validates configuration at definition and caches the component layout
 and spaces. Scene, script, ID and resource changes invalidate that check; unchanged
 layouts use a constant-time revision check instead of rebuilding spaces on every
-observe/act call. One agent-level tree listener tracks topology; component-wide
+observe/act call. Local child structure/order signals track the agent subtree, stopping at nested
+agents; unrelated scene-tree churn does not invalidate the layout. Component-wide
 warning listeners run only in the editor. User-owned Dict spaces still get polled
 because in-place Dictionary edits do not emit resource change signals. Runtime
 `_get_component_errors()` hooks run for all components once before each observe/act dispatch, so invalid
-sensor configuration is caught before actions run. Tree/resource changes trigger
-additional validation at callback boundaries; dynamic paths and gameplay
-constraints stay validated.
+sensor configuration is caught before actions run. Each dispatch performs one layout/revision check and one runtime preflight.
+Callbacks and diagnostic hooks must not mutate agent structure during dispatch;
+changes made by callbacks are validated on the next dispatch.
 The whole action is validated before any actuator callback. All callbacks execute on the Godot main
 thread. Callbacks must not alter the agent structure. Actions are not
 transactional; earlier world changes cannot be rolled back on later failures.
