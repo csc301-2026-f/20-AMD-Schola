@@ -300,7 +300,7 @@ training_targets = []
 if grpc_enabled:
     training_targets = build_extension(
         "schola_training",
-        ["src/core", "src/transport", "src/training"],
+        ["src/core", "src/interop", "src/transport", "src/training"],
         "schola_training",
         configure=configure_training,
         extra_sources=gym_proto_sources,
