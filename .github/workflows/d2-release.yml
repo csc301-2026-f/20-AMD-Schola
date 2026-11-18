@@ -90,6 +90,11 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+          lfs: true
+        env:
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: lfs.fetchinclude
+          GIT_CONFIG_VALUE_0: Godot/vendor/onnxruntime/${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
