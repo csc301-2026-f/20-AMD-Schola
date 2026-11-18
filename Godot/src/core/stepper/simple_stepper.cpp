@@ -116,12 +116,14 @@ Status SimpleStepper::reset_state(int32_t p_index) {
 		return index_error("SimpleStepper::reset_state", p_index);
 	}
 	entries[p_index].state->reset();
+	entries[p_index].agent->reset_observation_history();
 	return Status::ok();
 }
 
 void SimpleStepper::reset_states() {
 	for (Entry &entry : entries) {
 		entry.state->reset();
+		entry.agent->reset_observation_history();
 	}
 }
 

@@ -36,7 +36,7 @@
     "note": "The protobuf submodule pinned by the gRPC commit. protoc, grpc_cpp_plugin, and the libraries come from one build, so generated code always matches the runtime. The Python package requires protobuf>=6.31.1,<7, the runtime line for protoc 31.1."
   },
   "onnxruntime": {
-    "source": "release-archive",
+    "source": "repository-prebuilt",
     "version": "1.30.0",
     "archives": {
       "linux-x86_64": {
@@ -51,6 +51,16 @@
         "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-osx-arm64-1.30.0.tgz",
         "sha256": "6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012"
       }
+    },
+    "package_path": "Godot/vendor/onnxruntime",
+    "note": "Offline packages repacked from the hash-pinned, Microsoft-author-signed and NuGet.org-repository-signed NuGet package. Historical GitHub archive URLs/hashes remain below for reference only. See vendor/onnxruntime/VERIFICATION.md.",
+    "source_package": {
+      "ecosystem": "nuget",
+      "id": "Microsoft.ML.OnnxRuntime",
+      "version": "1.30.0",
+      "url": "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/1.30.0/microsoft.ml.onnxruntime.1.30.0.nupkg",
+      "sha256": "30df119bd9164eaa187666d93147448fdd4a9a1a3caf83f1505daf7af2d1c5d2",
+      "commit": "f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7"
     }
   }
 }

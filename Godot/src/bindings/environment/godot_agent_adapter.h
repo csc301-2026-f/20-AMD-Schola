@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "core/adapters/observation_adapter.h"
 #include "core/environment/agent.h"
 #include "core/spaces/space.h"
+#include <godot_cpp/core/object_id.hpp>
+
+#include <memory>
+#include <vector>
 
 class ScholaAgent;
 
@@ -54,7 +59,10 @@ public:
 	 */
 	schola::Status act(const schola::Point &p_action) override;
 
+	void reset_observation_history() override;
+
 private:
+	std::vector<std::unique_ptr<schola::ObservationAdapter>> observation_adapters;
 	ScholaAgent *node = nullptr; // Not owned.
 
 	// Cached by define(): observe() needs the shape to convert into, and
@@ -62,4 +70,11 @@ private:
 	schola::Space observation_space;
 	schola::Space action_space;
 	bool defined = false;
+	std::vector<godot::ObjectID> sensors;
+	std::vector<godot::ObjectID> actuators;
+	uint64_t validated_revision = 0;
+	// Dict resources expose mutable Dictionaries whose in-place edits emit no signal.
+	bool mutable_dictionary_spaces = false;
+	schola::Status check_components();
+	schola::Status check_runtime_components() const;
 };

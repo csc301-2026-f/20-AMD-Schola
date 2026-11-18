@@ -52,12 +52,9 @@ flowchart LR
 
 This is a native Godot plugin and desktop demo, so deployment means downloadable applications rather than a hosted web page.
 
-- [GitHub releases](https://github.com/csc301-2026-f/20-AMD-Schola/releases): successful Godot CI runs on `main` publish commit-specific **D3 development** prereleases. Select a release with attached Windows x86_64, Linux x86_64, or macOS arm64 archives.
-- [D3 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D3): the course snapshot, available after the team pushes the `D3` tag and packaging succeeds. Until then, use a development prerelease or the source setup below.
-- [D3 submission tag workflow](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/d3-submission.yml): schedules the `D3` tag for November 6, 2026 at 11:30 p.m. Toronto time (November 7 at 04:30 UTC). The workflow never moves an existing `D3` tag. Rerunning it restarts packaging at the existing tag.
-- [Godot Actions](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml): PR checks and downloadable package artifacts. PRs build and check packages without publishing releases.
+- [GitHub releases](https://github.com/csc301-2026-f/20-AMD-Schola/releases) hosts the course releases. Regular CI builds provide downloadable packages under [Godot Actions](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml).
 
-Download the D3 application for [Windows x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip), [Linux x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz), or [macOS arm64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip). These canonical links become available automatically when the pushed `D3` tag's packaging workflow succeeds. The [validated candidate run](https://github.com/csc301-2026-f/20-AMD-Schola/actions/runs/42157175290) passed all checks at commit `4c02a76`, including exported reference-policy playback on all three platforms.
+Download the D3 application for [Windows x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip), [Linux x86_64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz), or [macOS arm64](https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip). The [validated candidate run](https://github.com/csc301-2026-f/20-AMD-Schola/actions/runs/42157175290) passed all checks at commit `4c02a76`, including exported reference-policy playback on all three platforms.
 
 Extract the archive for your platform and launch the included application. The package includes a deterministic reference ONNX policy for the default map; it is a shortest-path reference, not evidence of a learned policy. **Arrow keys** move the agent, **Policy** runs the bundled model with Python closed, and **Stop** returns to manual control. **Edit map** changes the layout. The policy fits the default map, so restore **Default** before using it after map edits.
 
@@ -121,7 +118,7 @@ The D2 review identified the need to replace integration stand-ins and keep the 
 
 [Godot CI](.github/workflows/godot.yml) checks C++ formatting, dependency setup, native builds, Catch2 unit/inference/transport suites, and GdUnit4 integration tests. Its D3 checks generate a reference model, verify host behavior and policy success, then train two instances for 20 total episodes, export the learned table, and load that model in Godot after the trainer exits. This short training check verifies integration, not learning quality.
 
-[D3 packaging](.github/workflows/d3-release.yml) builds runtime-only debug and release libraries for Windows, Linux, and macOS, checks the demo and exported package, and uploads archives. Relevant PRs must pass packaging as part of `Godot / required`. Successful runs on `main` automatically publish commit-specific development releases; pushing `D3` publishes the final snapshot. Manual dispatch and `D3-test-*` tags build artifacts without publishing. Jobs have explicit timeouts; native compilation has longer limits than lightweight checks.
+[Godot desktop packaging](.github/workflows/godot-packages.yml) builds and smoke-tests the desktop demo for Windows, Linux, and macOS and uploads workflow artifacts. Relevant PRs must pass packaging as part of `Godot / required`. The [D4 release workflow](.github/workflows/d4-release.yml) publishes those archives to the `D4` release on November 27, 2026 at 11:30 p.m. Toronto time. You can also run it manually from `main`.
 
 To run the D3 check locally after setup:
 

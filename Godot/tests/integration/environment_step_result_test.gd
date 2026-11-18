@@ -179,3 +179,56 @@ func test_invalid_results_are_rejected_without_partial_output() -> void:
 	# A valid retry also proves the failed batch did not mark A finished.
 	environment.results = {}
 	assert_bool(_driver.call("step", environment, {"A": 0, "B": 0}).ok).is_true()
+
+func test_shared_stacker_resource_keeps_history_per_agent_and_episode() -> void:
+	var environment: TestEnvironment = auto_free(TestEnvironment.new())
+	var a := _add_agent(environment, "A")
+	var b := _add_agent(environment, "B")
+	var stacker := ScholaStacker.new()
+	stacker.output_kind = 1
+	stacker.stack_size = 3
+	stacker.default_point = 1
+	a.observation_adapters = [stacker]
+	b.observation_adapters = [stacker]
+	add_child(environment)
+
+	assert_bool(_driver.call("initialize", environment).ok).is_true()
+	assert_bool(_driver.call("reset", environment).ok).is_true()
+	var first: Dictionary = _driver.call("step", environment, {"A": 0, "B": 0})
+	assert_bool(first.ok).is_true()
+	var expected := {"Point_0": 0, "Point_1": 0, "Point_2": 1}
+	assert_dict(first.states.A.observation).is_equal(expected)
+	assert_dict(first.states.B.observation).is_equal(expected)
+
+	var full: Dictionary = _driver.call("step", environment, {"A": 0, "B": 0})
+	assert_bool(full.ok).is_true()
+	assert_int(full.states.A.observation.Point_2).is_equal(0)
+
+	assert_bool(_driver.call("reset", environment).ok).is_true()
+	var next: Dictionary = _driver.call("step", environment, {"A": 0, "B": 0})
+	assert_bool(next.ok).is_true()
+	assert_dict(next.states.A.observation).is_equal(expected)
+	assert_dict(next.states.B.observation).is_equal(expected)
+
+func test_adapters_apply_in_array_order() -> void:
+	var environment: TestEnvironment = auto_free(TestEnvironment.new())
+	var agent := _add_agent(environment, "A")
+	var inner := ScholaStacker.new()
+	inner.output_kind = 1
+	inner.stack_size = 2
+	inner.default_point = 1
+	var outer := ScholaStacker.new()
+	outer.output_kind = 1
+	outer.stack_size = 2
+	outer.default_point = {"Point_0": 1, "Point_1": 1}
+	agent.observation_adapters = [inner, outer]
+	add_child(environment)
+
+	assert_bool(_driver.call("initialize", environment).ok).is_true()
+	assert_bool(_driver.call("reset", environment).ok).is_true()
+	var response: Dictionary = _driver.call("step", environment, {"A": 0})
+	assert_bool(response.ok).is_true()
+	assert_dict(response.states.A.observation).is_equal({
+		"Point_0_0": 0, "Point_0_1": 0,
+		"Point_1_0": 0, "Point_1_1": 1,
+	})
