@@ -25,7 +25,7 @@ These tasks complete or validate existing stories rather than introducing new pr
 These capabilities already exist in Unreal Schola or have a clear equivalent, but are not currently proposed as course commitments:
 
 - **Parallel headless training:** Run multiple isolated environment instances in one Godot process using its supported headless mode. Validate stable environment IDs, isolated episode state, session-wide failure behavior, configuration documentation, and a simple throughput comparison. Camera observations would require a supported renderer or a clear incompatibility error. Distributed training across machines or processes remains out of scope.
-- Additional actuator nodes, including rotation and teleport actuators.
+- Additional actuator types beyond the movement, rotation and teleport nodes on the US8 branch.
 - Additional non-visual sensors after the US8 composition contract is stable.
 - Text spaces and points if the shared protocol and Python consumers require them.
 - Pipelined inference, but only if profiling demonstrates that synchronous inference causes unacceptable frame stalls.

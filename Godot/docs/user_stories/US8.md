@@ -36,5 +36,11 @@ offline ONNX Runtime packaging fix; it does not establish that US8 has merged.
 
 ## Scope limits
 
-- Camera observations are excluded from this story because rendering, image conversion, and GPU readback require separate design and performance validation.
+- The original US8 baseline excluded camera capture. The requested parity extension now adds real and fake camera sensors; rendering configuration and validation are documented with US11.
 - This story does not introduce Godot-only observation or action semantics.
+
+## Implementation
+
+See [the component API guide](../us8_components.md) for native base nodes,
+GDScript implementations, ordering, direct-hook precedence, and Unreal mapping.
+Behavior is covered by `tests/integration/components_test.gd`.
