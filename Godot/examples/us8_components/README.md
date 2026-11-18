@@ -60,8 +60,10 @@ world before that frame's movement. Nothing calls component hooks directly.
 ## Change the components
 
 Select **RaySensor** to change its ray paths or open its GDScript. Select
-**Movement** to change its maximum speed or open its GDScript. These are the
-runtime add-on's reusable implementations under `addons/schola/components/`.
+**Movement** to change its speed range or open its GDScript. The playground
+sends X/Y/Z velocity, so keep all three axes enabled and the range symmetric.
+These are the runtime add-on's reusable implementations under
+`addons/schola/components/`.
 The controller uses the actuator's current `maximum_speed`, so changing that
 Inspector value changes movement speed without editing controller code.
 You can also attach your own GDScript extending either native base node.

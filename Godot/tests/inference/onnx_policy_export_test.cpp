@@ -159,3 +159,24 @@ TEST_CASE("an exported PPO policy with a Dict observation matches Python", "[inf
 	Point action = think(policy, Point(observation), action_space);
 	REQUIRE(action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ static_cast<int32_t>(expected.action[0]), static_cast<int32_t>(expected.action[1]) });
 }
+
+TEST_CASE("an exported PPO policy for the RaceTrack car's component spaces matches Python", "[inference]") {
+	const Expected expected = read_expected("schola_ppo_race_car");
+	OnnxPolicy policy;
+	const Space action_space(DictSpace{ { { "00000000:Controls", box(2) } } });
+	load_and_init(policy, "schola_ppo_race_car", Space(DictSpace{ { { "00000000:Track", box(6) }, { "00000001:Velocity", box(3) } } }), action_space);
+
+	const auto track_end = expected.observation.begin() + 6;
+	DictPoint observation{ {
+			{ "00000000:Track", Point(BoxPoint{ { expected.observation.begin(), track_end } }) },
+			{ "00000001:Velocity", Point(BoxPoint{ { track_end, expected.observation.end() } }) },
+	} };
+	Point action = think(policy, Point(observation), action_space);
+	const Point *controls = action.get_if<DictPoint>()->find("00000000:Controls");
+	REQUIRE(controls != nullptr);
+	const std::vector<float> &values = controls->get_if<BoxPoint>()->values;
+	REQUIRE(values.size() == expected.action.size());
+	for (size_t i = 0; i < values.size(); ++i) {
+		REQUIRE(values[i] == Catch::Approx(expected.action[i]).margin(1e-6));
+	}
+}
