@@ -14,7 +14,9 @@ shadow_enabled = true
 
 [node name="RaceTrackEnvironment" type="ScholaEnvironment" parent="."]
 script = ExtResource("2_environment")
+maximum_steps = 3000
+maximum_stalled_steps = 120
 
 [node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
 
-[node name="TrainingHost" type="ScholaTrainingHost" parent="."]
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]

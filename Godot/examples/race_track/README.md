@@ -1,6 +1,6 @@
 # RaceTrack example (US13 draft)
 
-A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAndSDKs/ScholaExamples/tree/main/Content/Examples/RaceTrack): a car learns to drive around a track. It is the US13 production example: it will train through Schola's Python tools over gRPC and run the exported ONNX policy in Godot with Python closed.
+A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAndSDKs/ScholaExamples/tree/main/Content/Examples/RaceTrack): a car learns to drive around a track. It is the US13 production example: it trains through Schola's Python tools over gRPC and runs the exported ONNX policy in Godot with Python closed.
 
 The original example was derived from AMD’s Unreal assets. This local version deliberately changes course size, vehicle handling, and starting position for an arcade driving demo.
 
@@ -43,7 +43,7 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 ## Training and inference status
 
 - **Inference** works once a model exists at `policies/race_track.onnx`.
-- **Training** is not possible yet. Python reaches the scene only through the `ScholaTrainingConnector` node from US3, which is not implemented.
+- **Training** uses the native `ScholaTrainingConnector` over gRPC and Schola’s SB3 Python environment. The connector creates its own training host. See the commands below.
 
 ## Files
 
@@ -51,7 +51,7 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 |---|---|---|
 | `scenes/race_track.tscn` | Ground, track curve, and road | The track and road in each map |
 | `scenes/car.tscn` | The car, its wheels and camera, and its `ScholaAgent` | `RaceTrackAgent`, a `SportsCar` |
-| `scenes/race_track_train.tscn` | Track, a `ScholaEnvironment` with the car, and `ScholaTrainingHost` | `Maps/RaceTrackTrain` |
+| `scenes/race_track_train.tscn` | Track, a `ScholaEnvironment` with the car, and `ScholaTrainingConnector` | `Maps/RaceTrackTrain` |
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, and start position | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
@@ -108,7 +108,7 @@ limits abrupt high-speed direction changes.
 
 - **Reset:** the car returns to its start and stops.
 - **Terminated:** the car is 10 m or more from the track centre, or rolled more than 10°. The reward for that step is -10.
-- **Truncated:** after 500 steps.
+- **Training episodes:** truncated after 3000 steps (50 simulated seconds). Two seconds without forward progress ends the episode with -10, so a car stuck at a wall resets. The keyboard demo disables stall endings.
 - **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track.
 
 AMD's Blueprint updates its stored track distance before computing progress, so its progress reward is always 0. This example rewards progress instead.
@@ -117,9 +117,43 @@ AMD's Blueprint updates its stored track distance before computing progress, so 
 
 Open `Godot/project.godot`, open `res://examples/race_track/scenes/race_track_inference.tscn`, and run it (F6). Without `policies/race_track.onnx`, the stepper reports that the model cannot be read.
 
-Once the connector lands, training will use Schola's commands:
+Build both native extensions using the setup in `Godot/README.md`. Install Python
+training dependencies from the repository root (Python 3.12):
 
 ```sh
-schola sb3 train ppo editor
-schola sb3 export --policy-checkpoint-path <CHECKPOINT> --output-path Godot/examples/race_track/policies/race_track.onnx --algorithm PPO
+uv venv --python 3.12 Godot/.venv
+uv pip install --python Godot/.venv/bin/python -e 'Resources/python[sb3]'
+godot --headless --path Godot --import
 ```
+
+Train and export from the repository root:
+
+```sh
+Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --steps 100000
+```
+
+The script launches the training scene, connects on localhost port 8000, trains
+PPO with the composed dictionary observations/actions, and saves the checkpoint
+and ONNX model under `policies/` (ignored by Git). Use `--port` for another port,
+`--godot /path/to/godot` when Godot is not on PATH, and omit `--headless` to watch.
+Each action advances one physics frame at a fixed 60 Hz simulation timestep.
+The script closes its Godot process when training/export finishes or fails.
+
+For a short integration check, add `--smoke --steps 1024`. This first checks 600
+gRPC steps for finite observations/rewards, acceleration and episode autoreset,
+then performs a short PPO update and exports ONNX. A short run checks the
+pipeline; it does not establish that the policy has learned to finish a lap.
+
+Open `race_track_inference.tscn` with F6 after export to run the model without
+Python. Progress rewards wrap at the start/finish line so completing a lap does
+not produce a track-length penalty.
+
+Continue an existing checkpoint rather than starting over:
+
+```sh
+Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --resume --steps 300000
+```
+
+`--steps` is the number of additional training steps when resuming. Intermediate
+checkpoints are saved in `policies/` every 25,000 steps. The final checkpoint and
+ONNX policy replace `race_track.zip` and `race_track.onnx` after a successful run.
