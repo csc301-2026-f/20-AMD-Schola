@@ -243,7 +243,7 @@ func test_nested_agent_is_a_discovery_boundary() -> void:
 	var nested := ScholaAgent.new()
 	agent.add_child(nested)
 	_sensor("inner", nested)
-	assert_array(agent.observation_space.spaces.keys()).contains_exactly(["00000000:outer"])
+	assert_array(agent.get_effective_observation_space().spaces.keys()).contains_exactly(["00000000:outer"])
 
 func test_configuration_errors_cover_placement_space_and_duplicates() -> void:
 	var orphan: ScholaSensor = auto_free(ScholaSensor.new())
@@ -316,3 +316,112 @@ func test_in_place_ray_append_is_rejected_until_space_is_synchronized() -> void:
 	sensor.add_ray(NodePath("../Ray"))
 	assert_bool(sensor.get_configuration_errors().is_empty()).is_true()
 	assert_array(Array(sensor.space.shape)).contains_exactly([6])
+
+func test_composed_spaces_are_not_serialized_into_agent_properties() -> void:
+	var original: Node = auto_free(load("res://examples/us8_components/main.tscn").instantiate())
+	var composed := original.get_node("Environment/Agent") as ScholaAgent
+	assert_that(composed.observation_space).is_null()
+	assert_that(composed.action_space).is_null()
+	assert_array(composed.get_effective_observation_space().spaces.keys()).contains_exactly(["00000000:rays"])
+	assert_array(composed.get_effective_action_space().spaces.keys()).contains_exactly(["00000000:movement"])
+	var packed := PackedScene.new()
+	assert_int(packed.pack(original)).is_equal(OK)
+	var path := "user://us8_composition_round_trip.tscn"
+	assert_int(ResourceSaver.save(packed, path)).is_equal(OK)
+	var reloaded: PackedScene = ResourceLoader.load(path, "PackedScene", ResourceLoader.CACHE_MODE_IGNORE)
+	var restored: Node = auto_free(reloaded.instantiate())
+	var restored_agent := restored.get_node("Environment/Agent") as ScholaAgent
+	assert_that(restored_agent.observation_space).is_null()
+	assert_that(restored_agent.action_space).is_null()
+	assert_array(restored_agent.get_effective_observation_space().spaces.keys()).contains_exactly(["00000000:rays"])
+	restored_agent.get_node("RaySensor").free()
+	assert_that(restored_agent.get_effective_observation_space()).is_null()
+	assert_int(packed.pack(restored)).is_equal(OK)
+	var restored_again: Node = auto_free(packed.instantiate())
+	assert_that(restored_again.get_node("Environment/Agent").get_effective_observation_space()).is_null()
+	DirAccess.remove_absolute(path)
+
+func test_stored_spaces_remain_separate_from_component_composition() -> void:
+	var explicit := _space()
+	agent.observation_space = explicit
+	var sensor := _sensor("sensor")
+	assert_that(agent.observation_space).is_same(explicit)
+	assert_bool(agent.get_effective_observation_space() is ScholaDictSpace).is_true()
+	sensor.free()
+	assert_that(agent.get_effective_observation_space()).is_same(explicit)
+
+func test_components_do_not_subscribe_to_runtime_tree_changes() -> void:
+	var before := get_tree().get_signal_connection_list("tree_changed").size()
+	for index in 16:
+		_sensor("s" + str(index))
+		_actuator("a" + str(index))
+	assert_int(get_tree().get_signal_connection_list("tree_changed").size()).is_equal(before)
+
+func test_runtime_preflight_runs_once_per_component_per_dispatch() -> void:
+	var sensor := CountingSensor.new()
+	sensor.space = _space()
+	sensor.component_id = "s"
+	agent.add_child(sensor)
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	sensor.validations = 0
+	for index in 10:
+		assert_bool(driver.call("step", environment, {"A": {"00000000:a": 1}}).ok).is_true()
+	assert_int(sensor.validations).is_equal(20) # One preflight for act and one for observe.
+
+func test_cached_layout_rejects_renames_reorders_and_resource_changes() -> void:
+	var first := _sensor("first")
+	var second := _sensor("second")
+	_actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	first.component_id = "renamed"
+	assert_bool(driver.call("reset", environment).ok).is_false()
+	first.component_id = "first"
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	agent.move_child(second, 0)
+	assert_bool(driver.call("reset", environment).ok).is_false()
+	agent.move_child(first, 0)
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	first.space.n = 4
+	assert_bool(driver.call("reset", environment).ok).is_false()
+
+func test_in_place_dict_space_changes_are_still_rejected() -> void:
+	var sensor := _sensor("s")
+	var dictionary := ScholaDictSpace.new()
+	dictionary.spaces = {"value": _space()}
+	sensor.space = dictionary
+	sensor.value = {"value": 1}
+	var actuator := _actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	dictionary.spaces["extra"] = _space() # Bypasses Resource.changed.
+	assert_bool(driver.call("step", environment, {"A": {"00000000:a": 1}}).ok).is_false()
+	assert_int(actuator.calls).is_equal(0)
+
+func test_missing_component_hook_is_detected_before_other_actuators_run() -> void:
+	_sensor("s")
+	var first := _actuator("first")
+	var second := _actuator("second")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	second.set_script(null)
+	assert_bool(driver.call("step", environment, {"A": {"00000000:first": 1, "00000001:second": 1}}).ok).is_false()
+	assert_int(first.calls).is_equal(0)
+
+func test_invalid_ray_configuration_prevents_any_actuator_dispatch() -> void:
+	var sensor := ScholaRayCastSensor3D.new()
+	sensor.component_id = "rays"
+	agent.add_child(sensor)
+	var ray := RayCast3D.new()
+	ray.name = "Ray"
+	ray.target_position = Vector3(0, 0, -1)
+	agent.add_child(ray)
+	sensor.add_ray(NodePath("../Ray"))
+	var actuator := _actuator("a")
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	sensor.rays.append(NodePath("../Ray")) # No property setter or revision notification.
+	assert_bool(driver.call("step", environment, {"A": {"00000000:a": 1}}).ok).is_false()
+	assert_int(actuator.calls).is_equal(0)

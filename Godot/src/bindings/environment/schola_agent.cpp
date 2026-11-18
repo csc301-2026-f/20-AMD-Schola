@@ -10,6 +10,8 @@
 #include "bindings/spaces/schola_dict_space.h"
 #include "bindings/spaces/schola_space.h"
 
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 #include <memory>
@@ -31,10 +33,14 @@ void ScholaAgent::on_script_changed() {
 void ScholaAgent::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE:
+			get_tree()->connect("tree_changed", callable_mp(this, &ScholaAgent::invalidate_interaction));
 			on_script_changed();
 			break;
-		case NOTIFICATION_PATH_RENAMED:
 		case NOTIFICATION_EXIT_TREE:
+			get_tree()->disconnect("tree_changed", callable_mp(this, &ScholaAgent::invalidate_interaction));
+			refresh_configuration_warnings();
+			break;
+		case NOTIFICATION_PATH_RENAMED:
 		case NOTIFICATION_PARENTED:
 		case NOTIFICATION_UNPARENTED:
 			refresh_configuration_warnings();
@@ -60,7 +66,19 @@ void ScholaAgent::connect_space_signals() {
 	}
 }
 
+void ScholaAgent::invalidate_interaction() {
+	++interaction_revision;
+}
+
+uint64_t ScholaAgent::get_interaction_revision() const {
+	return interaction_revision;
+}
+
 void ScholaAgent::refresh_configuration_warnings() {
+	invalidate_interaction();
+	if (!godot::Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
 	update_configuration_warnings();
 	for (godot::Node *ancestor = get_parent(); ancestor != nullptr; ancestor = ancestor->get_parent()) {
 		if (ScholaEnvironment *environment = godot::Object::cast_to<ScholaEnvironment>(ancestor)) {
@@ -104,6 +122,10 @@ void ScholaAgent::set_observation_space(const godot::Ref<ScholaSpace> &p_observa
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_observation_space() const {
+	return observation_space;
+}
+
+godot::Ref<ScholaSpace> ScholaAgent::get_effective_observation_space() const {
 	if (schola::configuration::has_hook(this, "_observe")) {
 		return observation_space;
 	}
@@ -129,6 +151,10 @@ void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_action_space() const {
+	return action_space;
+}
+
+godot::Ref<ScholaSpace> ScholaAgent::get_effective_action_space() const {
 	if (schola::configuration::has_hook(this, "_act")) {
 		return action_space;
 	}
@@ -164,8 +190,8 @@ const schola::Agent *ScholaAgent::get_agent() const {
 
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	godot::PackedStringArray errors;
-	const auto effective_observation = get_observation_space();
-	const auto effective_action = get_action_space();
+	const auto effective_observation = get_effective_observation_space();
+	const auto effective_action = get_effective_action_space();
 	if (effective_observation.is_null()) {
 		errors.append("observation_space is not set");
 	} else {
@@ -186,6 +212,8 @@ godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 }
 
 void ScholaAgent::_bind_methods() {
+	godot::ClassDB::bind_method(godot::D_METHOD("get_effective_observation_space"), &ScholaAgent::get_effective_observation_space);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_effective_action_space"), &ScholaAgent::get_effective_action_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_resolved_agent_id"), &ScholaAgent::get_resolved_agent_id);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_resolved_agent_type"), &ScholaAgent::get_resolved_agent_type);
 	godot::ClassDB::bind_method(godot::D_METHOD("set_agent_id", "agent_id"), &ScholaAgent::set_agent_id);

@@ -72,5 +72,9 @@ private:
 	bool defined = false;
 	std::vector<godot::ObjectID> sensors;
 	std::vector<godot::ObjectID> actuators;
-	schola::Status check_components() const;
+	uint64_t validated_revision = 0;
+	// Dict resources expose mutable Dictionaries whose in-place edits emit no signal.
+	bool mutable_dictionary_spaces = false;
+	schola::Status check_components();
+	schola::Status check_runtime_components() const;
 };

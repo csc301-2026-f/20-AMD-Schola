@@ -38,8 +38,8 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	if not _accept(host.initialize_session()) or not _accept(host.set_autoreset_mode(2)) or not _accept(host.define()):
 		return
-	observation_key = agent.observation_space.spaces.keys()[0]
-	action_key = agent.action_space.spaces.keys()[0]
+	observation_key = agent.get_effective_observation_space().spaces.keys()[0]
+	action_key = agent.get_effective_action_space().spaces.keys()[0]
 	running = _accept(host.reset({}))
 
 func _build_world() -> void:

@@ -69,6 +69,11 @@ public:
 	godot::Ref<ScholaSpace> get_observation_space() const;
 	void set_action_space(const godot::Ref<ScholaSpace> &p_action_space);
 	godot::Ref<ScholaSpace> get_action_space() const;
+	/** Runtime composition, separate from the serialized Inspector properties. */
+	godot::Ref<ScholaSpace> get_effective_observation_space() const;
+	godot::Ref<ScholaSpace> get_effective_action_space() const;
+	void invalidate_interaction();
+	uint64_t get_interaction_revision() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
 	// === US1 Additions Below ===
@@ -125,6 +130,7 @@ private:
 	void refresh_configuration_warnings();
 
 	// Stores the Inspector value; an empty ID means use this node's name
+	uint64_t interaction_revision = 0;
 	godot::String agent_id;
 	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;

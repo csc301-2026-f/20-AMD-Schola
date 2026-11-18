@@ -15,11 +15,23 @@ components, the explicit-space/direct-hook API still applies.
 
 Dictionary keys are `00000000:<id>`, `00000001:<id>`, and so on. Prefixes preserve
 component order through canonical sorting and Python flattening. Obtain the keys
-from `agent.observation_space.spaces` and `agent.action_space.spaces`. Changing
+from `agent.get_effective_observation_space().spaces` and
+`agent.get_effective_action_space().spaces`. The serialized `observation_space`
+and `action_space` properties retain only explicitly assigned resources; generated
+component dictionaries are never written into those properties when saving a scene. Changing
 membership, IDs, order or spaces after initialization requires redefining the
 agent. Training environments initialize once; recreate the environment/session.
-The adapter checks identities and spaces before dispatch and validates the whole
-action before invoking a component. All callbacks execute on the Godot main
+The adapter validates configuration at definition and caches the component layout
+and spaces. Scene, script, ID and resource changes invalidate that check; unchanged
+layouts use a constant-time revision check instead of rebuilding spaces on every
+observe/act call. One agent-level tree listener tracks topology; component-wide
+warning listeners run only in the editor. User-owned Dict spaces still get polled
+because in-place Dictionary edits do not emit resource change signals. Runtime
+`_get_component_errors()` hooks run for all components once before each observe/act dispatch, so invalid
+sensor configuration is caught before actions run. Tree/resource changes trigger
+additional validation at callback boundaries; dynamic paths and gameplay
+constraints stay validated.
+The whole action is validated before any actuator callback. All callbacks execute on the Godot main
 thread. Callbacks must not alter the agent structure. Actions are not
 transactional; earlier world changes cannot be rolled back on later failures.
 
@@ -132,7 +144,7 @@ the concrete camera classes rather than adding the base directly.
 `agent.observation_adapters` processes the validated sensor dictionary. A
 `ScholaStacker` with `output_kind=1` (Dict) retains history using keys such as
 `00000000:rays_0` for the newest sample and `00000000:rays_1` for the preceding
-sample. Episode resets clear history. `agent.observation_space` describes raw
+sample. Episode resets clear history. `agent.get_effective_observation_space()` describes raw
 sensor values; the interaction definition advertises the adapted space.
 
 Build the runtime with `integration_tests=yes`, import the project, and run
