@@ -39,6 +39,16 @@ The runtime add-on includes these reusable GDScript implementations:
   `maximum_speed`. Three continuous values set local X/Y/Z velocity, transformed
   using the body's rotation. The body's physics loop owns `move_and_slide()`,
   gravity and collision response. Actions use speed units, not normalized input.
+  Its generated `space` must keep the float32 XYZ shape and `maximum_speed`
+  bounds. Reassign `maximum_speed` to restore the space after manual edits.
+
+`agent.observation_adapters` processes the composed sensor dictionary after its
+values have been validated. For example, a `ScholaStacker` with `output_kind = 1`
+(Dict) retains sensor history using keys such as `00000000:rays_0` for the newest
+sample and `00000000:rays_1` for the preceding sample. Training episode resets
+clear this history. `agent.observation_space` describes the raw sensor values;
+the interaction definition advertises the final adapted space to training and
+inference consumers.
 
 For example, a custom discrete sensor beside a `CharacterBody3D` named `Body`
 under the agent can use:

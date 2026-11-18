@@ -99,6 +99,57 @@ func test_invalid_action_has_no_component_side_effects() -> void:
 	assert_int(first.calls).is_equal(0)
 	assert_int(second.calls).is_equal(0)
 
+func test_component_observations_are_stacked_and_reset_between_episodes() -> void:
+	var sensor := _sensor("s")
+	_actuator("a")
+	var stacker := ScholaStacker.new()
+	stacker.output_kind = 1 # Dict history accepts the composed observation Dict.
+	stacker.stack_size = 2
+	stacker.default_point = {"00000000:s": 0}
+	agent.observation_adapters = [stacker]
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	var initial: Dictionary = driver.call("reset", environment)
+	assert_bool(initial.ok).is_true()
+	assert_dict(initial.states.A.observation).is_equal({
+		"00000000:s_0": 1, "00000000:s_1": 0,
+	})
+	sensor.value = 2
+	var response: Dictionary = driver.call("step", environment, {"A": {"00000000:a": 1}})
+	assert_bool(response.ok).is_true()
+	assert_dict(response.states.A.observation).is_equal({
+		"00000000:s_0": 2, "00000000:s_1": 1,
+	})
+	var reset: Dictionary = driver.call("reset", environment)
+	assert_bool(reset.ok).is_true()
+	assert_dict(reset.states.A.observation).is_equal({
+		"00000000:s_0": 2, "00000000:s_1": 0,
+	})
+
+func test_movement_rejects_an_incompatible_space_before_dispatch() -> void:
+	_sensor("s")
+	var body := CharacterBody3D.new()
+	body.name = "Body"
+	agent.add_child(body)
+	var movement: ScholaActuator = load("res://addons/schola/components/movement_actuator_3d.gd").new()
+	agent.add_child(movement)
+	movement.body_path = NodePath("../Body")
+	movement.component_id = "move"
+	movement.space = _space() # A valid space, but its scalar actions cannot set XYZ velocity.
+	assert_bool(movement.get_configuration_errors().is_empty()).is_false()
+	assert_bool(driver.call("initialize", environment).ok).is_false()
+	movement.maximum_speed = 1.0 # Regenerate the declared space.
+	movement.space.shape = PackedInt32Array([1])
+	assert_bool(driver.call("initialize", environment).ok).is_false()
+	movement.maximum_speed = 1.0
+	movement.space.high = PackedFloat32Array([10])
+	assert_bool(driver.call("initialize", environment).ok).is_false()
+	movement.maximum_speed = 1.0
+	assert_bool(driver.call("initialize", environment).ok).is_true()
+	assert_bool(driver.call("reset", environment).ok).is_true()
+	movement.space.shape = PackedInt32Array([1])
+	assert_bool(driver.call("step", environment, {"A": {"00000000:move": PackedFloat32Array([1, 0, 0])}}).ok).is_false()
+	assert_vector(body.velocity).is_equal(Vector3.ZERO)
+
 func test_duplicate_identifiers_rejected() -> void:
 	_sensor("same")
 	_sensor("same")

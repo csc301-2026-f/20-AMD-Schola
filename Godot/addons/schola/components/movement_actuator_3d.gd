@@ -38,6 +38,13 @@ func _act(action: Variant) -> void:
 
 func _get_component_errors() -> PackedStringArray:
 	var warnings := PackedStringArray()
+	var box := space as ScholaBoxSpace
+	if (
+		box == null or box.shape != PackedInt32Array([3]) or box.dtype != 0
+		or box.low != PackedFloat32Array([-maximum_speed])
+		or box.high != PackedFloat32Array([maximum_speed])
+	):
+		warnings.append("Movement space must be a float32 XYZ Box bounded by maximum_speed; reassign maximum_speed to regenerate it.")
 	if not get_node_or_null(body_path) is CharacterBody3D:
 		warnings.append("body_path must reference a CharacterBody3D.")
 	if not is_finite(maximum_speed) or maximum_speed <= 0.0:
