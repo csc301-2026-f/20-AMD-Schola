@@ -28,6 +28,9 @@ class ScholaEnvironmentTestDriver : public godot::RefCounted {
 	GDCLASS(ScholaEnvironmentTestDriver, godot::RefCounted)
 
 public:
+	uint64_t interaction_revision(ScholaAgent *agent) const {
+		return agent->get_interaction_revision();
+	}
 	// "agents" maps each agent ID to its resolved agent_type.
 	godot::Dictionary initialize(ScholaEnvironment *p_node) {
 		if (p_node == nullptr || p_node->get_environment() == nullptr) {
@@ -158,6 +161,7 @@ public:
 
 protected:
 	static void _bind_methods() {
+		godot::ClassDB::bind_method(godot::D_METHOD("interaction_revision", "agent"), &ScholaEnvironmentTestDriver::interaction_revision);
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
 		godot::ClassDB::bind_method(godot::D_METHOD("reset", "environment", "settings"), &ScholaEnvironmentTestDriver::reset, DEFVAL(godot::Dictionary()));
 		godot::ClassDB::bind_method(godot::D_METHOD("step", "environment", "actions"), &ScholaEnvironmentTestDriver::step);

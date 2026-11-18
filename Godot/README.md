@@ -139,8 +139,12 @@ saved properties. The integrated US1 adapter uses the resolved type when populat
 
 ### Space resources and configuration warnings
 
-Assign `ScholaSpace` resources to the agent's `observation_space` and
-`action_space` fields. Both start unassigned and must be configured. The Inspector
+For direct agent hooks, assign `ScholaSpace` resources to `observation_space`
+and `action_space`. Both start unassigned. When descendant sensors or actuators
+supply a side instead, its explicit property may remain unassigned. The saved
+properties return only explicit configuration; `get_effective_observation_space()`
+and `get_effective_action_space()` return the spaces used for native dispatch,
+including component composition. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
 at zero and require a positive value; their Inspector fields provide positive-size
@@ -270,6 +274,14 @@ godot --headless --path Godot \
   -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
   --ignoreHeadlessMode -a res://tests/integration/ui_test.gd
 ```
+
+## Reusable sensors and actuators
+
+See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
+nodes, ordered agent composition, ray sensing, movement, rotation, teleportation,
+and real/fake camera components, including rendered color/depth capture tests.
+Open [the interactive US8 example](examples/us8_components/README.md) to try
+keyboard movement, automatic control, and live ray observations with F6.
 
 ## Running a trained policy
 
