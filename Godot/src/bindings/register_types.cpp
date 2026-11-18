@@ -5,6 +5,7 @@
 #include "bindings/components/schola_actuator.h"
 #include "bindings/components/schola_sensor.h"
 
+#include "bindings/adapters/schola_observation_adapter.h"
 #include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
 #include "bindings/lifecycle/schola_training_host.h"
@@ -25,6 +26,8 @@ void register_schola_environment_test_driver();
 void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaRuntimeProbe);
 	GDREGISTER_CLASS(ScholaEnvironment);
+	GDREGISTER_ABSTRACT_CLASS(ScholaObservationAdapter);
+	GDREGISTER_CLASS(ScholaStacker);
 	GDREGISTER_CLASS(ScholaAgent);
 	GDREGISTER_CLASS(ScholaSensor);
 	GDREGISTER_CLASS(ScholaActuator);
