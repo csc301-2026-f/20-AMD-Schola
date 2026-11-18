@@ -95,6 +95,20 @@ speculation. If actual affected-package execution is discovered, preserve logs,
 isolate the environment, rotate exposed credentials from a clean system, and
 rebuild from verified sources.
 
+## Advisory and malware checks
+
+OSV querybatch was queried for the exact packages `Microsoft.ML.OnnxRuntime`
+(NuGet) 1.30.0 and `onnxruntime` (PyPI) 1.30.0. Both returned empty vulnerability
+results. This is an advisory-database check, not a guarantee against undisclosed
+vulnerabilities or malicious code. The exact queries/results are preserved in
+[`advisory-check.json`](advisory-check.json).
+
+Microsoft Defender scanned the vendored package directory with automatic
+remediation disabled and reported **found no threats**, exit 0. The antivirus
+service was enabled; definitions were `1.463.344.0`, updated November 17, 2026,
+04:30:26 America/Toronto. Antivirus detection is an additional check, not proof
+that malware is absent, particularly for native binaries targeting other systems.
+
 ## Functional verification
 
 Archive, file, and source-payload checks are independent of whether a build passes.

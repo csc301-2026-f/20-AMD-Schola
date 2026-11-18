@@ -1,0 +1,26 @@
+{
+  "queries": [
+    {
+      "package": {
+        "name": "Microsoft.ML.OnnxRuntime",
+        "ecosystem": "NuGet"
+      },
+      "version": "1.30.0"
+    },
+    {
+      "package": {
+        "name": "onnxruntime",
+        "ecosystem": "PyPI"
+      },
+      "version": "1.30.0"
+    }
+  ],
+  "endpoint": "https://api.osv.dev/v1/querybatch",
+  "response": {
+    "results": [
+      {},
+      {}
+    ]
+  },
+  "interpretation": "No matching advisories returned at check time; not a malware or security guarantee."
+}
