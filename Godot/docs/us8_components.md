@@ -2,126 +2,163 @@
 
 `ScholaSensor` and `ScholaActuator` are native runtime Node types. Extend either
 in GDScript, assign its `space` resource and optional `component_id`, and implement
-`_observe() -> Variant` or `_act(action: Variant) -> void`. A blank identifier uses
-the node's name. Identifiers must be unique within each component kind on an agent.
+`_observe() -> Variant` or `_act(action: Variant) -> void`. Blank identifiers use
+the node name. Identifiers must be unique within each component kind on an agent.
 Optional `_get_component_errors() -> PackedStringArray` supplies configuration
-errors used by both the Inspector and the runtime adapter.
+errors used by the Inspector and the runtime adapter.
 
 A `ScholaAgent` collects descendants in depth-first scene-tree order, stopping at
-nested agents. Each side composes independently. Overriding the agent's `_observe`
-or `_act` takes precedence for that side and uses its explicitly assigned space;
-without an override, descendant components supply a dictionary space and values.
-With no components, the existing explicit-space/direct-hook API still applies.
+nested agents. Each side composes independently. The agent's `_observe` or `_act`
+override takes precedence for that side and uses its explicitly assigned space;
+otherwise descendant components supply a dictionary space and values. With no
+components, the explicit-space/direct-hook API still applies.
 
-Dictionary keys are `00000000:<id>`, `00000001:<id>`, and so on. Index prefixes
-preserve component order through Schola's canonical dictionary sorting and Python
-flattening. Obtain the current keys from `agent.observation_space.spaces` and
-`agent.action_space.spaces`. Reordering, renaming, inserting, deleting or changing
-component spaces after initialization requires defining/initializing the agent
-again. Training environments initialize only once, so recreate the environment
-and its training session when changing the interaction definition. IDs, object identities, and spaces are checked before dispatch. The adapter
-validates the whole action before any component receives it. Callbacks run on the
-Godot main thread. Components should not change the agent's structure during a
-callback; action callbacks are not transactional and prior world changes cannot
-be rolled back if a later callback fails.
+Dictionary keys are `00000000:<id>`, `00000001:<id>`, and so on. Prefixes preserve
+component order through canonical sorting and Python flattening. Obtain the keys
+from `agent.get_effective_observation_space().spaces` and
+`agent.get_effective_action_space().spaces`. The serialized `observation_space`
+and `action_space` properties retain only explicitly assigned resources; generated
+component dictionaries are never written into those properties when saving a scene. Changing
+membership, IDs, order or spaces after initialization requires redefining the
+agent. Training environments initialize once; recreate the environment/session.
+The adapter validates configuration at definition and caches the component layout
+and spaces. Scene, script, ID and resource changes invalidate that check; unchanged
+layouts use a constant-time revision check instead of rebuilding spaces on every
+observe/act call. Local child structure/order signals track the agent subtree, stopping at nested
+agents; unrelated scene-tree churn does not invalidate the layout. Component-wide
+warning listeners run only in the editor. User-owned Dict spaces still get polled
+because in-place Dictionary edits do not emit resource change signals. Runtime
+`_get_component_errors()` hooks run for all components once before each observe/act dispatch, so invalid
+sensor configuration is caught before actions run. Each dispatch performs one layout/revision check and one runtime preflight.
+Callbacks and diagnostic hooks must not mutate agent structure during dispatch;
+changes made by callbacks are validated on the next dispatch.
+The whole action is validated before any actuator callback. All callbacks execute on the Godot main
+thread. Callbacks must not alter the agent structure. Actions are not
+transactional; earlier world changes cannot be rolled back on later failures.
 
-Each reusable node below builds its `space` from its exported settings and
-rebuilds it when a setting that changes the layout is assigned. The derived
-`space` is shown read-only in the Inspector and is not saved in scenes. Changing
-a layout setting after initialization has the same redefinition requirement as
-any other space change.
+## Reusable actuators
 
-The runtime add-on includes these reusable GDScript implementations:
+All actuator implementations are scripts in `addons/schola/components/`. Their
+spaces are generated from their exported settings. Manual space edits must remain
+semantically equivalent; reassign a space-setting property to regenerate them.
+Inputs use Godot X/Y/Z order, omitting disabled axes.
 
-- `ScholaRayCastSensor3D`: observes existing `RayCast3D` nodes, generated rays,
-  or both. `rays` lists `RayCast3D` paths, observed first in array order; their
-  own masks and exclusions apply. `num_rays` generated rays follow, fanned left
-  to right across `ray_degrees` (0-360) around the `-Z` axis of `origin_path`,
-  or the nearest `Node3D` ancestor when blank. A 360-degree fan spaces rays
-  evenly without duplicating the first. `ray_length`, the local
-  `ray_end_offset`, `collision_mask`, `collide_with_bodies` and
-  `collide_with_areas` shape each query. `exclude_origin_body` ignores the first
-  `CollisionObject3D` at or above the origin. Each ray contributes
-  `[group flags..., hit, normalized_distance]`, bounded in `[0,1]`. There is one
-  flag per `tracked_groups` entry, set when the hit collider is in that node
-  group. A miss contributes zeros. With no tracked groups this is the original
-  `[hit, normalized_distance]` layout. Use property assignment or
-  `add_ray(path)` to synchronize `rays`/`tracked_groups` with the space. Raw
-  in-place array edits bypass the setter; a mismatched shape is reported as a
-  configuration error and rejected at runtime. Reassign `sensor.rays = sensor.rays`
-  after such edits. For training, recreate the environment/session before
-  initializing with the new spaces: an environment adapter initializes only once.
-  The sensor forces fresh queries and needs at least one nonzero-length ray.
-- `ScholaMovementActuator3D`: assign a `CharacterBody3D` or `RigidBody3D` path.
-  `has_x`, `has_y` and `has_z` select the axes, and each enabled axis takes one
-  action in `[minimum_speed, maximum_speed]` (default `[-1, 1]`). Each action
-  is multiplied by `speed_scale` and sets the velocity along that axis. Axes are
-  local to the body's rotation unless `local_frame` is disabled. Disabled axes
-  keep the body's current velocity, so gravity can stay with the body. A
-  `CharacterBody3D`'s physics loop owns `move_and_slide()` and collision response.
-  Actions use speed units, not normalized input.
+| Class | Input and behavior |
+| --- | --- |
+| `ScholaMovementActuator3D` | Box input sets enabled local velocity axes on a `CharacterBody3D` at `body_path`. `enabled_axes` selects axes. Default symmetric bounds are `[-maximum_speed, maximum_speed]`; set `symmetric_bounds=false` to use `[minimum_speed, maximum_speed]`, including backward-only intervals. `input_scale` scales accepted inputs. Disabled local axes preserve existing velocity, including gravity/jump velocity. |
+| `ScholaRotationActuator3D` | Box input applies a local Euler rotation increment to the `Node3D` at `target_path`. `lower_degrees`/`upper_degrees` bound pitch(X), yaw(Y), roll(Z). `normalized_input` accepts `[0,1]` and rescales each enabled axis. Angles use degrees. |
+| `ScholaTeleportActuator3D` | MultiDiscrete input applies a world-space position offset to `target_path`. Per-axis Wait/Positive/Negative flags determine choices, in that order. Axes with fewer than two choices are omitted. `step` supplies distances. `sweep=true` requires a physics body and uses `move_and_collide()` to stop at obstacles. `RigidBody3D` targets are rejected because they require a physics integration callback. |
 
-For example, a custom discrete sensor beside a `CharacterBody3D` named `Body`
-under the agent can use:
+Movement emits `movement_input(local_velocity)` with the scaled input, rotation
+emits `rotation_input(delta_degrees)`, and teleport emits `teleport_input(offset)`.
+These signals fire before applying the change. Movement's `movement_enabled`
+gate skips applying input; `force=true` bypasses that gate, while the signal still
+fires for accepted input. The body loop owns `move_and_slide()`, gravity and
+collision response. There is no automatic action delta-time multiplier.
 
-```gdscript
-extends ScholaSensor
+Unreal movement accumulates pawn input; Godot sets selected CharacterBody velocity
+components. Unreal teleport's implementation adds offsets in world axes, which
+this port follows. Euler axes follow Godot conventions rather than Unreal's axis
+names. Unreal-specific teleport physics flags are represented by explicit Godot
+body types and swept versus direct movement.
 
-func _init() -> void:
-    var discrete := ScholaDiscreteSpace.new()
-    discrete.n = 2
-    space = discrete
+## Ray observations
 
-func _observe() -> Variant:
-    return int(get_node("../Body").is_on_floor())
+`ScholaRayCastSensor3D` supports two modes:
+
+- Default: assign `rays`, an ordered array of `RayCast3D` paths. Their targets,
+  collision settings and exclusions remain native RayCast settings. Use assignment
+  or `add_ray(path)` after edits; raw in-place array size changes are rejected
+  until synchronized by `sensor.rays = sensor.rays`.
+- Generated: enable `use_generated_rays`, assign `origin_path` to a `Node3D`, and
+  configure `num_rays`, `ray_degrees`, `ray_length` and `end_offset`. Rays fan left to right
+  around local -Z. A single ray faces forward; 360 degrees forms a circle without
+  a duplicate endpoint. Unlike Unreal's single-ray edge placement, one Godot ray is centered. The origin transform applies to the ray endpoints, then `end_offset` is
+  added in world axes.
+  `collision_mask`, `collide_with_areas` and `exclude_paths` configure queries.
+  A collision-object origin is automatically excluded; list other bodies explicitly.
+
+Each ray contributes `[tag_0, ..., tag_N, hit, normalized_distance]`, bounded in
+`[0,1]`. `tracked_tags` names Godot groups on the hit collider. Each matching group
+sets its own flag, so several flags may be set. Misses contribute only zeros.
+Without tags the original `[hit,distance]` layout is preserved. Fresh queries run
+on observation. Use 1..4096 rays and at most 256 tags. Zero-length, nonfinite and
+unsynchronized configurations are rejected.
+
+`draw_debug` displays ray lines using `debug_hit_color` and `debug_miss_color` at
+runtime. The editor shows the configured trajectories without querying physics.
+Unlike Unreal's optional worker tracing, Godot queries stay on the main thread
+under the development contract. Call physics observations during the physics loop;
+parallel scene-tree/physics access is not exposed by this component.
+
+## Camera observations
+
+`ScholaFakeCameraSensor` emits image observations without rendering. Configure
+`width`, `height` and `enabled_channels` (RGBA flags). `custom_image` supplies a
+flattened CHW buffer. Empty buffers produce zeros; short buffers are zero-padded
+and excess values are ignored, matching Unreal's fake camera. Consumed values
+must be finite and in `[0,1]`.
+
+`ScholaCameraSensor` reads the latest completed frame from configured
+`SubViewport` nodes. Choose `capture_mode`:
+
+- Color: `viewport_path`, with selected R/G/B/A channels in that order.
+- Depth: `depth_viewport_path`, reading its red channel as normalized linear depth.
+  Color channel flags may be zero in this mode.
+- ColorDepth: selected color planes followed by one depth plane, using both paths.
+
+The Box space is float32 `[channels, height, width]`, with bounds `[0,1]`. Each
+plane is row-major (top to bottom, left to right); there is no resizing or automatic
+color-space conversion. Source viewports must exactly match the configured size.
+Use dimensions 1..2048, with at most 4,194,304 output values. Out-of-range HDR
+pixels fail observation validation; configure an LDR source for normalized color.
+
+The lifecycle owner configures the viewport, Camera3D, world and update mode.
+Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
+Await `RenderingServer.frame_post_draw` before the first reset/readback. Observations
+use the most recent completed render, which can precede the current physics action.
+For action-to-image synchronization, render after applying the action before
+requesting the next observation. Rendering is not forced inside the synchronous
+sensor callback. Empty/unavailable readback fails; headless display mode reports
+a configuration error. Use the fake camera for headless tests or run a real
+rendering display, including a GPU-capable virtual display for training.
+
+For rendered depth, the add-on supplies `linear_depth.gdshader`: apply it as a
+`ShaderMaterial` override on the geometry in a dedicated depth viewport scene.
+It encodes camera-forward distance divided by `depth_range` in red, clamped to
+`[0,1]`. Use a white clear/background color to represent no geometry at the depth
+limit. Use an LDR depth viewport with linear tonemapping, no color adjustments
+or glow, and default exposure; depth is numeric data rather than display color.
+The supplied shader cancels the renderer's sRGB encoding for LDR readback.
+Keep its camera pose/projection and geometry synchronized with the color
+scene when combining the two. The sensor does not replace gameplay materials or
+mirror scene geometry automatically. A custom depth-render pipeline can supply
+the same normalized red-channel format. This makes the render setup explicit
+using Godot viewports rather than Unreal SceneCapture's built-in capture modes.
+
+Image sensors compose like any other sensor for training and ONNX inference.
+`ScholaImageSensor` supplies shared image settings and layout helpers; use one of
+the concrete camera classes rather than adding the base directly.
+
+## Observation adapters and tests
+
+`agent.observation_adapters` processes the validated sensor dictionary. A
+`ScholaStacker` with `output_kind=1` (Dict) retains history using keys such as
+`00000000:rays_0` for the newest sample and `00000000:rays_1` for the preceding
+sample. Episode resets clear history. `agent.get_effective_observation_space()` describes raw
+sensor values; the interaction definition advertises the adapted space.
+
+Build the runtime with `integration_tests=yes`, import the project, and run
+`components_test.gd` and `components_parity_test.gd` using the Godot README commands.
+Run actual color/depth GPU readback separately with a rendering display:
+
+```sh
+godot --rendering-method gl_compatibility --audio-driver Dummy --path Godot \
+  -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  -a res://tests/integration/camera_render_test.gd
 ```
 
-Unreal Schola's sensor/actuator components define spaces and collect observations
-or apply actions. These nodes provide the same division of responsibility using
-Godot descendants and GDScript virtual hooks. Both combine named subspaces into
-one interaction definition. The ray sensor mirrors Unreal's `NumRays`,
-`RayDegrees`, `RayLength`, `RayEndOffset` and `TrackedTags` settings, in the same
-per-ray layout. Godot node groups stand in for actor tags, and a collision mask
-stands in for the trace channel. Movement mirrors Unreal's per-axis toggles and
-`MinSpeed`/`MaxSpeed`/`ScaleValue`. It uses Godot's X/Y/Z axes and sets body
-velocity rather than accumulating pawn input. Camera observations are outside US8.
-
-Run the native adapter and physics checks with the integration-test runtime build
-and `res://tests/integration/components_test.gd`, using the commands in the Godot
-README. No frozen milestone demo is required or modified.
-
-## Velocity and vehicle components
-
-- `ScholaVelocitySensor3D`: `body_path` accepts `RigidBody3D` (including
-  `VehicleBody3D`) or `CharacterBody3D`. Returns up to three linear velocity values.
-  `local_frame` defaults to true; disable for world coordinates. `axes` defaults
-  to Godot X/Y/Z; option 1 returns forward/right/up for vehicles facing +Z.
-  `has_x`, `has_y` and `has_z` keep the first, second and third component of the
-  selected axes, for example forward speed only.
-  Values are divided by a finite positive `velocity_scale` (default 1 m/s).
-  With the default `bound` of 0 the Box is unbounded, so high speeds are not
-  silently clipped. A positive `bound` declares `[-bound, bound]` and clamps to it.
-- `ScholaVehicleActuator3D`: `body_path` targets a `VehicleBody3D`. By default two
-  normalized actions control steering and signed throttle/brake. Disable
-  `has_steering` for pedal-only control. `pedal_mode` selects one signed `[-1, 1]`
-  pedal (default), separate throttle and brake values in `[0, 1]`, or no pedals.
-  Exported limits, gain and rise/fall rates retain the RaceTrack defaults.
-  Positive steering turns right for the example's +Z-facing car. Call `reset()`
-  when resetting an episode to clear smoothing state and all three physics
-  control properties.
-
-The [RaceTrack component demo](../examples/race_track/README.md) combines these
-with `ScholaPathSensor3D`, which accepts any `Path3D` and reports the closest
-point offset and tangent in the observed body frame. Configure `body_path`,
-`path_path`, positive `location_scale`, and XYZ or +Z-forward axes.
-`look_ahead` samples the point and tangent further along the path; closed
-curves wrap. `include_location`, `include_direction` and `include_progress`
-choose features, in that order. Progress is the closest offset divided by the
-curve length, bounded in `[0, 1]`. `has_x`, `has_y` and `has_z` choose vector
-components. Location and direction share a symmetric `bound`, default 100000.
-Vehicle `controls_scale` defaults to 1, also used by the arcade race car. `steering_sign` is configurable for wheel orientation. Its agent has no direct observation/action hooks.
-
-`ScholaVehicleActuator3D` also exposes `steering_speed_reference` and `top_speed`
-(in m/s). Zero disables each feature. Steering interpolates from full lock at rest
-to `minimum_steering_fraction` at the reference speed. Engine force fades to zero
-at top speed, without disabling brakes or imposing a hard velocity clamp.
+Run the same command with `--rendering-method mobile` for the Vulkan path.
+The camera suite skips on a headless display. It verifies real color pixels,
+selected channels, CHW ordering, rendered normalized depth, native dispatch and
+viewport-size validation. Frozen milestone demos are not required or modified.

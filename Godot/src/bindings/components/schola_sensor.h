@@ -21,6 +21,7 @@ public:
 	godot::Ref<ScholaSpace> get_space() const;
 	GDVIRTUAL0RC(godot::PackedStringArray, _get_component_errors)
 	godot::PackedStringArray get_configuration_errors(bool check_duplicates = true) const;
+	godot::PackedStringArray get_runtime_errors() const;
 	godot::PackedStringArray _get_configuration_warnings() const override;
 	GDVIRTUAL0R(godot::Variant, _observe)
 protected:

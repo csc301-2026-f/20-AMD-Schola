@@ -3,101 +3,94 @@
 class_name ScholaMovementActuator3D
 extends ScholaActuator
 
-## Sets the velocity of a CharacterBody3D or RigidBody3D along each enabled axis.
-## One continuous action value per enabled axis, in X/Y/Z order, bounded by
-## [member minimum_speed] and [member maximum_speed]. Disabled axes keep the body's
-## current velocity, so gravity or jumping can stay with the body's own physics.
-## A CharacterBody3D's physics loop owns move_and_slide() and collision response.
+## Velocity in local X/Y/Z order, omitting disabled axes. Physics movement stays
+## with the body's loop. Force bypasses this component's movement_enabled gate.
+signal movement_input(local_velocity: Vector3)
+
 @export var body_path: NodePath:
 	set(value):
 		body_path = value
 		update_configuration_warnings()
-@export var has_x := true:
+@export var enabled_axes: Vector3i = Vector3i.ONE:
 	set(value):
-		has_x = value
-		_refresh_space()
-@export var has_y := true:
-	set(value):
-		has_y = value
-		_refresh_space()
-@export var has_z := true:
-	set(value):
-		has_z = value
-		_refresh_space()
-## Lowest action value per axis. Set negative to allow backward movement.
-@export var minimum_speed: float = -1.0:
-	set(value):
-		minimum_speed = value
+		enabled_axes = value
 		_refresh_space()
 @export var maximum_speed: float = 1.0:
 	set(value):
 		maximum_speed = value
 		_refresh_space()
-## Multiplies each action value before it becomes velocity, in m/s per action unit.
-@export var speed_scale: float = 1.0:
+@export var symmetric_bounds: bool = true:
 	set(value):
-		speed_scale = value
+		symmetric_bounds = value
+		_refresh_space()
+@export var minimum_speed: float = -1.0:
+	set(value):
+		minimum_speed = value
+		_refresh_space()
+@export var input_scale: float = 1.0:
+	set(value):
+		input_scale = value
 		update_configuration_warnings()
-## Interpret axes in the body's rotated frame. Disable for world X/Y/Z.
-@export var local_frame := true
-
+@export var movement_enabled: bool = true
+@export var force: bool = false
 
 func _init() -> void:
 	_refresh_space()
 
+func _expected_space() -> ScholaBoxSpace:
+	return ScholaComponentSpace.box(PackedInt32Array([_axis_count()]),
+		PackedFloat32Array([-maximum_speed if symmetric_bounds else minimum_speed]), PackedFloat32Array([maximum_speed]))
 
-func get_axis_mask() -> Array[bool]:
-	return [has_x, has_y, has_z]
-
+func _axis_count() -> int:
+	return int(enabled_axes.x != 0) + int(enabled_axes.y != 0) + int(enabled_axes.z != 0)
 
 func _refresh_space() -> void:
-	var box := ScholaBoxSpace.new()
-	box.shape = PackedInt32Array([get_axis_mask().count(true)])
-	box.low = PackedFloat32Array([minimum_speed])
-	box.high = PackedFloat32Array([maximum_speed])
-	space = box
+	space = _expected_space()
 	update_configuration_warnings()
 
-
-func _validate_property(property: Dictionary) -> void:
-	if property.name == "space":
-		property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-
-
 func _act(action: Variant) -> void:
-	var node := get_node_or_null(body_path)
-	var character := node as CharacterBody3D
-	var rigid := node as RigidBody3D
-	if character == null and rigid == null:
-		push_error("ScholaMovementActuator3D requires a CharacterBody3D or RigidBody3D body_path.")
-		return
-	var body: Node3D = character if character != null else rigid
-	var frame := body.global_basis.orthonormalized() if local_frame else Basis.IDENTITY
-	var velocity := frame.inverse() * (character.velocity if character != null else rigid.linear_velocity)
+	var body := get_node_or_null(body_path) as CharacterBody3D
+	var local := Vector3.ZERO
 	var index := 0
-	var mask := get_axis_mask()
 	for axis in 3:
-		if mask[axis]:
-			velocity[axis] = clampf(action[index], minimum_speed, maximum_speed) * speed_scale
+		if enabled_axes[axis] != 0:
+			local[axis] = action[index] * input_scale
 			index += 1
-	if character != null:
-		character.velocity = frame * velocity
-	else:
-		rigid.linear_velocity = frame * velocity
-
+	movement_input.emit(local)
+	if is_instance_valid(body) and (movement_enabled or force):
+		var frame := body.global_basis.orthonormalized()
+		var velocity := frame.transposed() * body.velocity
+		for axis in 3:
+			if enabled_axes[axis] != 0:
+				velocity[axis] = local[axis]
+		body.velocity = frame * velocity
 
 func _get_component_errors() -> PackedStringArray:
 	var warnings := PackedStringArray()
-	var body := get_node_or_null(body_path)
-	if not (body is CharacterBody3D or body is RigidBody3D):
-		warnings.append("body_path must reference a CharacterBody3D or RigidBody3D.")
-	if not (has_x or has_y or has_z):
+	if not ScholaComponentSpace.matches(space, _expected_space()):
+		warnings.append("Movement space must match enabled_axes and speed bounds; reassign maximum_speed to regenerate it.")
+	var body := get_node_or_null(body_path) as CharacterBody3D
+	if body == null:
+		warnings.append("body_path must reference a CharacterBody3D.")
+	else:
+		var basis := body.global_basis if body.is_inside_tree() else body.basis
+		if not ScholaComponentSpace.is_usable_basis(basis):
+			warnings.append("Movement requires a finite body basis that can be normalized.")
+		else:
+			var frame := basis.orthonormalized()
+			var current := frame.transposed() * body.velocity
+			var magnitude := maxf(absf(maximum_speed), absf(-maximum_speed if symmetric_bounds else minimum_speed)) * absf(input_scale)
+			var world_bound := Vector3.ZERO
+			for axis in 3:
+				world_bound += frame[axis].abs() * (magnitude if enabled_axes[axis] != 0 else absf(current[axis]))
+			if not current.is_finite() or not world_bound.is_finite():
+				warnings.append("Configured speeds and existing velocity must produce finite world velocities.")
+	if not is_finite(maximum_speed) or (symmetric_bounds and maximum_speed <= 0.0) or (not symmetric_bounds and (not is_finite(minimum_speed) or minimum_speed > maximum_speed)):
+		warnings.append("Speed bounds must be finite and ordered; symmetric maximum_speed must be positive.")
+	if not is_finite(input_scale):
+		warnings.append("input_scale must be finite.")
+	elif not (Vector3.ONE * (maximum_speed * input_scale)).is_finite() or (not symmetric_bounds and not (Vector3.ONE * (minimum_speed * input_scale)).is_finite()):
+		warnings.append("Scaled speed bounds must fit finite Godot velocities.")
+	if _axis_count() == 0:
 		warnings.append("Enable at least one movement axis.")
-	if not is_finite(minimum_speed) or not is_finite(maximum_speed) or minimum_speed >= maximum_speed:
-		warnings.append("minimum_speed and maximum_speed must be finite, with minimum below maximum.")
-	if not is_finite(speed_scale):
-		warnings.append("speed_scale must be finite.")
-	var box := space as ScholaBoxSpace
-	if box == null or box.shape != PackedInt32Array([get_axis_mask().count(true)]):
-		warnings.append("Movement space must have one value per enabled axis.")
 	return warnings

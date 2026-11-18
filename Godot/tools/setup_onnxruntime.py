@@ -7,13 +7,13 @@ import platform
 import shutil
 import tarfile
 import tempfile
-import urllib.request
 import zipfile
 from pathlib import Path
 
 GODOT_ROOT = Path(__file__).resolve().parents[1]
 LOCK_FILE = GODOT_ROOT / "dependencies.lock.json"
 INSTALL_DIRECTORY = GODOT_ROOT / "thirdparty" / "onnxruntime"
+VENDOR_DIRECTORY = GODOT_ROOT / "vendor" / "onnxruntime"
 
 
 def sha256(path):
@@ -44,7 +44,13 @@ def host_platform():
 def extract(archive_path, destination):
     if archive_path.name.endswith(".zip"):
         with zipfile.ZipFile(archive_path) as archive:
-            if any(".." in Path(name).parts for name in archive.namelist()):
+            if any(
+                Path(name).is_absolute()
+                or ".." in Path(name).parts
+                or ":" in name
+                or "\\" in name
+                for name in archive.namelist()
+            ):
                 raise RuntimeError("ONNX Runtime archive contains an unsafe path")
             archive.extractall(destination)
     else:
@@ -52,7 +58,7 @@ def extract(archive_path, destination):
             archive.extractall(destination, filter="data")
 
 
-def install_onnxruntime(archive_path, archive):
+def install_onnxruntime(archive_path, archive, host=None, version=None):
     expected_hash = archive["sha256"]
     actual_hash = sha256(archive_path)
     if actual_hash != expected_hash:
@@ -70,6 +76,23 @@ def install_onnxruntime(archive_path, archive):
         ):
             raise RuntimeError("ONNX Runtime archive does not have the expected layout")
 
+        if version is not None:
+            root = roots[0]
+            if (root / "VERSION_NUMBER").read_text().strip() != version:
+                raise RuntimeError(
+                    "ONNX Runtime package version does not match the lock"
+                )
+            required = {
+                "windows-x86_64": ["onnxruntime.dll", "onnxruntime.lib"],
+                "linux-x86_64": ["libonnxruntime.so", "libonnxruntime.so.1"],
+                "macos-arm64": ["libonnxruntime.dylib", "libonnxruntime.1.dylib"],
+            }[host]
+            if any(not (root / "lib" / name).is_file() for name in required):
+                raise RuntimeError("ONNX Runtime package is missing required libraries")
+            for name in ("LICENSE", "ThirdPartyNotices.txt"):
+                if not (root / name).is_file():
+                    raise RuntimeError(f"ONNX Runtime package is missing {name}")
+
         if INSTALL_DIRECTORY.exists():
             shutil.rmtree(INSTALL_DIRECTORY)
         INSTALL_DIRECTORY.parent.mkdir(parents=True, exist_ok=True)
@@ -83,10 +106,26 @@ def main():
     if archive is None:
         raise RuntimeError(f"No pinned ONNX Runtime archive for {host}")
 
-    with tempfile.TemporaryDirectory() as temporary_directory:
-        archive_path = Path(temporary_directory) / Path(archive["url"]).name
-        urllib.request.urlretrieve(archive["url"], archive_path)
-        install_onnxruntime(archive_path, archive)
+    manifest_path = VENDOR_DIRECTORY / f"{host}.json"
+    if not manifest_path.is_file():
+        raise RuntimeError(f"No committed ONNX Runtime package for {host}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest["version"] != dependency["version"] or manifest["host"] != host:
+        raise RuntimeError(
+            "ONNX Runtime package manifest does not match dependency pins"
+        )
+    if manifest["file"] != f"{host}.tar.gz":
+        raise RuntimeError("Unexpected ONNX Runtime package filename")
+    archive_path = VENDOR_DIRECTORY / manifest["file"]
+    if not archive_path.is_file():
+        raise RuntimeError(f"Missing committed ONNX Runtime archive: {archive_path}")
+    with archive_path.open("rb") as source:
+        if source.read(64).startswith(b"version https://git-lfs.github.com/spec/v1"):
+            raise RuntimeError(
+                "ONNX Runtime package is a Git LFS pointer. Run git lfs pull "
+                '--include="Godot/vendor/onnxruntime/*.tar.gz" --exclude="" first.'
+            )
+    install_onnxruntime(archive_path, manifest, host, dependency["version"])
     print(f"Installed ONNX Runtime {dependency['version']} to {INSTALL_DIRECTORY}")
 
 

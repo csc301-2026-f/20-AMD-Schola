@@ -2,6 +2,7 @@
 #include "bindings/components/schola_actuator.h"
 #include "bindings/environment/configuration_diagnostics.h"
 #include "bindings/environment/schola_agent.h"
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
@@ -66,10 +67,13 @@ godot::PackedStringArray ScholaActuator::get_configuration_errors(bool check_dup
 	if (!schola::configuration::has_hook(this, "_act")) {
 		warnings.append("Implement _act(action) in this component's script.");
 	}
-	godot::PackedStringArray extra;
-	GDVIRTUAL_CALL(_get_component_errors, extra);
-	warnings.append_array(extra);
+	warnings.append_array(get_runtime_errors());
 	return warnings;
+}
+godot::PackedStringArray ScholaActuator::get_runtime_errors() const {
+	godot::PackedStringArray errors;
+	GDVIRTUAL_CALL(_get_component_errors, errors);
+	return errors;
 }
 void ScholaActuator::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors", "check_duplicates"), &ScholaActuator::get_configuration_errors, DEFVAL(true));
@@ -99,9 +103,16 @@ ScholaActuator::~ScholaActuator() {
 	}
 }
 void ScholaActuator::refresh_warnings() {
-	update_configuration_warnings();
+	const bool editor = godot::Engine::get_singleton()->is_editor_hint();
+	if (editor) {
+		update_configuration_warnings();
+	}
 	for (auto *parent = get_parent(); parent; parent = parent->get_parent()) {
 		if (auto *agent = godot::Object::cast_to<ScholaAgent>(parent)) {
+			agent->invalidate_interaction();
+			if (!editor) {
+				break;
+			}
 			agent->update_configuration_warnings();
 			for (auto *sibling : agent->get_actuators()) {
 				if (sibling != this) {
@@ -116,7 +127,7 @@ void ScholaActuator::_notification(int what) {
 	const auto callback = callable_mp(this, &ScholaActuator::refresh_warnings);
 	if (what == NOTIFICATION_ENTER_TREE) {
 		script_updated();
-		if (!get_tree()->is_connected("tree_changed", callback)) {
+		if (godot::Engine::get_singleton()->is_editor_hint() && !get_tree()->is_connected("tree_changed", callback)) {
 			get_tree()->connect("tree_changed", callback);
 		}
 		refresh_warnings();

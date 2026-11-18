@@ -1,0 +1,100 @@
+NuGet Version: 6.14.0.116
+
+Verifying Microsoft.ML.OnnxRuntime.1.30.0
+microsoft.ml.onnxruntime.1.30.0.nupkg
+
+Signature Hash Algorithm: SHA256
+
+Signature type: Author
+Verifying the author primary signature with certificate:
+
+  Subject Name: CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US
+  SHA1 hash: F25C45D17C53D4E0D1DC9FB9DFD0731FCF904B77
+  SHA256 hash: 566A31882BE208BE4422F7CFD66ED09F5D4524A5994F50CCC8B05EC0528C1353
+  Issued by: CN=DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1, O="DigiCert, Inc.", C=US
+  Valid from: 2023-07-26 8:00:00 PM to 2026-10-17 7:59:59 PM
+      Subject Name: CN=DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1, O="DigiCert, Inc.", C=US
+      SHA1 hash: 7B0F360B775F76C94A12CA48445AA2D2A875701C
+      SHA256 hash: 46011EDE1C147EB2BC731A539B7C047B7EE93E48B9D3C3BA710CE132BBDFAC6B
+      Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+      Valid from: 2021-04-28 8:00:00 PM to 2036-04-28 7:59:59 PM
+            Subject Name: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            SHA1 hash: DDFB16CD4931C973A2037D3FC83A4D7D775D05E4
+            SHA256 hash: 552F7BDCF1A7AF9E6CE672017F4F12ABF77240C78E761AC203D1D9D20AC89988
+            Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            Valid from: 2013-08-01 8:00:00 AM to 2038-01-15 7:00:00 AM
+
+Timestamp: 2026-09-10 4:09:37 AM
+
+Verifying author primary signature's timestamp with timestamping service certificate:
+  Subject Name: CN=DigiCert SHA256 RSA4096 Timestamp Responder 2026 1, O="DigiCert, Inc.", C=US
+  SHA1 hash: 51D9ABDA034973D84F4266ACA48248E6B369C439
+  SHA256 hash: 2DA09DA7F4131F9FE72DB6C5E6E9C9656755AF043F1EA742CC0D2120E141EBFC
+  Issued by: CN=DigiCert Trusted G4 TimeStamping RSA4096 SHA256 2025 CA1, O="DigiCert, Inc.", C=US
+  Valid from: 2026-08-04 8:00:00 PM to 2037-11-04 6:59:59 PM
+
+      Subject Name: CN=DigiCert Trusted G4 TimeStamping RSA4096 SHA256 2025 CA1, O="DigiCert, Inc.", C=US
+      SHA1 hash: 07894D00FC194A17DB273AEB5CF8FACEF14423A4
+      SHA256 hash: CA0B1554ECD901EA19DCAD8749E9F2648C8D6DFCEA1ADD9D2C2109415BB82CCD
+      Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+      Valid from: 2025-05-06 8:00:00 PM to 2038-01-14 6:59:59 PM
+            Subject Name: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            SHA1 hash: A99D5B79E9F1CDA59CDAB6373169D5353F5874C6
+            SHA256 hash: 33846B545A49C9BE4903C60E01713C1BD4E4EF31EA65CD95D69E62794F30B941
+            Issued by: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+            Valid from: 2022-07-31 8:00:00 PM to 2031-11-09 6:59:59 PM
+                  Subject Name: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+                  SHA1 hash: 0563B8630D62D75ABBC8AB1E4BDFB5A899B24D43
+                  SHA256 hash: 3E9099B5015E8F486C00BCEA9D111EE721FABA355A89BCF1DF69561E3DC6325C
+                  Issued by: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+                  Valid from: 2006-11-09 7:00:00 PM to 2031-11-09 7:00:00 PM
+
+
+Signature type: Repository
+Service index: https://api.nuget.org/v3/index.json
+Owners: dotnetframework, Microsoft, Microsoft AI Infra and Tools team, MLNET
+Verifying the repository countersignature with certificate:
+
+  Subject Name: CN=NuGet.org Repository by Microsoft, O=NuGet.org Repository by Microsoft, L=Redmond, S=Washington, C=US
+  SHA1 hash: C72FE7739A9EECB8EC1E4F596DB3BB74039B1DE2
+  SHA256 hash: 1F4B311D9ACC115C8DC8018B5A49E00FCE6DA8E2855F9F014CA6F34570BC482D
+  Issued by: CN=DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1, O="DigiCert, Inc.", C=US
+  Valid from: 2024-02-22 7:00:00 PM to 2027-05-18 7:59:59 PM
+      Subject Name: CN=DigiCert Trusted G4 Code Signing RSA4096 SHA384 2021 CA1, O="DigiCert, Inc.", C=US
+      SHA1 hash: 7B0F360B775F76C94A12CA48445AA2D2A875701C
+      SHA256 hash: 46011EDE1C147EB2BC731A539B7C047B7EE93E48B9D3C3BA710CE132BBDFAC6B
+      Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+      Valid from: 2021-04-28 8:00:00 PM to 2036-04-28 7:59:59 PM
+            Subject Name: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            SHA1 hash: DDFB16CD4931C973A2037D3FC83A4D7D775D05E4
+            SHA256 hash: 552F7BDCF1A7AF9E6CE672017F4F12ABF77240C78E761AC203D1D9D20AC89988
+            Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            Valid from: 2013-08-01 8:00:00 AM to 2038-01-15 7:00:00 AM
+
+Timestamp: 2026-09-10 11:39:30 AM
+
+Verifying repository countersignature's timestamp with timestamping service certificate:
+  Subject Name: CN=DigiCert SHA256 RSA4096 Timestamp Responder 2026 1, O="DigiCert, Inc.", C=US
+  SHA1 hash: 51D9ABDA034973D84F4266ACA48248E6B369C439
+  SHA256 hash: 2DA09DA7F4131F9FE72DB6C5E6E9C9656755AF043F1EA742CC0D2120E141EBFC
+  Issued by: CN=DigiCert Trusted G4 TimeStamping RSA4096 SHA256 2025 CA1, O="DigiCert, Inc.", C=US
+  Valid from: 2026-08-04 8:00:00 PM to 2037-11-04 6:59:59 PM
+
+      Subject Name: CN=DigiCert Trusted G4 TimeStamping RSA4096 SHA256 2025 CA1, O="DigiCert, Inc.", C=US
+      SHA1 hash: 07894D00FC194A17DB273AEB5CF8FACEF14423A4
+      SHA256 hash: CA0B1554ECD901EA19DCAD8749E9F2648C8D6DFCEA1ADD9D2C2109415BB82CCD
+      Issued by: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+      Valid from: 2025-05-06 8:00:00 PM to 2038-01-14 6:59:59 PM
+            Subject Name: CN=DigiCert Trusted Root G4, OU=www.digicert.com, O=DigiCert Inc, C=US
+            SHA1 hash: A99D5B79E9F1CDA59CDAB6373169D5353F5874C6
+            SHA256 hash: 33846B545A49C9BE4903C60E01713C1BD4E4EF31EA65CD95D69E62794F30B941
+            Issued by: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+            Valid from: 2022-07-31 8:00:00 PM to 2031-11-09 6:59:59 PM
+                  Subject Name: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+                  SHA1 hash: 0563B8630D62D75ABBC8AB1E4BDFB5A899B24D43
+                  SHA256 hash: 3E9099B5015E8F486C00BCEA9D111EE721FABA355A89BCF1DF69561E3DC6325C
+                  Issued by: CN=DigiCert Assured ID Root CA, OU=www.digicert.com, O=DigiCert Inc, C=US
+                  Valid from: 2006-11-09 7:00:00 PM to 2031-11-09 7:00:00 PM
+
+
+Successfully verified package 'Microsoft.ML.OnnxRuntime.1.30.0'.

@@ -232,6 +232,7 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 		}
 
 		schola::InitialAgentState state;
+		agent_node->get_agent()->reset_observation_history();
 		status = agent_node->get_agent()->observe(state.observation);
 		if (!status.is_ok()) {
 			return status;

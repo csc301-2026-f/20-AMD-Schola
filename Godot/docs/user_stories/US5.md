@@ -1,8 +1,8 @@
 # US5: Configure Schola through Godot-native tools
 
 - **Owner:** Vansh
-- **Status:** Core bindings implemented
-- **Last updated:** Nov. 5, 2026
+- **Status:** Native configuration merged
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -18,6 +18,7 @@ As a Godot developer, I want to configure agents and environments through nodes 
 
 ## Progress
 
+- Native nodes, Inspector resources, validation warnings and the consolidated episode-result callback merged in [PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39) ([`d36a0b3`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/d36a0b3)). Code-defined observation and action spaces are tracked in [US15](US15.md).
 - Native `ScholaEnvironment` and `ScholaAgent` nodes are registered. Agents expose identity fields and observation/action references to US2 space resources in the Inspector.
 - Empty agent IDs resolve to the node name; empty agent types resolve to the effective agent ID. Configured values remain unchanged when resolving defaults, saving scenes, or duplicating nodes. The integrated US1 adapters use the resolved values.
 - `_get_step_result(agent)` replaces `_get_reward`, `_is_terminated`, `_is_truncated`, and `_get_info`. It returns a required finite numeric reward, optional boolean completion flags, and optional string-to-string info. Invalid results produce agent-specific errors without publishing partial result batches. `_reset_episode(seed, options)` remains separate and optional. See the [callback contract](../../README.md#episode-endings).
