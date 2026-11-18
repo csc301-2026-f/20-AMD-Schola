@@ -174,11 +174,6 @@ schola::Status GodotAgentAdapter::observe(schola::Point &r_observation) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_observe() is not overridden");
 	}
 
-	const auto final_component_status = check_components();
-	if (!final_component_status.is_ok()) {
-		return final_component_status;
-	}
-
 	// Turn the Godot value into a core Point. Build it in a local variable
 	// first, so the caller's r_observation stays untouched if the value is
 	// the wrong type or shape.
@@ -245,50 +240,6 @@ schola::Status GodotAgentAdapter::act(const schola::Point &p_action) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_act() is not overridden");
 	}
 
-	return check_components();
-}
-
-schola::Status GodotAgentAdapter::check_components() const {
-	auto current_sensors = node->get_sensors();
-	auto current_actuators = node->get_actuators();
-	bool changed = (!sensors.empty() && schola::configuration::has_hook(node, "_observe")) || (!actuators.empty() && schola::configuration::has_hook(node, "_act"));
-	if (!sensors.empty()) {
-		changed = changed || current_sensors.size() != sensors.size();
-		for (size_t i = 0; !changed && i < sensors.size(); ++i) {
-			changed = godot::ObjectID(current_sensors[i]->get_instance_id()) != sensors[i];
-		}
-	}
-	if (!actuators.empty()) {
-		changed = changed || current_actuators.size() != actuators.size();
-		for (size_t i = 0; !changed && i < actuators.size(); ++i) {
-			changed = godot::ObjectID(current_actuators[i]->get_instance_id()) != actuators[i];
-		}
-	}
-	if (!sensors.empty()) {
-		for (auto *component : current_sensors) {
-			const auto errors = component->get_configuration_errors(false);
-			if (!errors.is_empty()) {
-				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
-			}
-		}
-	}
-	if (!actuators.empty()) {
-		for (auto *component : current_actuators) {
-			const auto errors = component->get_configuration_errors(false);
-			if (!errors.is_empty()) {
-				return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, errors[0].utf8().get_data());
-			}
-		}
-	}
-	auto observation = node->get_observation_space();
-	auto action = node->get_action_space();
-	changed = changed || observation.is_null() || action.is_null();
-	if (!changed) {
-		changed = observation->to_space() != observation_space || action->to_space() != action_space;
-	}
-	if (changed) {
-		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "component layout or spaces changed; define the agent again");
-	}
 	return schola::Status::ok();
 }
 

@@ -160,21 +160,7 @@ void ScholaAgent::set_observation_space(const godot::Ref<ScholaSpace> &p_observa
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_observation_space() const {
-	if (schola::configuration::has_hook(this, "_observe")) {
-		return observation_space;
-	}
-	auto components = get_sensors();
-	if (components.empty()) {
-		return observation_space;
-	}
-	godot::Ref<ScholaDictSpace> combined;
-	combined.instantiate();
-	godot::Dictionary entries;
-	for (size_t i = 0; i < components.size(); ++i) {
-		entries[godot::String::num_int64(i).pad_zeros(8) + ":" + components[i]->get_resolved_component_id()] = components[i]->get_space();
-	}
-	combined->set_spaces(entries);
-	return combined;
+	return observation_space;
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_effective_observation_space() const {
@@ -203,21 +189,7 @@ void ScholaAgent::set_action_space(const godot::Ref<ScholaSpace> &p_action_space
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_action_space() const {
-	if (schola::configuration::has_hook(this, "_act")) {
-		return action_space;
-	}
-	auto components = get_actuators();
-	if (components.empty()) {
-		return action_space;
-	}
-	godot::Ref<ScholaDictSpace> combined;
-	combined.instantiate();
-	godot::Dictionary entries;
-	for (size_t i = 0; i < components.size(); ++i) {
-		entries[godot::String::num_int64(i).pad_zeros(8) + ":" + components[i]->get_resolved_component_id()] = components[i]->get_space();
-	}
-	combined->set_spaces(entries);
-	return combined;
+	return action_space;
 }
 
 godot::Ref<ScholaSpace> ScholaAgent::get_effective_action_space() const {
