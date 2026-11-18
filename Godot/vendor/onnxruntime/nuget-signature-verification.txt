@@ -6,7 +6,7 @@ microsoft.ml.onnxruntime.1.30.0.nupkg
 Signature Hash Algorithm: SHA256
 
 Signature type: Author
-Verifying the author primary signature with certificate: 
+Verifying the author primary signature with certificate:
 
   Subject Name: CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US
   SHA1 hash: F25C45D17C53D4E0D1DC9FB9DFD0731FCF904B77
@@ -26,7 +26,7 @@ Verifying the author primary signature with certificate:
 
 Timestamp: 2026-09-10 4:09:37 AM
 
-Verifying author primary signature's timestamp with timestamping service certificate: 
+Verifying author primary signature's timestamp with timestamping service certificate:
   Subject Name: CN=DigiCert SHA256 RSA4096 Timestamp Responder 2026 1, O="DigiCert, Inc.", C=US
   SHA1 hash: 51D9ABDA034973D84F4266ACA48248E6B369C439
   SHA256 hash: 2DA09DA7F4131F9FE72DB6C5E6E9C9656755AF043F1EA742CC0D2120E141EBFC
@@ -53,7 +53,7 @@ Verifying author primary signature's timestamp with timestamping service certifi
 Signature type: Repository
 Service index: https://api.nuget.org/v3/index.json
 Owners: dotnetframework, Microsoft, Microsoft AI Infra and Tools team, MLNET
-Verifying the repository countersignature with certificate: 
+Verifying the repository countersignature with certificate:
 
   Subject Name: CN=NuGet.org Repository by Microsoft, O=NuGet.org Repository by Microsoft, L=Redmond, S=Washington, C=US
   SHA1 hash: C72FE7739A9EECB8EC1E4F596DB3BB74039B1DE2
@@ -73,7 +73,7 @@ Verifying the repository countersignature with certificate:
 
 Timestamp: 2026-09-10 11:39:30 AM
 
-Verifying repository countersignature's timestamp with timestamping service certificate: 
+Verifying repository countersignature's timestamp with timestamping service certificate:
   Subject Name: CN=DigiCert SHA256 RSA4096 Timestamp Responder 2026 1, O="DigiCert, Inc.", C=US
   SHA1 hash: 51D9ABDA034973D84F4266ACA48248E6B369C439
   SHA256 hash: 2DA09DA7F4131F9FE72DB6C5E6E9C9656755AF043F1EA742CC0D2120E141EBFC
