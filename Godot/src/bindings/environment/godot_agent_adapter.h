@@ -29,10 +29,11 @@ public:
 	/**
 	 * Returns the agent's spaces and agent_type.
 	 *
-	 * The first successful call resolves the spaces: from _define_spaces() if
-	 * the script has it, otherwise from the Inspector. Later calls return that
-	 * same saved copy, so training, inference and every step agree on one
-	 * definition. A failed call saves nothing and can be retried.
+	 * The first successful call works out the spaces: from _define_spaces()
+	 * if the script has it, otherwise from the Inspector fields. Later calls
+	 * return that same saved copy, so training, inference and every step
+	 * agree on one definition. A failed call saves nothing and can be retried
+	 * once the problem is fixed. To use different spaces, recreate the scene.
 	 */
 	schola::Status define(schola::InteractionDefinition &r_definition) override;
 
@@ -55,17 +56,18 @@ public:
 	schola::Status act(const schola::Point &p_action) override;
 
 private:
-	// Fills the saved spaces once; does nothing after the first success.
+	// Finds, checks and saves the two spaces. Does nothing once they are saved.
 	schola::Status resolve_spaces();
 
 	ScholaAgent *node = nullptr; // Not owned.
 
-	// Saved by the first successful define() and kept for this node's
-	// lifetime. They are plain values, not resources, so editing a resource
-	// later cannot change them. observe() and act() read them every step.
+	// The saved spaces. They are plain values copied out of the resources,
+	// so editing a resource later can't change them. observe() and act()
+	// use them every step to convert and check data.
 	schola::Space observation_space;
 	schola::Space action_space;
+	// True once the spaces above are saved.
 	bool defined = false;
-	// True while _define_spaces() runs, to stop it from re-entering define().
+	// True while _define_spaces() is running, so it can't loop back into define().
 	bool resolving = false;
 };
