@@ -1,0 +1,42 @@
+{
+  "file": "windows-x86_64.tar.gz",
+  "sha256": "69b67d76e960393230608cd4f383dde6f2ec86a9add2c7a8324d884833fde8cc",
+  "host": "windows-x86_64",
+  "version": "1.30.0",
+  "upstream_archive": {
+    "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-win-x64-1.30.0.zip",
+    "sha256": "c6ba983baf5681af108599675d2a89c2d145512d02de28aed0bff177cd0ba949"
+  },
+  "provenance": "Recovered from local Windows 1.30.0 installation originally downloaded from the pinned Microsoft release; GIT_COMMIT_ID f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7. Repacked without PDB debug symbols; original archive unavailable.",
+  "files": {
+    "GIT_COMMIT_ID": "11bbfd0b31d39a2c06f699ed0620fd5aa9d70870cd7d863f62224a7cd20de3cf",
+    "include/cpu_provider_factory.h": "e2f658eeace78d79a8df82f233dcdeea135db498a77766156054bfc0d1d06c21",
+    "include/onnxruntime_c_api.h": "ba4b1aadb97304365b2c29caf0a2b7940ee3cadc68c718cf984b51abb54b658a",
+    "include/onnxruntime_cxx_api.h": "26cb8a1ba8a29c9b61aa1c045e6f7d9f9d912c9ad46c71ff5a143245d1e9cd2f",
+    "include/onnxruntime_cxx_inline.h": "5e9a6deea02a564542a1691348c261cc6a18add83f3b460f62c1be9fc1ed40e5",
+    "include/onnxruntime_env_config_keys.h": "e56d37fd1e6497e9c8e8e5bd81732cd5414b4dc0867f3e8badb60101502d0435",
+    "include/onnxruntime_ep_c_api.h": "05d7b045724e06da099b48ee4f8018f1af17b57d396f28e4a3f995a5cb6b7549",
+    "include/onnxruntime_ep_device_ep_metadata_keys.h": "b98460653e7da2818190f642cd927fb876969ddbbe31e98679315c0031ccc61b",
+    "include/onnxruntime_error_code.h": "6690bf0df3f7a7a9c4f38597dc3232042e432b48ea166cb5672f72a49d32b742",
+    "include/onnxruntime_experimental_c_api.h": "6639049e3ae65548c251bebfc53ccedc2f2f275ebc1c342cbe6180f35a4c84cc",
+    "include/onnxruntime_experimental_c_api.inc": "c48203a7c2081054349d3318adccb8fdd8252e8a80ee828cbcf69bfc3ff409fa",
+    "include/onnxruntime_experimental_cxx_api.h": "b998fbb7abd4ce0760a6b2fecc731c68bdf7932327fe9c1aa8edb0b53747e3aa",
+    "include/onnxruntime_float16.h": "9b45e1bc0fe19d9d53f272b168f5cab616e26eb00136c3a1b78f394c9b1b6757",
+    "include/onnxruntime_lite_custom_op.h": "d65413bf8ca63fb71efcb0f9e14f996736367cf72ea3421d18b3370def1e483b",
+    "include/onnxruntime_run_options_config_keys.h": "38cfec5817e67990f242bbf7177db730a4d60f5ed256b4832f02ac38c3fd6d06",
+    "include/onnxruntime_session_options_config_keys.h": "1b51e02d986119145f0b033003a144403092ce6d9de6c072b67a8d93e2fe6bdb",
+    "include/onnxruntime_training_c_api.h": "f920338841fce3ba9976882a8ec20155462298c12486a4e0bb6af29306d26330",
+    "include/onnxruntime_training_cxx_api.h": "c4e31c020e3a087c751b31358bb97891ff1c11c5c6c47565e2fc2c1200ecf844",
+    "include/onnxruntime_training_cxx_inline.h": "0a1b67caad64a7fc5a7aa489c8e4dc57ba11ba2d3c18b398a81ee3d864a50383",
+    "include/provider_options.h": "74f8accd5b30fbfe8abb24ca279e634657b446bf5b9be520badaaebcea63cade",
+    "lib/onnxruntime.dll": "7e39e2bdbba836d98071ef28620735ba36a47c554cf794585269aecc50fab0da",
+    "lib/onnxruntime.lib": "b9fc3cd678257d88a111b0773ede4bfceaf0fe95daab4379f2b2b37348a68781",
+    "lib/onnxruntime_providers_shared.dll": "b9b7ab9e2a8b08ee7ae4a7ac1c8bfd44a741f17ad8d0f764953140a57de0b796",
+    "lib/onnxruntime_providers_shared.lib": "8f8ee251580eabd4374c11f59df8b4bfe397b638a78f0f438df68442e95030a7",
+    "LICENSE": "c250d6278f0b47a6439fb7592b08b58a55eb9f535aa49a1db63211c3f982b674",
+    "Privacy.md": "a1e6108942be2f56d9ea93c342462d5ec15fd0510603dae7a654f417e0d4e95f",
+    "README.md": "c38719ffdef4a1c49c7e9b7e63dd7aabcad784926cd7211083d2e186fb2be4b5",
+    "ThirdPartyNotices.txt": "c53a76501ef60db6f865f20599f220761201ac4057683acefdab37d861b86622",
+    "VERSION_NUMBER": "170c8de7b3538c9633cbfe5a3e544b94e2c456aae96a9258cd553af20fc1242d"
+  }
+}

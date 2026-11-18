@@ -36,7 +36,7 @@
     "note": "The protobuf submodule pinned by the gRPC commit. protoc, grpc_cpp_plugin, and the libraries come from one build, so generated code always matches the runtime. The Python package requires protobuf>=6.31.1,<7, the runtime line for protoc 31.1."
   },
   "onnxruntime": {
-    "source": "release-archive",
+    "source": "repository-prebuilt",
     "version": "1.30.0",
     "archives": {
       "linux-x86_64": {
@@ -51,6 +51,8 @@
         "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.30.0/onnxruntime-osx-arm64-1.30.0.tgz",
         "sha256": "6ebb5062a934537c352937821f9fe9718e7de1a2db1122a93dd363ffd53a7012"
       }
-    }
+    },
+    "package_path": "Godot/vendor/onnxruntime",
+    "note": "Offline, checksum-verified recovery packages. Upstream archive URLs and hashes below are retained as historical provenance; installation uses adjacent vendored manifests."
   }
 }
