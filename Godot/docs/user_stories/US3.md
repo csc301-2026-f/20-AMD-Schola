@@ -1,8 +1,8 @@
 # US3: Connect to existing Python training tools
 
 - **Owner:** Sanjay and Isaac
-- **Status:** gRPC core merged; scene connector in progress
-- **Last updated:** Nov. 17, 2026
+- **Status:** Scene connector implemented on feature branch; Python end-to-end run pending
+- **Last updated:** Nov. 18, 2026
 
 ## Story
 
@@ -19,7 +19,12 @@ As an ML practitioner, I want a Godot environment to connect to Schola's existin
 
 ## Progress
 
-- The gRPC server, RPC dispatch and transport tests merged in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47) ([`87d77bb`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/87d77bb)). `ScholaTrainingConnector` and `HostTrainingBackend` have an implementation on `Isaac-Sanjay/us3/godot-training-connector` ([`2663948`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/2663948)). The scene connector still needs to land on main, and a full run with Schola’s Python trainer remains unverified in the reviewed history.
+- The gRPC server, RPC dispatch and transport tests merged in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47) ([`87d77bb`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/87d77bb)). `ScholaTrainingConnector` and `HostTrainingBackend` are implemented on `Isaac-Sanjay/us3/godot-training-connector`, which has since merged `main`. The scene connector still needs to land on main, and a full run with Schola’s Python trainer has not been done yet.
+- `ScholaTrainingConnector` is the one node a user adds to a scene, like Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the scene through its own internal `ScholaTrainingHost` (US4) and blocks each physics frame until Python's next reset or step. `HostTrainingBackend` calls that host by method name, so the training extension does not link runtime C++ classes; spaces cross as Dictionaries rebuilt with `dictionary_to_space()` in `src/interop`, and points as Variants. Python drives the session: `StartGymConnector` → `set_autoreset_mode` (which first calls the host's `initialize_session()`, so an untrainable scene fails here and Python gets the error as its reply) → `RequestTrainingDefinition` → `define` → repeated `UpdateState` → `reset`/`step`, until Python's CLOSE ends the session. Usage is in the [Godot README](../../README.md#train-with-python).
+- New tests:
+  - `tests/unit/connector_loop_test.cpp` checks that `ConnectorLoop::ended_normally()` is true only after Python's CLOSE (not after a disconnect or timeout) and is cleared by the next `start()`.
+  - `tests/integration/space_dictionary_test.gd` (4 tests) checks that `dictionary_to_space()` reads back exactly what `space_to_dictionary()` writes for every space type, including unbounded Box sides and nested Dicts, and rejects 12 kinds of malformed input with a message naming the field.
+  - `tests/integration/training_connector_test.gd` (6 tests) uses the test-only `ScholaTrainingTestClient` (`tests/integration/native_training/`) to run start, define, reset, step and close through the real `HostTrainingBackend` and `ScholaTrainingHost`. It also checks that host errors reach Python unchanged, that a freed host fails cleanly, and that the connector node emits `training_finished(error)` when Python never connects. It needs the training extension built with `integration_tests=yes`, so it runs in CI on Linux with the committed gRPC package and is skipped locally otherwise.
 - The connector loop, training messages, and gRPC boundary have been defined.
 - The blocking `tick` model was retained and `poll_tick` was removed from the design.
 - `poll_tick` and `Connector::poll_update` were removed from the code, as AMD recommended at partner meeting 5.
