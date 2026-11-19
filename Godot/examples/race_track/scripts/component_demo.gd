@@ -30,7 +30,7 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	if not _accept(host.initialize_session()) or not _accept(host.set_autoreset_mode(2)) or not _accept(host.define()):
 		return
-	action_key = agent.action_space.spaces.keys()[0]
+	action_key = agent.get_effective_action_space().spaces.keys()[0]
 	running = _accept(host.reset({}))
 	starting_forward = car.global_basis.z
 
@@ -60,7 +60,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var state: Dictionary = result.value.state[0][agent.get_resolved_agent_id()]
 	var observation: Dictionary = state.observation
-	var keys: Array = agent.observation_space.spaces.keys()
+	var keys: Array = agent.get_effective_observation_space().spaces.keys()
 	var velocity: PackedFloat32Array = observation[keys[1]]
 	saw_velocity = saw_velocity or Vector3(velocity[0], velocity[1], velocity[2]).length() > 0.1
 	peak_speed = maxf(peak_speed, car.linear_velocity.length())
