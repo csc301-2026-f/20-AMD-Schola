@@ -117,9 +117,16 @@ The lifecycle owner configures the viewport, Camera3D, world and update mode.
 Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
 Await `RenderingServer.frame_post_draw` before the first reset/readback. Observations
 use the most recent completed render, which can precede the current physics action.
-For action-to-image synchronization, render after applying the action before
-requesting the next observation. Rendering is not forced inside the synchronous
-sensor callback. Empty/unavailable readback fails; headless display mode reports
+`ScholaTrainingHost.step()` applies actions and reads observations synchronously;
+the caller cannot insert an awaited render between those phases. Waiting before
+the next host call can provide a newer completed frame, but does not guarantee an
+image of the action submitted in that same call. Likewise, waiting before
+`reset()` does not guarantee that its observation reflects changes made inside
+`_reset_episode()`: the reset hook and observation run in one synchronous call.
+Do not carry a prior episode's image into a reset observation and describe it as
+fresh reset data. Rendering/connector scheduling for the real-camera training
+example remains an [open US11 integration decision](us11_implementation.md#renderingconnector-scheduling-experiment).
+Rendering is not forced inside the synchronous sensor callback. Empty/unavailable readback fails; headless display mode reports
 a configuration error. Use the fake camera for headless tests or run a real
 rendering display, including a GPU-capable virtual display for training.
 

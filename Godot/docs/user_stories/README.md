@@ -13,7 +13,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US8](US8.md) | Compose agents from reusable sensors and actuators | Guneev | Implemented on feature branch; PR open |
 | [US9](US9.md) | Test an environment without Python | Unassigned | Approved; standalone workflow pending |
 | [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Implemented and tested on feature branch; PR open |
-| [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Approved; Godot implementation pending |
+| [US11](US11.md) | Observe the environment through a camera sensor | Bohdan, Vansh | Sensors merged through US8; policy fixture added; example, real-camera workflow validation, and scheduling decision pending |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Multi-agent routing tested; Python training proof pending |
 | [US13](US13.md) | Train and deploy through a production example | Bohdan | RaceTrack draft on feature branch; end-to-end proof pending |
 | [US14](US14.md) | Read the state sequence length from the model | Unassigned | Waiting on upstream ONNX metadata export |
@@ -22,5 +22,9 @@ This directory is the canonical home for the project's approved MVP and stretch 
 Alex approved US8-US14 at the [Nov. 6 partner meeting](../../../deliverables/team/minutes/partner-meeting-07.md). US8, US12, and US13 are the highest-priority MVP stories; US9, US10, US11, and US14 are stretch goals. Statuses were reviewed on Nov. 17, 2026 against GitHub PRs, merge commits and feature branch history.
 
 US6 is not part of the approved MVP story set.
+
+US11 was updated separately on Nov. 19, 2026. Its
+[completion plan](../us11_implementation.md) distinguishes existing sensor
+functionality from the remaining example and production-workflow validation.
 
 See [Remaining work and future opportunities](remaining.md) for integration tasks and Unreal Schola capabilities that are not represented as active user stories.
