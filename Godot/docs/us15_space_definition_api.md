@@ -2,6 +2,11 @@
 
 ## Implementation status
 
+US15 implementation and local validation are complete through step 8. PR/team
+review remains pending. The [story verification record](user_stories/US15.md#step-8-local-validation-and-review-nov-18-2026)
+records build, formatting, integration-test, example, and scope checks, along with
+their platform and interactive-editor limitations.
+
 Steps 1-2 expose the optional `_define_spaces()` virtual hook, the metadata-only
 `has_code_defined_spaces()` query on `ScholaAgent`, and the static `ScholaSpaces`
 resource constructors.
