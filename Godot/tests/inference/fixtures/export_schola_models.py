@@ -13,6 +13,7 @@ The memory model keeps a window of past observations, so its actions depend on t
 
 Regenerate with the Schola Python package installed (pip install -e "./Resources/python[sb3,rllib]"):
     python Godot/tests/inference/fixtures/export_schola_models.py [names...]
+The committed files were made with onnxruntime 1.30.0 and torch 2.14.0; other versions change the bytes.
 """
 
 import sys

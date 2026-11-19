@@ -16,7 +16,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Approved; Godot implementation pending |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Multi-agent routing tested; Python training proof pending |
 | [US13](US13.md) | Train and deploy through a production example | Bohdan | RaceTrack draft on feature branch; end-to-end proof pending |
-| [US14](US14.md) | Read the state sequence length from the model | Jimmy | Implemented and tested on feature branch |
+| [US14](US14.md) | Read the state sequence length from the model | Jimmy | Implemented on feature branch; real-trainer fixture blocked upstream |
 | [US15](US15.md) | Define observation and action spaces in code | Vansh | Callback and constructors on feature branch; runtime resolution pending |
 
 Alex approved US8-US14 at the [Nov. 6 partner meeting](../../../deliverables/team/minutes/partner-meeting-07.md). US8, US12, and US13 are the highest-priority MVP stories; US9, US10, US11, and US14 are stretch goals. Statuses were reviewed on Nov. 17, 2026 against GitHub PRs, merge commits and feature branch history.

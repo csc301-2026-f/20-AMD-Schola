@@ -131,14 +131,16 @@ func test_initialize_applies_a_changed_sequence_length() -> void:
 
 func test_initialize_takes_the_sequence_length_from_the_model() -> void:
 	var policy := _policy("counter_seq_declared.onnx")
+	assert_int(policy.max_state_sequence_length).is_equal(0)
 	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
 	assert_str(str(policy.create_state())).contains("3x2")
+	assert_array(Array(policy.get_state_sequence_lengths())).contains_exactly([3])
 
 
 func test_initialize_reports_invalid_sequence_metadata() -> void:
 	var policy := _policy("bad_seq_len_zero.onnx")
 	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(ERR_INVALID_DATA)
-	assert_str(policy.get_last_error()).contains("'state_in_h.max_seq_len' must be at least 1")
+	assert_str(policy.get_last_error()).contains("'state_in_h.max_seq_len' must be between 1 and 65536")
 	assert_bool(policy.is_initialized()).is_false()
 
 

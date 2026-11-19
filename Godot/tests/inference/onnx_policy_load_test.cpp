@@ -103,8 +103,12 @@ TEST_CASE("invalid sequence metadata fails to load with a clear error", "[infere
 	OnnxPolicy policy;
 	const std::vector<std::pair<std::string, std::string>> cases = {
 		{ "bad_seq_len_text.onnx", "metadata 'state_in_h.max_seq_len' must be an integer, got '2.5'" },
-		{ "bad_seq_len_zero.onnx", "metadata 'state_in_h.max_seq_len' must be at least 1, got 0" },
+		{ "bad_seq_len_zero.onnx", "metadata 'state_in_h.max_seq_len' must be between 1 and 65536, got 0" },
+		{ "bad_seq_len_huge.onnx", "metadata 'state_in_h.max_seq_len' must be between 1 and 65536, got 70000" },
 		{ "bad_seq_dim.onnx", "state input 'state_in_h' has its sequence at dimension 2" },
+		{ "bad_has_seq_dim.onnx", "metadata 'state_in_h.has_seq_dim' must be True or False, got 'maybe'" },
+		{ "bad_seq_undeclared.onnx", "state input 'state_in_h' has a dynamic dimension at index 1, but its metadata declares no sequence" },
+		{ "bad_seq_len_fixed.onnx", "state input 'state_in_h' has a sequence of 3 entries, but its metadata declares 4" },
 	};
 	for (const auto &[file, message] : cases) {
 		INFO(file);
@@ -117,8 +121,28 @@ TEST_CASE("invalid sequence metadata fails to load with a clear error", "[infere
 
 TEST_CASE("the state sequence length is set by hand", "[inference]") {
 	OnnxPolicy policy;
-	REQUIRE(policy.get_max_state_sequence_length() == 1);
+	REQUIRE(policy.get_max_state_sequence_length() == 0);
 	REQUIRE(policy.set_max_state_sequence_length(3).is_ok());
 	REQUIRE(policy.get_max_state_sequence_length() == 3);
-	REQUIRE(policy.set_max_state_sequence_length(0).get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE(policy.set_max_state_sequence_length(0).is_ok());
+	REQUIRE(policy.set_max_state_sequence_length(-1).get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE(policy.set_max_state_sequence_length(OnnxPolicy::MAX_STATE_SEQUENCE_LENGTH + 1).get_code() == StatusCode::INVALID_ARGUMENT);
+}
+
+TEST_CASE("has_seq_dim accepts lowercase and numeric booleans", "[inference]") {
+	OnnxPolicy policy;
+	REQUIRE(load(policy, "counter_seq_lowercase.onnx").is_ok());
+	REQUIRE(policy.get_state_sequence_lengths() == std::vector<int64_t>{ 3 });
+}
+
+TEST_CASE("a model without a declared length warns and uses one", "[inference]") {
+	OnnxPolicy policy;
+	REQUIRE(load(policy, "counter_seq.onnx").is_ok());
+	REQUIRE(policy.get_state_sequence_lengths() == std::vector<int64_t>{ 1 });
+	REQUIRE(policy.get_sequence_warnings().size() == 1);
+	REQUIRE_THAT(policy.get_sequence_warnings()[0], ContainsSubstring("declares no sequence length"));
+
+	REQUIRE(policy.set_max_state_sequence_length(3).is_ok());
+	REQUIRE(policy.get_state_sequence_lengths() == std::vector<int64_t>{ 3 });
+	REQUIRE(policy.get_sequence_warnings().empty());
 }
