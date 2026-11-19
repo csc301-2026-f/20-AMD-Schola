@@ -35,6 +35,22 @@ func _can_handle(object: Object) -> bool:
 	return object.is_class("ScholaAgent") or object.is_class("ScholaSpace")
 
 
+func _parse_begin(object: Object) -> void:
+	if not object.is_class("ScholaAgent") or not object.has_code_defined_spaces():
+		return
+	var notice := VBoxContainer.new()
+	var title := Label.new()
+	title.text = "Spaces defined in code"
+	title.add_theme_font_size_override("font_size", 16)
+	notice.add_child(title)
+	var description := Label.new()
+	description.text = "This agent uses _define_spaces() for both spaces. The fields below are ignored and won't show the spaces from your code."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	notice.add_child(description)
+	add_custom_control(notice)
+
+
 func _parse_property(
 	object: Object, _type: Variant.Type, name: String, _hint_type: PropertyHint,
 	_hint_string: String, _usage_flags: int, _wide: bool

@@ -164,7 +164,10 @@ behind those warnings uses this query to skip the space checks for callback agen
 so unused Inspector fields are not reported as missing spaces.
 
 Inspector help on both space properties explains callback precedence, runtime
-validation, and why saved fields can remain empty. Missing `_observe()` and
+validation, and why saved fields can remain empty. When a direct or inherited
+`_define_spaces()` callback is detected, a "Spaces defined in code" notice appears
+at the top of the Inspector. Detection uses script metadata without running the
+callback. Missing `_observe()` and
 `_act()` hooks still produce warnings independently of space authorship. Attaching
 or detaching scripts and changes to scripts in the inheritance chain refresh the
 warning state; these checks do not evaluate the callback, including `@tool` hooks.
