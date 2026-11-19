@@ -14,12 +14,7 @@ func _reset_episode(seed: Variant, options: Dictionary) -> void:
 	last_options = options.duplicate()
 	var start := 0
 	if options.get("start", "fixed") == "random":
-		var rng := RandomNumberGenerator.new()
-		if seed == null:
-			rng.randomize()
-		else:
-			rng.seed = int(seed)
-		start = rng.randi_range(0, GOAL - 1)
+		start = get_rng().randi_range(0, GOAL - 1)
 	$Agent.position = start
 
 

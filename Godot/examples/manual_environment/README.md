@@ -42,7 +42,9 @@ Eight steps without reaching the goal truncate the episode. Final results
 stay visible until **Reset** (or **R**); autoreset is disabled.
 
 Enable **Random start** to choose position 0–3 using the seed field. Repeating
-the same seed repeats the starting position. Fixed resets start at 0. The
+the same seed repeats the starting position. Random starts use the environment's
+`get_rng()`; seed once and omit the seed on later resets to replay a sequence
+of starts across runs. Fixed resets start at 0. The
 display shows the complete structured result, including observations, reward,
 termination, truncation, and info. The existing `ScholaMonitor` beside the
 controls receives real host results: reset starts a display episode, each
@@ -107,5 +109,6 @@ godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
 ```
 
 See `training_host_test.gd` for broader multi-environment, seed validation,
-autoreset, and session-failure coverage. No new connector or lifecycle API is
-introduced by US9.
+autoreset, and session-failure coverage. US9 reuses the existing lifecycle operations and adds two small APIs:
+`ScholaTrainingHost.is_session_active()` for session availability and
+`ScholaMonitor.stop_episode()` for fault display.

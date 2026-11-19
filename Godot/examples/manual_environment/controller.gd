@@ -60,7 +60,7 @@ func submit_action(action: Variant) -> Dictionary:
 		if not episode_done:
 			monitor.record_step({"walker": state["reward"]})
 			if state["terminated"] or state["truncated"]:
-				monitor.end_episode(state["truncated"])
+				monitor.end_episode(state["truncated"] and not state["terminated"])
 		episode_done = state["terminated"] or state["truncated"]
 		_update_board(int(state["observation"]))
 	_update_buttons()
