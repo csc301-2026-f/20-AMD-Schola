@@ -285,6 +285,31 @@ keyboard movement, automatic control, and live ray observations with F6.
 The [camera target example](examples/camera_target/README.md) runs an exported
 policy that turns an agent toward a ball it sees through `ScholaCameraSensor`.
 
+## Train with Python
+
+Add one `ScholaTrainingConnector` node to the scene you want to train, as with Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the current scene and creates its own `ScholaTrainingHost` as an internal child, so nothing else is needed. The connector comes from the training extension, which needs the committed gRPC package:
+
+```sh
+python Godot/tools/setup_grpc.py
+scons -C Godot platform=linux target=template_debug -j"$(nproc)"
+```
+
+Use the platform options from [Build and run](#build-and-run) on other systems. The default build includes the training extension; `schola_training` builds only that one. The runtime-only `schola` target does not include the connector.
+
+Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. The command below is the one documented for Unreal Schola and has not yet been verified against Godot. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
+
+```sh
+schola sb3 train ppo editor --port 8000 --timesteps 100000
+```
+
+Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training. One node runs one session.
+
+- `port` defaults to 8000. `-ScholaPort=<n>` on the command line overrides it, as in Unreal Schola, and is also accepted after `--` as a user argument.
+- `start_timeout_sec` (default 45 s) matches the Python client's `environment_start_timeout`. `step_timeout_sec` defaults to 60 s. Set either to 0 to wait forever.
+- `is_training()` is true from Python's connection until the session ends. `training_finished(error: String)` is emitted once: with an empty string when Python closed normally, otherwise with the reason, which is also pushed as an error.
+
+The connector does nothing in the editor. Keep it in a training-only scene: exported games normally exclude `addons/schola_training/`.
+
 ## Running a trained policy
 
 A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)` with an observation in the agent's final, adapted space.
@@ -342,7 +367,7 @@ Adapts the core abstractions to user-facing Godot nodes, resources, the Inspecto
 
 ### `src/transport/grpc`
 
-Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. The public adapter API, dependency build, and generated bindings are in place; the connector's runtime behavior remains implementation work. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
+Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. `GrpcConnector` is the server Python's trainer connects to. It receives calls on gRPC threads and hands each one to the Godot main thread. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
 
 ### `src/inference`
 
@@ -358,6 +383,8 @@ Converts between Godot `Variant` values and engine-independent core values. This
 
 These directories are the composition roots for the runtime and training extensions. User-story APIs live in their owned modules; the composition roots register and assemble those modules.
 
+`src/training/bindings/` holds US3's `ScholaTrainingConnector` node and `HostTrainingBackend`. The backend calls the runtime's `ScholaTrainingHost` by method name, so the training extension never links runtime-extension C++ classes. Spaces cross as Dictionaries and points as Variants, converted with `src/interop`.
+
 ### Godot add-ons
 
 - `addons/schola/` contains runtime functionality required by both development projects and exported games.
@@ -369,9 +396,11 @@ These directories are the composition roots for the runtime and training extensi
 bindings ──→ core ←── inference
                ↑
         training transport
+
+training ──→ interop ──→ core
 ```
 
-Dependencies must point toward `core`. The core must never depend on Godot bindings, gRPC, Protocol Buffers, or ONNX Runtime. The training add-on may depend on the runtime add-on, but the runtime add-on must not depend on training code.
+Dependencies must point toward `core`. Both extensions compile `src/interop`, which depends only on core and `godot-cpp`. The core must never depend on Godot bindings, gRPC, Protocol Buffers, or ONNX Runtime. The training add-on may depend on the runtime add-on, but the runtime add-on must not depend on training code.
 
 ## User-story mapping
 
