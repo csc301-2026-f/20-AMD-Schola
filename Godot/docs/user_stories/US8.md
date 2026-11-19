@@ -1,9 +1,9 @@
 # US8: Compose agents from reusable sensors and actuators
 
 - **Owner:** Guneev
-- **Status:** Complete on main
+- **Status:** Implemented on feature branch; PR open
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 18, 2026
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -27,10 +27,6 @@ Schola for Unreal already represents sensors and actuators as reusable component
 ## Progress
 
 [PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) also uses these components in its RaceTrack branch.
-
-PR #51 merged into main on Nov. 18, 2026 at `d777891`. Its implementation
-includes sensor/actuator coverage, movement-space validation, persistence, and
-layout invalidation fixes.
 
 ## Scope limits
 

@@ -1,8 +1,8 @@
 # US7: Run and ship an ONNX policy
 
 - **Owner:** Bohdan
-- **Status:** Inference and packaging merged; production training proof tracked in US13
-- **Last updated:** Nov. 18, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -26,4 +26,4 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 - Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.
 - Windows debug and release exports run the policy without Python or the training add-on.
-- D3 supports local policy playback with Python closed. Its packaged default policy is a deterministic shortest-path reference, not proof of learned behavior. A production train/export/deploy proof remains tracked under US13; recent RaceTrack tests use an untrained Schola-exported stand-in.
+- The demonstration agent runs its trained policy in the D3 demo with Python closed.

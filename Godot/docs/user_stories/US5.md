@@ -2,7 +2,7 @@
 
 - **Owner:** Vansh
 - **Status:** Native configuration merged
-- **Last updated:** Nov. 18, 2026
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -17,8 +17,6 @@ As a Godot developer, I want to configure agents and environments through nodes 
 - Running the scene reports missing or conflicting configuration clearly.
 
 ## Progress
-
-- The merged GDScript editor dock and `ScholaMonitor` are current add-on components. The monitor accepts lifecycle telemetry but does not reset or step environments. US9 now integrates it with real host results; the separate UI preview uses synthetic telemetry.
 
 - Native nodes, Inspector resources, validation warnings and the consolidated episode-result callback merged in [PR #39](https://github.com/csc301-2026-f/20-AMD-Schola/pull/39) ([`d36a0b3`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/d36a0b3)). Code-defined observation and action spaces are tracked in [US15](US15.md).
 - Native `ScholaEnvironment` and `ScholaAgent` nodes are registered. Agents expose identity fields and observation/action references to US2 space resources in the Inspector.

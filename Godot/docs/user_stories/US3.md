@@ -2,7 +2,7 @@
 
 - **Owner:** Sanjay and Isaac
 - **Status:** gRPC core merged; scene connector in progress
-- **Last updated:** Nov. 18, 2026
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -18,8 +18,6 @@ As an ML practitioner, I want a Godot environment to connect to Schola's existin
 - Connection failures and incompatible protocol data produce actionable errors instead of hanging the game or training process.
 
 ## Progress
-
-- The Nov. 18 live branch/PR review confirms the scene-connector branch is still at `2663948`, with no corresponding PR. The merged transport core and unmerged scene connector remain separate milestones; US3 is not complete.
 
 - The gRPC server, RPC dispatch and transport tests merged in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47) ([`87d77bb`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/87d77bb)). `ScholaTrainingConnector` and `HostTrainingBackend` have an implementation on `Isaac-Sanjay/us3/godot-training-connector` ([`2663948`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/2663948)). The scene connector still needs to land on main, and a full run with Schola’s Python trainer remains unverified in the reviewed history.
 - The connector loop, training messages, and gRPC boundary have been defined.

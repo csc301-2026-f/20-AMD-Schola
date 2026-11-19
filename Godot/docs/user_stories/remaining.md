@@ -4,12 +4,6 @@ This document records work that is not represented as a separate active user sto
 
 ## Required integration and release work
 
-Reviewed Nov. 18, 2026 alongside the [story tracker](README.md). The scene
-connector is still on its feature branch, RaceTrack remains in open PR #50,
-and no real Python multi-agent training proof was found. US14's upstream
-metadata prerequisite has merged; its Godot implementation remains a separate
-unassigned story rather than an upstream blocker.
-
 These tasks complete or validate existing stories rather than introducing new product capabilities:
 
 - Land the scene-level connector from [US3](US3.md) and connect it to the [US13 RaceTrack example](US13.md).
