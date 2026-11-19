@@ -112,6 +112,7 @@ void ScholaTrainingConnector::_physics_process(double p_delta) {
 		start_session();
 		return;
 	}
+	// Every later frame: wait for Python's next reset or step and run it.
 	const schola::Status status = loop.tick(to_milliseconds(step_timeout_sec));
 	if (!status.is_ok()) {
 		finish(status);
@@ -125,9 +126,29 @@ void ScholaTrainingConnector::_exit_tree() {
 	}
 }
 
+godot::Node *ScholaTrainingConnector::create_host() {
+	// The host lives in the runtime extension. Creating it by class name keeps
+	// this extension from linking against the runtime extension's C++ classes.
+	godot::ClassDBSingleton *class_db = godot::ClassDBSingleton::get_singleton();
+	if (!class_db->class_exists("ScholaTrainingHost")) {
+		return nullptr;
+	}
+	godot::Node *host = godot::Object::cast_to<godot::Node>(static_cast<godot::Object *>(class_db->instantiate("ScholaTrainingHost")));
+	if (host == nullptr) {
+		return nullptr;
+	}
+
+	// Internal, so it doesn't show up as one of the scene's own children.
+	host->set_name("ScholaTrainingHost");
+	add_child(host, false, INTERNAL_MODE_FRONT);
+	return host;
+}
+
 void ScholaTrainingConnector::start_session() {
+	// One attempt per node: whatever happens below, never start again.
 	started = true;
 
+	// 1. Pick the port: -ScholaPort=<n> on the command line wins over the property.
 	int32_t resolved_port = port;
 	schola::Status status = resolve_port(port, resolved_port);
 	if (!status.is_ok()) {
@@ -135,21 +156,17 @@ void ScholaTrainingConnector::start_session() {
 		return;
 	}
 
-	// The host lives in the runtime extension. Creating it by class name keeps
-	// this extension from linking against the runtime extension's C++ classes.
-	godot::ClassDBSingleton *class_db = godot::ClassDBSingleton::get_singleton();
-	godot::Node *host = nullptr;
-	if (class_db->class_exists("ScholaTrainingHost")) {
-		host = godot::Object::cast_to<godot::Node>(static_cast<godot::Object *>(class_db->instantiate("ScholaTrainingHost")));
-	}
+	// 2. Create the host that runs the scene's environments for us.
+	godot::Node *host = create_host();
 	if (host == nullptr) {
 		finish(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"ScholaTrainingHost is not available. Enable the Schola runtime add-on (addons/schola), which ScholaTrainingConnector needs."));
 		return;
 	}
-	host->set_name("ScholaTrainingHost");
-	add_child(host, false, INTERNAL_MODE_FRONT);
 
+	// 3. Wire Python (over gRPC) to the host, and wait for Python to connect.
+	//    loop.start() blocks until Python has started the session and received
+	//    the training definition, or until start_timeout_sec runs out.
 	backend = std::make_unique<schola::HostTrainingBackend>(host);
 	schola::GrpcConnectorSettings settings;
 	settings.port = resolved_port;
@@ -167,10 +184,13 @@ void ScholaTrainingConnector::finish(const schola::Status &p_status) {
 		return;
 	}
 	finished = true;
+	// Read this before stop(): a CLOSE from Python and a dropped connection
+	// both arrive as CLOSED, and only the loop knows which one it was.
 	const bool normal = loop.ended_normally();
 	loop.stop();
 	set_physics_process(false);
 
+	// An empty error means Python finished on purpose.
 	godot::String error;
 	if (!normal) {
 		error = to_godot_string(p_status.get_message());
