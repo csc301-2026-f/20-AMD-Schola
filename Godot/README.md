@@ -300,11 +300,13 @@ Start the scene first. On its first physics frame, after every node's `_ready()`
 schola sb3 train ppo editor --port 8000 --timesteps 100000
 ```
 
-Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training. One node runs one session.
+Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training.
+
+When Python closes a session normally, the connector keeps the port and waits for Python's next session, as Unreal Schola does. `schola rllib train` relies on this: it connects once to read the agents and their spaces, closes, and connects again to train. Each session gets a fresh internal `ScholaTrainingHost`, with the same agent IDs and spaces. Training ends when a session fails, or when Python does not start another session within `start_timeout_sec` of closing one.
 
 - `port` defaults to 8000. `-ScholaPort=<n>` on the command line overrides it, as in Unreal Schola, and is also accepted after `--` as a user argument.
 - `start_timeout_sec` (default 45 s) matches the Python client's `environment_start_timeout`. `step_timeout_sec` defaults to 60 s. Set either to 0 to wait forever.
-- `is_training()` is true from Python's connection until the session ends. `training_finished(error: String)` is emitted once: with an empty string when Python closed normally, otherwise with the reason, which is also pushed as an error.
+- `is_training()` is true while a session is running. `session_closed()` is emitted each time Python closes a session normally. `training_finished(error: String)` is emitted once, when training ends: with an empty string when Python finished normally, otherwise with the reason, which is also pushed as an error.
 
 The connector does nothing in the editor. Keep it in a training-only scene: exported games normally exclude `addons/schola_training/`.
 

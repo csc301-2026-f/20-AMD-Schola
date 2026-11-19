@@ -13,6 +13,8 @@ extends GdUnitTestSuite
 
 const TestAgent := preload("res://tests/integration/support/us4_test_agent.gd")
 const TestEnvironment := preload("res://tests/integration/support/us4_test_environment.gd")
+const LineAgent := preload("res://examples/multi_agent/line_agent.gd")
+const LineEnvironment := preload("res://examples/multi_agent/line_environment.gd")
 
 const STATUS_NOT_FOUND := 2
 const STATUS_FAILED_PRECONDITION := 5
@@ -68,6 +70,41 @@ func _add_environment(root: Node) -> ScholaAgent:
 	return agent
 
 
+# The US12 example's environment: "runner" (Box(2) observation, Discrete(3)
+# action) and "hopper" (Discrete(10) observation, MultiBinary(2) action).
+func _add_two_agent_environment(root: Node) -> ScholaEnvironment:
+	var environment := LineEnvironment.new() as ScholaEnvironment
+	environment.name = "Environment"
+
+	var runner := LineAgent.new() as ScholaAgent
+	runner.name = "Runner"
+	runner.agent_id = "runner"
+	var runner_observation := ScholaBoxSpace.new()
+	runner_observation.low = PackedFloat32Array([0, 0])
+	runner_observation.high = PackedFloat32Array([1, 1])
+	runner.observation_space = runner_observation
+	var runner_action := ScholaDiscreteSpace.new()
+	runner_action.n = 3
+	runner.action_space = runner_action
+	runner.observes_partner = true
+	environment.add_child(runner)
+
+	var hopper := LineAgent.new() as ScholaAgent
+	hopper.name = "Hopper"
+	hopper.agent_id = "hopper"
+	var hopper_observation := ScholaDiscreteSpace.new()
+	hopper_observation.n = 10
+	hopper.observation_space = hopper_observation
+	var hopper_action := ScholaMultiBinarySpace.new()
+	hopper_action.n = 2
+	hopper.action_space = hopper_action
+	hopper.controls = LineAgent.Controls.BUTTONS
+	environment.add_child(hopper)
+
+	root.add_child(environment)
+	return environment
+
+
 func _add_host(root: Node) -> Node:
 	var host := ScholaTrainingHost.new()
 	host.name = "Host"
@@ -112,6 +149,37 @@ func test_backend_runs_a_whole_session_in_python_order() -> void:
 	_assert_ok(second)
 	assert_bool(second.value.state[0]["walker"].terminated).is_true()
 
+	_assert_ok(_client.close())
+
+
+func test_a_fresh_host_can_train_the_same_agents_after_a_session_closes() -> void:
+	# Schola's RLlib trainer opens one session to read the agents and a second
+	# to train. The connector gives each session a fresh host, so the first
+	# host must hand the environment back when it closes.
+	var root := _scene_root()
+	var environment := _add_two_agent_environment(root)
+	var first_host := _add_host(root)
+	_client.use_host(first_host)
+	_assert_ok(_client.start(AUTORESET_DISABLED))
+	var first_definition: Dictionary = _client.define()
+	_assert_ok(first_definition)
+	_assert_ok(_client.close())
+	first_host.free()
+
+	_client.use_host(_add_host(root))
+	_assert_ok(_client.start(AUTORESET_DISABLED))
+	var second_definition: Dictionary = _client.define()
+	_assert_ok(second_definition)
+	# Same agents, same order, same spaces as the first session.
+	assert_array(second_definition.value[0].keys()).is_equal(["hopper", "runner"])
+	assert_dict(second_definition.value[0]).is_equal(first_definition.value[0])
+
+	_assert_ok(_client.reset({}))
+	var step: Dictionary = _client.step([{"runner": 2, "hopper": PackedByteArray([0, 1])}])
+	_assert_ok(step)
+	assert_str(step.value.state[0]["runner"].info.agent).is_equal("runner")
+	assert_str(step.value.state[0]["hopper"].info.agent).is_equal("hopper")
+	assert_int(environment.episode_count).is_equal(1)
 	_assert_ok(_client.close())
 
 
