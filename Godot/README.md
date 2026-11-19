@@ -111,6 +111,36 @@ Use `scons -C Godot schola platform=linux target=template_debug` for a runtime-o
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
+## Code-defined spaces example
+
+The current [US15 example](examples/code_defined_spaces/README.md) demonstrates a
+640×480 RGB observation and repeated nested limb/joint observations and actions.
+It runs two short episodes locally through `ScholaTrainingHost`, using synthetic
+pixels and joint values. It requires the runtime extension, without gRPC, Python
+training, an ONNX model, or test-only bindings.
+
+Build the runtime (Windows shown; use your platform as appropriate):
+
+```powershell
+scons -C Godot schola platform=windows target=template_debug
+```
+
+Open `Godot/examples/code_defined_spaces/main.tscn` in the editor and press F6.
+Both Inspector space fields on Robot stay empty because `_define_spaces()` supplies
+them. Adjust its exported dimensions and joint counts before starting the scene.
+The example does not change the project's configured main scene.
+
+For a headless check that exits with code 0 on success and 1 on failure:
+
+```sh
+godot --headless --path Godot res://examples/code_defined_spaces/main.tscn -- --us15-smoke-test
+```
+
+Expected output ends with `Passed: two episodes, 6 actions, one space-definition
+callback.` for the default settings. The scene also shows a status summary when
+run in a window. See the [space-definition API](docs/us15_space_definition_api.md)
+for constructors, validation, and snapshot lifetime.
+
 ## Inspect the Schola UI
 
 ### Agent identity

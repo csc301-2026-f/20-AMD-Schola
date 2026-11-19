@@ -38,6 +38,12 @@ and later startup failures; new scene instances rebuild from saved configuration
 Nested observation/action validation, atomic failure, and corrected retries after
 script errors are covered alongside the existing factory and startup tests.
 
+Step 7 supplies a current, runnable [code-defined spaces example](../examples/code_defined_spaces/README.md).
+It combines a large RGB Box with parameterized repeated nested observation and
+action Dicts, uses the production training host locally, and supplies synthetic
+sensor values separately from the space declarations. Build and run commands are
+in the [Godot guide](../README.md#code-defined-spaces-example).
+
 ## Callback return value and precedence
 
 A script attached to `ScholaAgent` may implement `_define_spaces()`. An inherited
