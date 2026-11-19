@@ -4,6 +4,12 @@ extends GdUnitTestSuite
 
 const Example := preload("res://examples/manual_environment/main.tscn")
 
+
+class FaultyAgent extends "res://examples/manual_environment/agent.gd":
+	func _observe() -> Variant:
+		return 99
+
+
 var _previous_scene: Node
 var _example: Node
 
@@ -82,9 +88,46 @@ func test_invalid_action_reports_structured_error_without_advancing() -> void:
 	assert_int(_example.get_node("Environment").get_episode_step()).is_equal(0)
 	assert_int(_example.monitor.step).is_equal(0)
 	assert_float(_example.monitor.episode_return).is_equal(0.0)
+	assert_bool(_example.episode_done).is_false()
+	assert_bool(_example.monitor.is_episode_active()).is_true()
+	for button in _example._action_buttons:
+		assert_bool(button.disabled).is_false()
 	var valid: Dictionary = _example.submit_action(1)
 	assert_int(valid["status"]["code"]).is_equal(0)
 	assert_int(valid["value"]["state"][0]["walker"]["observation"]).is_equal(1)
+	assert_bool(_example._reset_button.disabled).is_false()
+
+
+func test_invalid_observation_stops_episode_and_disables_controls() -> void:
+	_example.get_node("Environment/Agent").set_script(FaultyAgent)
+	var result: Dictionary = _example.submit_action(1)
+	assert_int(result["status"]["code"]).is_not_equal(0)
+	assert_bool(_example.host.is_session_active()).is_false()
+	assert_bool(_example.episode_done).is_true()
+	assert_bool(_example.monitor.is_episode_active()).is_false()
+	assert_int(_example.monitor.step).is_equal(0)
+	assert_float(_example.monitor.episode_return).is_equal(0.0)
+	for button in _example._action_buttons:
+		assert_bool(button.disabled).is_true()
+	assert_str(_example._board.text).contains("Restart")
+	assert_bool(_example._reset_button.disabled).is_true()
+	var reset: Dictionary = _example.reset_episode()
+	assert_dict(reset).is_equal(result)
+	var repeated: Dictionary = _example.submit_action(1)
+	assert_dict(repeated).is_equal(result)
+	assert_str(_example._board.text).contains("Restart")
+
+
+func test_invalid_reset_observation_stops_episode() -> void:
+	_example.get_node("Environment/Agent").set_script(FaultyAgent)
+	var result: Dictionary = _example.reset_episode()
+	assert_int(result["status"]["code"]).is_not_equal(0)
+	assert_bool(_example.episode_done).is_true()
+	assert_bool(_example.monitor.is_episode_active()).is_false()
+	assert_bool(_example._reset_button.disabled).is_true()
+	for button in _example._action_buttons:
+		assert_bool(button.disabled).is_true()
+	assert_str(_example._board.text).contains("Restart")
 
 
 func test_arrow_keys_step_agent_with_toggle_focused_but_preserve_seed_editing() -> void:

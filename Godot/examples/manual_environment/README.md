@@ -49,6 +49,10 @@ controls receives real host results: reset starts a display episode, each
 successful action records its reward, and completion ends the display episode.
 Its step count, return graph, and per-agent rewards reflect the actual lifecycle.
 Failed actions and retained terminal results do not advance monitor telemetry.
+Recoverable input errors leave the controls available. If an environment fault
+closes the session, the monitor ends the episode, movement and Reset are disabled,
+and the board instructs you to fix the error and restart the scene. The original
+error remains visible, including after keyboard input.
 
 ## Use the host in your own scene
 
@@ -86,7 +90,9 @@ Every operation returns `{ "status": { "code": int, "message": String },
 "value": ... }`. A nonzero status means failure and value is null. Never
 interpret a failed result as an observation. Decode errors can be corrected
 and retried; a lifecycle failure can close the session, requiring a new host.
-The host also closes when it leaves the scene tree.
+Use `host.is_session_active()` on the main thread after a failed operation to
+distinguish a usable session from one that has closed. The host also closes
+when it leaves the scene tree.
 
 ## Verification
 

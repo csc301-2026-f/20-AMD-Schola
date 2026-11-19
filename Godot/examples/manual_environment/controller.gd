@@ -9,6 +9,8 @@ const ManualEnvironment := preload("res://examples/manual_environment/environmen
 var monitor: ScholaMonitor
 var last_result: Dictionary
 var episode_done := true
+var _session_failed := false
+var _reset_button: Button
 var _output: Label
 var _board: Label
 var _seed: SpinBox
@@ -34,6 +36,8 @@ func _initialize() -> void:
 
 
 func reset_episode(seed: Variant = null, options: Dictionary = {}) -> Dictionary:
+	if _session_failed:
+		return last_result
 	var settings := {"options": options}
 	if seed != null:
 		settings["seed"] = seed
@@ -47,6 +51,8 @@ func reset_episode(seed: Variant = null, options: Dictionary = {}) -> Dictionary
 
 
 func submit_action(action: Variant) -> Dictionary:
+	if _session_failed:
+		return last_result
 	var result := host.step({"actions": [{"walker": action}]})
 	if _show_result(result):
 		var state: Dictionary = result["value"]["state"][0]["walker"]
@@ -64,7 +70,14 @@ func submit_action(action: Variant) -> Dictionary:
 func _show_result(result: Dictionary) -> bool:
 	last_result = result
 	_output.text = str(result)
-	return result["status"]["code"] == 0
+	var succeeded: bool = result["status"]["code"] == 0
+	if not succeeded and not host.is_session_active():
+		_session_failed = true
+		episode_done = true
+		monitor.end_episode(true)
+		_board.text = "Session stopped after an error. Fix the error. Restart the scene."
+		_update_buttons()
+	return succeeded
 
 
 func _update_board(position: int) -> void:
@@ -77,6 +90,7 @@ func _update_board(position: int) -> void:
 
 
 func _update_buttons() -> void:
+	_reset_button.disabled = _session_failed
 	for button in _action_buttons:
 		button.disabled = episode_done
 
@@ -146,10 +160,10 @@ func _build_ui() -> void:
 		button.pressed.connect(submit_action.bind(action))
 		controls.add_child(button)
 		_action_buttons.append(button)
-	var reset_button := Button.new()
-	reset_button.text = "Reset"
-	reset_button.pressed.connect(_reset_from_ui)
-	controls.add_child(reset_button)
+	_reset_button = Button.new()
+	_reset_button.text = "Reset"
+	_reset_button.pressed.connect(_reset_from_ui)
+	controls.add_child(_reset_button)
 	_seed = SpinBox.new()
 	_seed.min_value = -2147483648
 	_seed.max_value = 2147483647
