@@ -66,14 +66,23 @@ protected:
 	static void _bind_methods();
 
 private:
+	// Runs once, on the first physics frame: creates the host, opens the port,
+	// and waits for Python to start the session.
 	void start_session();
+	// Creates the runtime's ScholaTrainingHost as an internal child, or returns
+	// null if the runtime add-on is missing.
+	godot::Node *create_host();
+	// Ends the session once and emits training_finished.
 	void finish(const schola::Status &p_status);
 
 	int32_t port = 8000;
 	double start_timeout_sec = 45.0;
 	double step_timeout_sec = 60.0;
-	bool started = false;
-	bool finished = false;
+	bool started = false; // A session was attempted; one per node.
+	bool finished = false; // training_finished has been emitted.
+
+	// The session's three parts: Python's side (gRPC), the game's side (the
+	// host, reached through HostTrainingBackend), and the loop between them.
 	std::unique_ptr<schola::Connector> connector;
 	std::unique_ptr<schola::TrainingBackend> backend;
 	schola::ConnectorLoop loop;

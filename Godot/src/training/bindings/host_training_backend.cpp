@@ -330,6 +330,13 @@ Status not_defined(const char *p_method) {
 
 } // namespace
 
+// Every method below follows the same three steps:
+//   1. encode the request as Variants and call the host method by name,
+//   2. unwrap the host's {status, value} reply (its errors pass through as-is),
+//   3. read the value back into core types, using the saved definition's
+//      spaces to rebuild observations.
+// Nothing reaches the caller unless all three succeed.
+
 HostTrainingBackend::HostTrainingBackend(godot::Object *p_host) :
 		host_id(p_host != nullptr ? p_host->get_instance_id() : 0) {}
 
