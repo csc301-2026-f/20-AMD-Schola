@@ -74,7 +74,7 @@ func _show_result(result: Dictionary) -> bool:
 	if not succeeded and not host.is_session_active():
 		_session_failed = true
 		episode_done = true
-		monitor.end_episode(true)
+		monitor.stop_episode()
 		_board.text = "Session stopped after an error. Fix the error. Restart the scene."
 		_update_buttons()
 	return succeeded

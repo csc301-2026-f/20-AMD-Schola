@@ -50,7 +50,7 @@ successful action records its reward, and completion ends the display episode.
 Its step count, return graph, and per-agent rewards reflect the actual lifecycle.
 Failed actions and retained terminal results do not advance monitor telemetry.
 Recoverable input errors leave the controls available. If an environment fault
-closes the session, the monitor ends the episode, movement and Reset are disabled,
+closes the session, the monitor shows "Stopped · session error", movement and Reset are disabled,
 and the board instructs you to fix the error and restart the scene. The original
 error remains visible, including after keyboard input.
 

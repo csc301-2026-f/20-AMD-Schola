@@ -103,6 +103,7 @@ func test_invalid_observation_stops_episode_and_disables_controls() -> void:
 	var result: Dictionary = _example.submit_action(1)
 	assert_int(result["status"]["code"]).is_not_equal(0)
 	assert_bool(_example.host.is_session_active()).is_false()
+	assert_str(_example.monitor._status.text).is_equal("Stopped · session error")
 	assert_bool(_example.episode_done).is_true()
 	assert_bool(_example.monitor.is_episode_active()).is_false()
 	assert_int(_example.monitor.step).is_equal(0)
@@ -124,6 +125,7 @@ func test_invalid_reset_observation_stops_episode() -> void:
 	assert_int(result["status"]["code"]).is_not_equal(0)
 	assert_bool(_example.episode_done).is_true()
 	assert_bool(_example.monitor.is_episode_active()).is_false()
+	assert_str(_example.monitor._status.text).is_equal("Stopped · session error")
 	assert_bool(_example._reset_button.disabled).is_true()
 	for button in _example._action_buttons:
 		assert_bool(button.disabled).is_true()
