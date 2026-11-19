@@ -97,7 +97,7 @@ public:
 
 	// Python's step. p_actions has one {agent_id: action} Dictionary per
 	// environment, in definition order. The value is
-	// {state: [{agent_id: {observation, reward, terminated, truncated}}], initial_state: {...}}.
+	// {state: [{agent_id: {observation, reward, terminated, truncated, info}}], initial_state: {...}}.
 	godot::Dictionary step(const godot::Array &p_actions) {
 		if (!backend) {
 			return no_host();
@@ -148,6 +148,7 @@ public:
 				entry["reward"] = agent.reward;
 				entry["terminated"] = agent.terminated;
 				entry["truncated"] = agent.truncated;
+				entry["info"] = encode_info(agent.info);
 				agents[to_godot_string(id)] = entry;
 			}
 			environments.push_back(agents);
@@ -191,6 +192,15 @@ private:
 
 	static godot::String to_godot_string(const std::string &p_text) {
 		return godot::String::utf8(p_text.c_str());
+	}
+
+	// Each agent's info, as the gRPC connector copies it into Python's message.
+	static godot::Dictionary encode_info(const std::map<std::string, std::string> &p_info) {
+		godot::Dictionary info;
+		for (const auto &[key, value] : p_info) {
+			info[to_godot_string(key)] = to_godot_string(value);
+		}
+		return info;
 	}
 
 	// {environment_id: {agent_id: observation}}
