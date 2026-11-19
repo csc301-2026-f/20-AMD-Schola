@@ -124,6 +124,7 @@ script = ExtResource("1_agent")
 script = ExtResource("4_track")
 location_scale = 5.0
 axes = 1
+look_ahead = 10.0
 body_path = NodePath("../..")
 
 [node name="Velocity" type="ScholaSensor" parent="Agent"]

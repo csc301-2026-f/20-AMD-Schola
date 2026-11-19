@@ -25,7 +25,7 @@ reset. The training scene retains configurable episode limits.
 
 The agent composes child nodes in this order:
 
-1. **Track** (`ScholaPathSensor3D`): six track-relative floats, from a reusable sensor accepting any `Path3D`.
+1. **Track** (`ScholaPathSensor3D`): six track-relative floats sampled 10 m ahead of the car, from a reusable sensor accepting any `Path3D`.
 2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
 3. **Controls** (`ScholaVehicleActuator3D`): two actions, with the original vehicle
    steering/throttle/brake gain and smoothing. Also reusable in other vehicle scenes.
@@ -85,8 +85,11 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 
 **Observation**, all in the car's own frame, ordered forward, right, up:
 
-1. The closest point on the track centre, divided by 5 m (values 1-3).
+1. The point on the track centre 10 m ahead of the closest point, divided by 5 m (values 1-3).
 2. The track direction at that point (values 4-6).
+
+Looking 10 m ahead lets the car see a corner before it reaches it. With only the
+closest point, the car noticed the hairpin too late to brake and got stuck on its wall.
 3. The car's velocity, divided by 2 m/s (values 7-9).
 The old trailing constant zero is removed. Track features retain bounds of
 [-100000, 100000]; velocity is unbounded and divided by 2 m/s.
@@ -94,6 +97,8 @@ The old trailing constant zero is removed. Track features retain bounds of
 **Policy compatibility:** these dictionary spaces replace the original flat Box
 spaces. Train and export a fresh policy for this layout; old ONNX policies are
 not assumed compatible. Renaming or reordering components also changes the layout.
+Changing the look-ahead distance changes what the track values mean, so it also
+needs a freshly trained policy.
 
 **Action:**
 
@@ -132,28 +137,34 @@ Train and export from the repository root:
 Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --steps 100000
 ```
 
-The script launches the training scene, connects on localhost port 8000, trains
-PPO with the composed dictionary observations/actions, and saves the checkpoint
-and ONNX model under `policies/` (ignored by Git). Use `--port` for another port,
-`--godot /path/to/godot` when Godot is not on PATH, and omit `--headless` to watch.
+The script launches the training scene, connects on localhost port 8000, and trains
+PPO with the composed dictionary observations/actions. Every 25,000 steps, and once
+at the end, it starts a second copy of the scene on the next port (8001) and
+test-drives the current policy for one 50-second episode without random actions.
+The score is roughly the metres driven along the track, minus 10 if the car crashed
+or got stuck; one lap is 452 m. Training is noisy, so a later policy can drive worse
+than an earlier one. Only a policy that beats the best score so far is saved, as
+`race_track.zip` and `race_track.onnx` under `policies/` (ignored by Git), so you can
+stop training at any time and keep the best policy. Use `--port` for another port,
+`--godot /path/to/godot` when Godot is not on PATH, and omit `--headless` to watch;
+each test drive then opens its own window.
 Each action advances one physics frame at a fixed 60 Hz simulation timestep.
 The script closes its Godot process when training/export finishes or fails.
 
 For a short integration check, add `--smoke --steps 1024`. This first checks 600
 gRPC steps for finite observations/rewards, acceleration and episode autoreset,
-then performs a short PPO update and exports ONNX. A short run checks the
+then performs a short PPO update, test-drives it and exports ONNX. A short run checks the
 pipeline; it does not establish that the policy has learned to finish a lap.
 
 Open `race_track_inference.tscn` with F6 after export to run the model without
 Python. Progress rewards wrap at the start/finish line so completing a lap does
 not produce a track-length penalty.
 
-Continue an existing checkpoint rather than starting over:
+Continue training the saved best policy rather than starting over:
 
 ```sh
 Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --resume --steps 300000
 ```
 
-`--steps` is the number of additional training steps when resuming. Intermediate
-checkpoints are saved in `policies/` every 25,000 steps. The final checkpoint and
-ONNX policy replace `race_track.zip` and `race_track.onnx` after a successful run.
+`--steps` is the number of additional training steps when resuming. The saved
+policy is test-driven first, and a new policy replaces it only if it scores higher.
