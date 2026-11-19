@@ -145,9 +145,9 @@ def counter():
     )
 
 
-def counter_seq():
+def counter_seq(name="counter_seq", model_metadata=None):
     result = model(
-        "counter_seq",
+        name,
         [
             helper.make_node("Gather", ["state_in_h", "last"], ["newest"], axis=1),
             helper.make_node("Identity", ["newest"], ["action"]),
@@ -168,7 +168,16 @@ def counter_seq():
             helper.set_metadata_props(
                 value_info, {"has_seq_dim": "True", "max_seq_len": "3", "seq_dim": "1"}
             )
+    if model_metadata is not None:
+        helper.set_model_props(
+            result, {f"state_in_h.{k}": v for k, v in model_metadata.items()}
+        )
     return result
+
+
+def declared_seq(name, max_seq_len="3", seq_dim="1"):
+    metadata = {"has_seq_dim": "True", "max_seq_len": max_seq_len, "seq_dim": seq_dim}
+    return lambda: counter_seq(name, metadata)
 
 
 def bad_unpaired_state():
@@ -211,6 +220,10 @@ MODELS = {
     "dict_action": dict_action,
     "counter": counter,
     "counter_seq": counter_seq,
+    "counter_seq_declared": declared_seq("counter_seq_declared"),
+    "bad_seq_len_text": declared_seq("bad_seq_len_text", max_seq_len="2.5"),
+    "bad_seq_len_zero": declared_seq("bad_seq_len_zero", max_seq_len="0"),
+    "bad_seq_dim": declared_seq("bad_seq_dim", seq_dim="2"),
     "bad_unpaired_state": bad_unpaired_state,
     "bad_state_int": bad_state_int,
 }

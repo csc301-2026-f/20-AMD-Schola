@@ -8,6 +8,7 @@
 
 #include <onnxruntime_c_api.h>
 
+#include <charconv>
 #include <cstring>
 #include <string>
 #include <utility>
@@ -36,6 +37,7 @@ struct OrtDeleter {
 	void operator()(OrtTypeInfo *p_type_info) const { ort().ReleaseTypeInfo(p_type_info); }
 	void operator()(OrtValue *p_value) const { ort().ReleaseValue(p_value); }
 	void operator()(OrtMemoryInfo *p_memory_info) const { ort().ReleaseMemoryInfo(p_memory_info); }
+	void operator()(OrtModelMetadata *p_metadata) const { ort().ReleaseModelMetadata(p_metadata); }
 };
 
 template <typename T>
@@ -219,6 +221,7 @@ struct StateLayout {
 	size_t input_index = 0;
 	size_t output_index = 0;
 	bool has_sequence = false;
+	int32_t model_sequence_length = 0;
 	int64_t state_size = 0;
 
 	std::vector<int64_t> input_shape;
@@ -397,6 +400,77 @@ struct OnnxPolicy::Impl {
 		return from_ort(p_status, StatusCode::INVALID_DATA, "load_model(" + model_name + ")");
 	}
 
+	int64_t sequence_length(const StateLayout &p_state) const {
+		if (!p_state.has_sequence) {
+			return 1;
+		}
+		return p_state.model_sequence_length > 0 ? p_state.model_sequence_length : max_state_sequence_length;
+	}
+
+	Status lookup(const OrtModelMetadata *p_metadata, OrtAllocator *p_allocator, const std::string &p_key, bool &r_found, std::string &r_value) const {
+		char *value = nullptr;
+		Status status = check(ort().ModelMetadataLookupCustomMetadataMap(p_metadata, p_allocator, p_key.c_str(), &value));
+		r_found = status.is_ok() && value != nullptr;
+		if (r_found) {
+			r_value = value;
+			status = check(ort().AllocatorFree(p_allocator, value));
+		}
+		return status;
+	}
+
+	Status read_integer(const OrtModelMetadata *p_metadata, OrtAllocator *p_allocator, const std::string &p_key, int64_t &r_value) const {
+		bool found = false;
+		std::string text;
+		Status status = lookup(p_metadata, p_allocator, p_key, found, text);
+		if (!status.is_ok()) {
+			return status;
+		}
+		const char *end = text.data() + text.size();
+		const std::from_chars_result result = std::from_chars(text.data(), end, r_value);
+		if (!found || text.empty() || result.ec != std::errc() || result.ptr != end) {
+			return error(StatusCode::INVALID_DATA, "metadata '" + p_key + "' must be an integer, got " + (found ? "'" + text + "'" : std::string("nothing")));
+		}
+		return Status::ok();
+	}
+
+	Status read_sequence(const OrtModelMetadata *p_metadata, OrtAllocator *p_allocator, const TensorDescription &p_input, StateLayout &r_layout) const {
+		bool declared = false;
+		std::string has_seq_dim;
+		Status status = lookup(p_metadata, p_allocator, p_input.name + ".has_seq_dim", declared, has_seq_dim);
+		if (!status.is_ok() || !declared) {
+			r_layout.has_sequence = p_input.shape[1] < 0;
+			return status;
+		}
+		if (has_seq_dim == "False") {
+			return p_input.shape[1] < 0 ? error(StatusCode::INCOMPATIBLE, "state input '" + p_input.name + "' has a dynamic dimension at index 1, but its metadata declares no sequence") : Status::ok();
+		}
+		if (has_seq_dim != "True") {
+			return error(StatusCode::INVALID_DATA, "metadata '" + p_input.name + ".has_seq_dim' must be True or False, got '" + has_seq_dim + "'");
+		}
+
+		int64_t seq_dim = 0;
+		int64_t max_seq_len = 0;
+		status = read_integer(p_metadata, p_allocator, p_input.name + ".seq_dim", seq_dim);
+		if (status.is_ok()) {
+			status = read_integer(p_metadata, p_allocator, p_input.name + ".max_seq_len", max_seq_len);
+		}
+		if (!status.is_ok()) {
+			return status;
+		}
+		if (seq_dim != 1) {
+			return error(StatusCode::INCOMPATIBLE, "state input '" + p_input.name + "' has its sequence at dimension " + std::to_string(seq_dim) + "; only a sequence right after the batch is supported");
+		}
+		if (max_seq_len < 1 || max_seq_len > INT32_MAX) {
+			return error(StatusCode::INVALID_DATA, "metadata '" + p_input.name + ".max_seq_len' must be at least 1, got " + std::to_string(max_seq_len));
+		}
+		if (p_input.shape[1] > 0 && p_input.shape[1] != max_seq_len) {
+			return error(StatusCode::INCOMPATIBLE, "state input '" + p_input.name + "' has a sequence of " + std::to_string(p_input.shape[1]) + " entries, but its metadata declares " + std::to_string(max_seq_len));
+		}
+		r_layout.has_sequence = true;
+		r_layout.model_sequence_length = static_cast<int32_t>(max_seq_len);
+		return Status::ok();
+	}
+
 	Status describe(bool p_inputs) {
 		size_t count = 0;
 		Status status = check(p_inputs ? ort().SessionGetInputCount(session.get(), &count) : ort().SessionGetOutputCount(session.get(), &count));
@@ -555,7 +629,7 @@ struct OnnxPolicy::Impl {
 			state.input_shape = inputs[state.input_index].shape;
 			state.input_shape[0] = 1;
 			if (state.has_sequence) {
-				state.input_shape[1] = max_state_sequence_length;
+				state.input_shape[1] = sequence_length(state);
 			}
 			state.output_shape = outputs[state.output_index].shape;
 			state.output_shape[0] = 1;
@@ -580,6 +654,17 @@ struct OnnxPolicy::Impl {
 	}
 
 	Status find_states() {
+		OrtModelMetadata *raw_metadata = nullptr;
+		Status status = check(ort().SessionGetModelMetadata(session.get(), &raw_metadata));
+		OrtPtr<OrtModelMetadata> metadata(raw_metadata);
+		OrtAllocator *allocator = nullptr;
+		if (status.is_ok()) {
+			status = check(ort().GetAllocatorWithDefaultOptions(&allocator));
+		}
+		if (!status.is_ok()) {
+			return status;
+		}
+
 		std::vector<size_t> state_inputs;
 		std::vector<size_t> state_outputs;
 		for (size_t i = 0; i < inputs.size(); ++i) {
@@ -609,15 +694,16 @@ struct OnnxPolicy::Impl {
 			StateLayout layout;
 			layout.input_index = state_inputs[pair];
 			layout.output_index = state_outputs[pair];
+			status = read_sequence(metadata.get(), allocator, input, layout);
+			if (!status.is_ok()) {
+				return status;
+			}
 			layout.state_size = 1;
-			for (size_t dimension = 1; dimension < input.shape.size(); ++dimension) {
-				if (input.shape[dimension] > 0) {
-					layout.state_size *= input.shape[dimension];
-				} else if (dimension == 1) {
-					layout.has_sequence = true;
-				} else {
+			for (size_t dimension = layout.has_sequence ? 2 : 1; dimension < input.shape.size(); ++dimension) {
+				if (input.shape[dimension] <= 0) {
 					return error(StatusCode::INCOMPATIBLE, "state input '" + input.name + "' has a dynamic dimension at index " + std::to_string(dimension) + "; only a sequence right after the batch is supported");
 				}
+				layout.state_size *= input.shape[dimension];
 			}
 
 			int64_t output_size = 1;
@@ -751,7 +837,7 @@ Status OnnxPolicy::create_initial_state(std::unique_ptr<PolicyState> &r_state) c
 	}
 	std::vector<OnnxPolicyState::BufferLayout> layouts;
 	for (const StateLayout &state : impl->states) {
-		layouts.push_back({ impl->inputs[state.input_index].name, state.has_sequence ? impl->max_state_sequence_length : 1, state.state_size });
+		layouts.push_back({ impl->inputs[state.input_index].name, impl->sequence_length(state), state.state_size });
 	}
 	r_state = std::make_unique<OnnxPolicyState>(layouts);
 	return Status::ok();
@@ -772,7 +858,7 @@ Status OnnxPolicy::think(const Point &p_observation, PolicyState &p_state, Point
 		bool matches = buffers.size() == impl->states.size();
 		for (size_t i = 0; matches && i < buffers.size(); ++i) {
 			const StateLayout &layout = impl->states[i];
-			matches = buffers[i].state_size == layout.state_size && buffers[i].sequence_length == (layout.has_sequence ? impl->max_state_sequence_length : 1);
+			matches = buffers[i].state_size == layout.state_size && buffers[i].sequence_length == impl->sequence_length(layout);
 		}
 		if (!matches) {
 			return Status::error(StatusCode::INVALID_ARGUMENT, context + "the state no longer matches the model; create a new state after reloading");

@@ -195,12 +195,21 @@ writes the new state into a separate pending entry that is committed only after 
 succeeds. A failed inference leaves that agent's state unchanged, but if a stepper fails partway
 through a step, the agents before the failing one keep their new state.
 
-If a state input has a dynamic sequence dimension right after the batch dimension, the state keeps
-a history of ``max_state_sequence_length`` entries. Each step drops the oldest entry and appends the
-newest one. ONNX Runtime cannot read the ``max_seq_len`` metadata that the exporter attaches to each
-state input, so set ``max_state_sequence_length`` to the value used in training. The default is one.
-A wrong value gives wrong actions with no error. RLlib LSTM exports have no sequence dimension, so
-they do not use this setting.
+If a state input has a sequence dimension right after the batch dimension, the state keeps a
+history of entries. Each step drops the oldest entry and appends the newest one. The length of that
+history comes from the model: Schola's exporter copies each state input's ``has_seq_dim``,
+``max_seq_len``, and ``seq_dim`` into the model metadata as ``<input>.<field>``, for example
+``state_in_h.max_seq_len``, and the policy reads them when it loads the model. A declared length
+always wins over ``max_state_sequence_length``.
+
+Loading fails with a clear error if that metadata is invalid: ``has_seq_dim`` is not ``True`` or
+``False``, ``max_seq_len`` is not an integer of at least one, ``seq_dim`` is not 1, or the declared
+length contradicts a fixed sequence dimension in the tensor shape.
+
+``max_state_sequence_length`` applies only to a state input with a dynamic sequence dimension and no
+``<input>.has_seq_dim`` metadata, such as models exported before Schola wrote model metadata. Set it
+to the value used in training. The default is one, and a wrong value gives wrong actions with no
+error. RLlib LSTM exports declare no sequence dimension, so they use neither.
 
 Call ``reset_state(agent)`` or ``reset_states()`` on the stepper, or ``reset()`` on a
 :cpp:class:`ScholaPolicyState`, when an agent's episode restarts.

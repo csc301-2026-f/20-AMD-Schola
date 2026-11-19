@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 using Catch::Matchers::ContainsSubstring;
@@ -96,6 +97,22 @@ TEST_CASE("loading another model replaces the previous one", "[inference]") {
 	REQUIRE(load(policy, "counter.onnx").is_ok());
 	REQUIRE(load(policy, "box_scale.onnx").is_ok());
 	REQUIRE_FALSE(policy.is_recurrent());
+}
+
+TEST_CASE("invalid sequence metadata fails to load with a clear error", "[inference]") {
+	OnnxPolicy policy;
+	const std::vector<std::pair<std::string, std::string>> cases = {
+		{ "bad_seq_len_text.onnx", "metadata 'state_in_h.max_seq_len' must be an integer, got '2.5'" },
+		{ "bad_seq_len_zero.onnx", "metadata 'state_in_h.max_seq_len' must be at least 1, got 0" },
+		{ "bad_seq_dim.onnx", "state input 'state_in_h' has its sequence at dimension 2" },
+	};
+	for (const auto &[file, message] : cases) {
+		INFO(file);
+		Status status = load(policy, file);
+		REQUIRE_FALSE(status.is_ok());
+		REQUIRE_THAT(status.get_message(), ContainsSubstring(message));
+		REQUIRE_FALSE(policy.is_loaded());
+	}
 }
 
 TEST_CASE("the state sequence length is set by hand", "[inference]") {

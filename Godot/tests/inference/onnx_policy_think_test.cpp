@@ -168,6 +168,17 @@ TEST_CASE("think slides a state sequence of the configured length", "[inference]
 	REQUIRE(fixture.policy.set_max_state_sequence_length(5).get_code() == StatusCode::FAILED_PRECONDITION);
 }
 
+TEST_CASE("the declared sequence length overrides the manual setting", "[inference]") {
+	for (int32_t manual : { 1, 5 }) {
+		Fixture fixture("counter_seq_declared.onnx", definition(box(1), box(2)), manual);
+		REQUIRE(fixture.state->to_string() == "OnnxPolicyState(state_in_h: 3x2)");
+		for (float expected : { 0.0f, 1.0f, 2.0f, 3.0f }) {
+			REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f } })).is_ok());
+			REQUIRE(box_values(fixture.action) == std::vector<float>{ expected, expected });
+		}
+	}
+}
+
 TEST_CASE("think accepts any state that fits the model", "[inference]") {
 	Fixture first("counter.onnx", definition(box(1), box(2)));
 	Fixture second("counter.onnx", definition(box(1), box(2)));
