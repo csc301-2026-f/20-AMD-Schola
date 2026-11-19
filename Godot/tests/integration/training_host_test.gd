@@ -578,6 +578,30 @@ func test_temporary_detachment_during_observation_uses_final_membership() -> voi
 		assert_bool(following["value"]["state"][0]["a"]["terminated"]).is_false()
 
 
+func test_identity_changes_before_action_dispatch_reject_stale_actions() -> void:
+	for fallback_id in [false, true]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var second = _add_agent(environment, "b", "" if fallback_id else "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		first.on_action = func():
+			if fallback_id:
+				second.name = "c"
+			else:
+				second.agent_id = "c"
+		var result := host.step({"actions": [{"a": 1, "b": 2}]})
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+		assert_str(_status_message(result)).contains("Agent 'b'")
+		assert_str(_status_message(result)).contains("agent ID changed before its action")
+		assert_object(second.last_action).is_null()
+		assert_int(second.observation).is_equal(0)
+		assert_object(result["value"]).is_null()
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "c": 2}]}))).is_equal(STATUS_FAILED_PRECONDITION)
+
+
 func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void:
 	for phase in ["action", "observe", "result", "before_step"]:
 		var root := _test_root()

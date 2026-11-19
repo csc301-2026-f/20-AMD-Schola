@@ -60,6 +60,9 @@ last observation and zero reward. Report custom terminal rewards through the
 normal hooks before removing a node. An agent whose action was skipped because
 its node was absent still receives that terminal transition if reattached later
 in the same step; its observation and result hooks do not run.
+If a pending agent's resolved ID changes before action dispatch, training closes
+the session without applying that stale action. This includes node renames when
+the agent uses its name as the fallback ID.
 Finished IDs retire until reset; same-episode
 replacements require fresh declared IDs. Unused possible IDs do not hold an
 episode open. Completion still occurs when every observed agent finishes.

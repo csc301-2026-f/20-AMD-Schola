@@ -307,6 +307,9 @@ transition; observation and result hooks are skipped for that agent.
 For a custom death reward or final observation,
 report termination through the environment hooks before removing the node.
 Use `queue_free()` from gameplay callbacks, as usual in Godot.
+Changing a pending agent's resolved ID before its action is dispatched closes
+the session without applying that stale action. This includes renaming a node
+that uses its name as the fallback ID.
 
 An ID that terminates or truncates is retired for the rest of that episode.
 A replacement in the same episode needs another declared ID; after reset,

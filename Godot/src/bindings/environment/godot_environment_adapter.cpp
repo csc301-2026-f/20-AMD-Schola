@@ -371,6 +371,9 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 		if (!status.is_ok() || !is_live_member(node, agent)) {
 			continue;
 		}
+		if (to_std_string(agent->get_resolved_agent_id()) != entry.id) {
+			return agent_error(entry.id, schola::StatusCode::INVALID_DATA, "agent ID changed before its action; keep IDs stable during action dispatch");
+		}
 		status = agent->get_agent()->act(action->second);
 		if (!status.is_ok()) {
 			return status;
