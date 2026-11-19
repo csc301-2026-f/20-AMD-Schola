@@ -140,8 +140,19 @@ saved properties. The integrated US1 adapter uses the resolved type when populat
 ### Space resources and configuration warnings
 
 Assign `ScholaSpace` resources to the agent's `observation_space` and
-`action_space` fields. Both start unassigned and must be configured. The Inspector
-offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
+`action_space` fields when the agent has no `_define_spaces()` callback. Both start
+unassigned. Alternatively, implement `_define_spaces()` to return both spaces in
+code; the callback overrides both Inspector assignments, including inherited
+callbacks. Invalid callback results fail at startup without falling back to the
+Inspector. See the [space-definition API](docs/us15_space_definition_api.md).
+
+Inspector warnings inspect script metadata without executing `_define_spaces()`,
+even for `@tool` scripts. Callback-defined spaces are validated at runtime startup;
+unused Inspector fields may remain empty or invalid without space warnings.
+Missing `_observe()` and `_act()` hooks still produce warnings. Callback results
+do not populate the saved Inspector fields or change their authored resources.
+
+The Inspector offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
 at zero and require a positive value; their Inspector fields provide positive-size
 range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
@@ -160,7 +171,8 @@ across separate environments are allowed. `_reset_episode` is optional.
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
 inspect inherited script metadata; gameplay scripts do not need `@tool`.
-`get_configuration_errors()` checks resources and scene configuration; the editor
+`get_configuration_errors()` checks Inspector resources for agents without
+`_define_spaces()` and checks scene configuration; the editor
 adds missing-hook warnings. Runtime adapter calls still validate required hooks
 before invoking them.
 

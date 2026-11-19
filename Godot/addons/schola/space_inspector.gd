@@ -5,8 +5,8 @@ extends EditorInspectorPlugin
 const AGENT_HELP: Dictionary = {
 	"agent_id": "Leave empty to use this node's name. Set an explicit ID to keep it stable after renaming. IDs must be unique within an environment.",
 	"agent_type": "Optional policy-sharing label. Empty uses the resolved agent ID without changing the saved value.",
-	"observation_space": "Required: the shape and type returned by _observe(). Starts unassigned. Resources may be shared; use Make Unique to edit an independent copy.",
-	"action_space": "Required: the shape and type accepted by _act(). Starts unassigned. Resources may be shared; use Make Unique to edit an independent copy.",
+	"observation_space": "Shape and type returned by _observe(). Required when _define_spaces() is absent. Otherwise the callback supplies both spaces and overrides Inspector assignments; invalid results never fall back to these fields. Callback results are validated at runtime startup, never by Inspector warnings, and are not copied into saved Inspector fields, which may remain empty. Resources may be shared; use Make Unique to edit an independent copy.",
+	"action_space": "Shape and type accepted by _act(). Required when _define_spaces() is absent. Otherwise the callback supplies both spaces and overrides Inspector assignments; invalid results never fall back to these fields. Callback results are validated at runtime startup, never by Inspector warnings, and are not copied into saved Inspector fields, which may remain empty. Resources may be shared; use Make Unique to edit an independent copy.",
 }
 
 const SPACE_HELP: Dictionary = {

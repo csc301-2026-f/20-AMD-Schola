@@ -17,7 +17,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Approved - MVP; progress not yet reported |
 | [US13](US13.md) | Train and deploy through a production example | Unassigned | Approved - MVP; progress not yet reported |
 | [US14](US14.md) | Read the state sequence length from the model | Unassigned | Approved - Stretch; progress not yet reported |
-| [US15](US15.md) | Define observation and action spaces in code | Vansh | In progress; callback binding and space constructors implemented, runtime resolution pending |
+| [US15](US15.md) | Define observation and action spaces in code | Vansh | In progress; callback binding, constructors, resolution, startup, and Inspector help implemented; example and remaining coverage pending |
 
 Alex approved US8-US14 at the [Nov. 6 partner meeting](../../../deliverables/team/minutes/partner-meeting-07.md). US8, US12, and US13 are the highest-priority MVP stories; US9, US10, US11, and US14 are stretch goals. Owners remain unassigned, and approval does not establish that implementation has started. US14 work waits for Alex's ONNX metadata-export PR to land.
 

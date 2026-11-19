@@ -28,8 +28,9 @@ Step 4 connects startup:
   from Python reuses it without running the callback again.
 
 Editor warnings call the same configuration check, so they also stop reporting
-empty Inspector space fields on callback agents. Step 5 still has to update the
-Inspector help text and add any callback-specific hints.
+empty Inspector space fields on callback agents. Step 5 adds Inspector help for
+callback precedence, validation timing, and preservation of saved fields, plus
+behavioral warning tests covering tool scripts and script/inheritance changes.
 
 ## Callback return value and precedence
 
@@ -161,6 +162,12 @@ does not execute the hook. Ordinary Inspector warning queries must also remain
 metadata-only, including for tool scripts. Since step 4, the configuration check
 behind those warnings uses this query to skip the space checks for callback agents,
 so unused Inspector fields are not reported as missing spaces.
+
+Inspector help on both space properties explains callback precedence, runtime
+validation, and why saved fields can remain empty. Missing `_observe()` and
+`_act()` hooks still produce warnings independently of space authorship. Attaching
+or detaching scripts and changes to scripts in the inheritance chain refresh the
+warning state; these checks do not evaluate the callback, including `@tool` hooks.
 
 Discovering the actual callback result requires evaluating it on a configured
 instance. Results do not automatically appear in Inspector fields. Editor preview,
