@@ -32,6 +32,12 @@ empty Inspector space fields on callback agents. Step 5 adds Inspector help for
 callback precedence, validation timing, and preservation of saved fields, plus
 behavioral warning tests covering tool scripts and script/inheritance changes.
 
+Step 6 adds scene save/load and lifecycle regression tests. These verify retained
+snapshots across tree re-entry, resets, resource edits, policy reinitialization,
+and later startup failures; new scene instances rebuild from saved configuration.
+Nested observation/action validation, atomic failure, and corrected retries after
+script errors are covered alongside the existing factory and startup tests.
+
 ## Callback return value and precedence
 
 A script attached to `ScholaAgent` may implement `_define_spaces()`. An inherited

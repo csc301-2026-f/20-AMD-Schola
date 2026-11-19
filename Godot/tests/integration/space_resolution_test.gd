@@ -185,6 +185,8 @@ func test_malformed_results_name_the_agent_and_the_problem() -> void:
 		[{"observation": 3, "action": ok}, "must be a ScholaSpace, not int"],
 		[{"observation": RefCounted.new(), "action": ok}, "must be a ScholaSpace, not RefCounted"],
 		[_spaces(ok, ScholaSpaces.box([2], 1, 0)), "_define_spaces()[\"action\"]: "],
+		[_spaces(ok, ScholaSpaces.box([0], 0, 1)), "_define_spaces()[\"action\"]: "],
+		[_spaces(ScholaSpaces.box_bounds([3], [0, 0], [1]), ok), "_define_spaces()[\"observation\"]: "],
 		[_spaces(ScholaSpaces.dict({"arm": ScholaSpaces.discrete(0)}), ok), "must be positive"],
 		[_spaces(cycle, ok), "Dict contains itself"],
 	]
