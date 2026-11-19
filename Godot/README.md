@@ -206,6 +206,11 @@ inspect inherited script metadata; gameplay scripts do not need `@tool`.
 adds missing-hook warnings. Runtime adapter calls still validate required hooks
 before invoking them.
 
+Runtime startup checks scene structure separately and obtains spaces through
+the agent's validated snapshot. Editing or clearing Inspector resources after
+resolution does not invalidate the running definition; editor diagnostics still
+report problems in those authored fields. Recreate the scene to apply new spaces.
+
 ### Episode endings
 
 Schola does not impose a built-in episode step limit. The environment supplies

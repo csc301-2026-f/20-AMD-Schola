@@ -33,6 +33,16 @@ class BrokenCallbackAgent extends ScholaAgent:
 		return missing["spaces"]
 
 
+class InspectorAgent extends ScholaAgent:
+	var last_action: Variant
+
+	func _observe() -> Variant:
+		return 0
+
+	func _act(action: Variant) -> void:
+		last_action = action
+
+
 var _driver: RefCounted
 var _previous_scene: Node
 var _temporary_paths: Array[String] = []
@@ -64,6 +74,15 @@ func _agent() -> ScholaAgent:
 
 func _define(agent: ScholaAgent) -> Dictionary:
 	return _driver.call("define_agent", agent)
+
+
+func _inspector_agent() -> InspectorAgent:
+	var agent: InspectorAgent = auto_free(InspectorAgent.new())
+	agent.name = "InspectorAgent"
+	agent.agent_id = "inspector"
+	agent.observation_space = ScholaSpaces.discrete(3)
+	agent.action_space = ScholaSpaces.discrete(3)
+	return agent
 
 
 func _host(agent: ScholaAgent) -> ScholaTrainingHost:
@@ -161,6 +180,74 @@ func test_tree_exit_and_reentry_keep_inspector_snapshot() -> void:
 	add_child(agent)
 	assert_int(_define(agent).observation.n).is_equal(3)
 	assert_int(agent.observation_space.n).is_equal(7)
+
+
+func test_inspector_mutation_after_session_initialization_does_not_block_host_definition() -> void:
+	for clear_action in [false, true]:
+		var agent := _inspector_agent()
+		var host := _host(agent)
+		assert_int(host.initialize_session().status.code).is_equal(0)
+		# Initialization captured both spaces. Editor diagnostics must still show
+		# the now-invalid authored fields, while runtime keeps that snapshot.
+		agent.observation_space.n = 0
+		if clear_action:
+			agent.action_space = null
+		else:
+			agent.action_space.n = 0
+		assert_array(agent.get_configuration_errors()).is_not_empty()
+		assert_array(agent.get_parent().get_configuration_errors()).is_not_empty()
+		assert_array(_driver.call("get_agent_warnings", agent)).is_not_empty()
+		assert_int(host.set_autoreset_mode(2).status.code).is_equal(0)
+		var definition := host.define()
+		assert_int(definition.status.code).override_failure_message(definition.status.message).is_equal(0)
+		if definition.status.code != 0:
+			continue
+		var declared: Dictionary = definition.value.environments[0].agents.inspector
+		assert_int(declared.observation_space.n).is_equal(3)
+		assert_int(declared.action_space.n).is_equal(3)
+		assert_int(host.reset({}).status.code).is_equal(0)
+		assert_int(host.step({"actions": [{"inspector": 2}]}).status.code).is_equal(0)
+		assert_int(agent.last_action).is_equal(2)
+		assert_int(host.step({"actions": [{"inspector": 3}]}).status.code).is_not_equal(0)
+		assert_int(agent.last_action).is_equal(2)
+
+
+func test_inspector_snapshot_from_another_consumer_is_used_at_training_start() -> void:
+	var agent := _inspector_agent()
+	assert_bool(_define(agent).ok).is_true()
+	agent.observation_space.n = 0
+	agent.action_space = null
+	var host := _host(agent)
+	var initialized := host.initialize_session()
+	assert_int(initialized.status.code).override_failure_message(initialized.status.message).is_equal(0)
+
+
+func test_direct_environment_initialization_uses_existing_inspector_snapshot() -> void:
+	var agent := _inspector_agent()
+	_host(agent)
+	assert_bool(_define(agent).ok).is_true()
+	agent.observation_space.n = 0
+	agent.action_space = null
+	var environment := agent.get_parent() as ScholaEnvironment
+	var initialized: Dictionary = _driver.call("initialize", environment)
+	assert_bool(initialized.ok).override_failure_message(initialized.message).is_true()
+	if not initialized.ok:
+		return
+	assert_bool(_driver.call("reset", environment).ok).is_true()
+	assert_bool(_driver.call("step", environment, {"inspector": 2}).ok).is_true()
+	assert_int(agent.last_action).is_equal(2)
+	assert_array(agent.get_configuration_errors()).is_not_empty()
+	assert_bool(_driver.call("step", environment, {"inspector": 3}).ok).is_false()
+
+
+func test_invalid_inspector_spaces_still_fail_before_first_resolution() -> void:
+	var agent := _inspector_agent()
+	agent.observation_space.n = 0
+	var host := _host(agent)
+	var initialized := host.initialize_session()
+	assert_int(initialized.status.code).is_not_equal(0)
+	assert_str(initialized.status.message).contains("inspector")
+	assert_str(initialized.status.message).contains("observation_space")
 
 
 func test_nested_values_and_snapshots_survive_repeated_episode_resets() -> void:

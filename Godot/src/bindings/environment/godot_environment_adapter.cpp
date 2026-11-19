@@ -143,11 +143,10 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "initialize() was already called");
 	}
 
-	// The node already knows how to spot a broken scene (no agents, missing
-	// spaces, and so on), so reuse its checks instead of repeating them.
-	// These checks never run _define_spaces(); agents that use it have their
-	// spaces checked by define() in the loop below.
-	const godot::PackedStringArray errors = node->get_configuration_errors();
+	// Validate scene structure here. Spaces are checked by define() below,
+	// which reuses any existing snapshot for both authoring paths. Reading
+	// authored resources here could reject valid cached Inspector spaces.
+	const godot::PackedStringArray errors = node->get_scene_configuration_errors();
 	if (!errors.is_empty()) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, to_std_string(godot::String("; ").join(errors)));
 	}

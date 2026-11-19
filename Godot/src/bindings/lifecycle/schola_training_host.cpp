@@ -57,7 +57,7 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 	}
 }
 
-// Works out every agent's spaces now, at session start. The configuration
+// Works out every agent's spaces now, at session start. The scene configuration
 // check never runs _define_spaces(), so without this a broken callback
 // would only show up later, when Python asks for the definition. Each agent
 // keeps what it resolved, so training's later define() calls get the same
@@ -314,7 +314,7 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 
 	for (size_t i = 0; i < discovered_environments.size(); ++i) {
 		ScholaEnvironment *environment_node = discovered_environments[i];
-		const godot::PackedStringArray configuration_errors = environment_node->get_configuration_errors();
+		const godot::PackedStringArray configuration_errors = environment_node->get_scene_configuration_errors();
 		if (!configuration_errors.is_empty()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
 					"ScholaEnvironment " + describe_node(environment_node) +

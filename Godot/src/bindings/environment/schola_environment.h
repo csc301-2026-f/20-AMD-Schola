@@ -140,6 +140,12 @@ public:
 	 */
 	godot::PackedStringArray get_configuration_errors() const;
 
+	/** Checks scene structure without reading mutable authored space resources.
+	 * Runtime callers must validate spaces through Agent::define(), which resolves
+	 * or reuses the saved snapshot. Editor diagnostics still inspect authored fields.
+	 */
+	godot::PackedStringArray get_scene_configuration_errors() const;
+
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
@@ -154,7 +160,7 @@ protected:
 private:
 	friend class ScholaAgent;
 
-	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks) const;
+	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks, bool p_include_spaces = true) const;
 	void on_script_changed();
 	void queue_configuration_refresh();
 	void refresh_configuration_warnings();

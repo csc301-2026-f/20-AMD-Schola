@@ -125,7 +125,11 @@ godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	return collect_configuration_diagnostics(false);
 }
 
-godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks) const {
+godot::PackedStringArray ScholaEnvironment::get_scene_configuration_errors() const {
+	return collect_configuration_diagnostics(false, false);
+}
+
+godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks, bool p_include_spaces) const {
 	godot::PackedStringArray errors;
 	if (p_include_hooks && !schola::configuration::has_hook(this, "_get_step_result")) {
 		errors.append("Implement _get_step_result(agent) in this environment's script to return reward and episode state.");
@@ -148,6 +152,9 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			errors.append("Duplicate agent ID '" + id + "' on '" + existing->second + "' and '" + path + "'. Set unique agent IDs or rename nodes that use the name fallback.");
 		} else {
 			agent_paths.emplace(id, path);
+		}
+		if (!p_include_spaces) {
+			continue;
 		}
 		const godot::PackedStringArray agent_errors = p_include_hooks ? agent->_get_configuration_warnings() : agent->get_configuration_errors();
 		for (int32_t error_index = 0; error_index < agent_errors.size(); ++error_index) {

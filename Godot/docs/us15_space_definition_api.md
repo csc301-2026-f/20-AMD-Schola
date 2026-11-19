@@ -21,9 +21,11 @@ Step 4 connects startup:
 
 - `ScholaAgent.get_configuration_errors()` skips the space checks when the script
   implements `_define_spaces()`, because the Inspector fields are unused. It still
-  never runs the callback. So `ScholaEnvironment.get_configuration_errors()`, which
-  both the environment adapter and the training host check first, accepts
-  callback-only agents.
+  never runs the callback. `ScholaEnvironment.get_configuration_errors()` also
+  accepts callback-only agents and retains authored-resource diagnostics for
+  Inspector agents. Runtime startup uses separate scene-structure checks and
+  validates spaces through `define()`, so mutable authored resources cannot
+  invalidate an existing snapshot for either authoring path.
 - `GodotEnvironmentAdapter::initialize()` then calls `define()` on each agent,
   which runs and checks the callback.
 - `ScholaTrainingHost.initialize_session()` resolves every agent's spaces right
@@ -164,6 +166,11 @@ Steps 3 and 4 implement these rules:
 These rules apply to Inspector-authored and callback-authored spaces. Before step 3,
 the adapter re-read the Inspector on every `define()` call. It now keeps the first
 successful result.
+
+After a successful resolution, invalidating or clearing an authored Inspector
+resource still produces editor diagnostics, but does not block runtime startup,
+definition, or value validation using the saved snapshot. With no snapshot yet,
+invalid Inspector definitions fail through the same resolver as usual.
 
 A `define()` call made while `_define_spaces()` is still running fails instead of
 recursing.
