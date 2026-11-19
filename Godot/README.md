@@ -301,7 +301,10 @@ Spawn a descendant with a declared ID, matching spaces, and matching `agent_type
 Schola discovers it at the next step boundary and returns its first observation
 with zero reward; Python supplies its first action on the following step.
 Removing or freeing an active agent produces a terminal transition with its
-last observation and zero reward. For a custom death reward or final observation,
+last observation and zero reward. If its action is skipped because the node is
+absent, reattaching it later in the same step still produces that terminal
+transition; observation and result hooks are skipped for that agent.
+For a custom death reward or final observation,
 report termination through the environment hooks before removing the node.
 Use `queue_free()` from gameplay callbacks, as usual in Godot.
 

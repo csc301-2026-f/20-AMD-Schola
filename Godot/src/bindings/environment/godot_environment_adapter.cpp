@@ -359,6 +359,7 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 	if (!p_actions.empty() && !GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_step_result)) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "_get_step_result() is not overridden");
 	}
+	std::set<schola::AgentId> acted_ids;
 	for (const auto &entry : current) {
 		const auto action = p_actions.find(entry.id);
 		if (action == p_actions.end()) {
@@ -374,6 +375,7 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 		if (!status.is_ok()) {
 			return status;
 		}
+		acted_ids.insert(entry.id);
 	}
 	std::map<schola::AgentId, schola::AgentState> states;
 	std::set<schola::AgentId> result_ids;
@@ -388,6 +390,11 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			const auto previous = last_states.find(entry.id);
 			if (previous != last_states.end() && (previous->second.terminated || previous->second.truncated)) {
 				continue; // An ID is retired until the next environment reset.
+			}
+			if (previous != last_states.end() && acted_ids.count(entry.id) == 0) {
+				// A skipped action remains a departure even if a later callback
+				// reattaches the node. Reconciliation supplies its terminal state.
+				continue;
 			}
 			ScholaAgent *agent = nullptr;
 			status = find_agent_node(entry.id, entry.node_id, agent);

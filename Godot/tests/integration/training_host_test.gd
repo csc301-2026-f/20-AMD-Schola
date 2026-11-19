@@ -578,6 +578,55 @@ func test_temporary_detachment_during_observation_uses_final_membership() -> voi
 		assert_bool(following["value"]["state"][0]["a"]["terminated"]).is_false()
 
 
+func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void:
+	for phase in ["action", "observe", "result", "before_step"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var second = _add_agent(environment, "b", "b")
+		var third = _add_agent(environment, "c", "c")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var observed_ids: Array[String] = []
+		var result_ids: Array[String] = []
+		second.on_observe = func(): observed_ids.append("b")
+		if phase == "before_step":
+			environment.remove_child(second)
+		else:
+			first.on_action = func(): environment.remove_child(second)
+		var reattach := func(): environment.add_child(second)
+		if phase in ["action", "before_step"]:
+			third.on_action = reattach
+		elif phase == "observe":
+			third.on_observe = reattach
+		environment.on_step_result = func(agent):
+			result_ids.append(agent.agent_id)
+			if phase == "result" and agent == third:
+				reattach.call()
+
+		var result := host.step({"actions": [{"a": 1, "b": 2, "c": 1}]})
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_object(second.get_parent()).is_same(environment)
+		assert_object(second.last_action).is_null()
+		assert_array(observed_ids).is_empty()
+		assert_array(result_ids).contains_exactly(["a", "c"])
+		var state: Dictionary = result["value"]["state"][0]["b"]
+		assert_bool(state["terminated"]).is_true()
+		assert_bool(state["truncated"]).is_false()
+		assert_float(state["reward"]).is_equal(0.0)
+		assert_int(state["observation"]).is_equal(0)
+		first.on_action = Callable()
+		third.on_action = Callable()
+		third.on_observe = Callable()
+		environment.on_step_result = Callable()
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "c": 2}]}))).is_equal(STATUS_OK)
+		assert_object(second.last_action).is_null()
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2, "c": 1}]}))).is_equal(STATUS_OK)
+		assert_int(second.last_action).is_equal(2)
+
+
 func test_queued_ancestor_removes_agents_in_every_step_callback() -> void:
 	for phase in ["action", "observe", "result"]:
 		var root := _test_root()
