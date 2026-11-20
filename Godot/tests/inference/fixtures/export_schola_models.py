@@ -22,6 +22,7 @@ import numpy as np
 import onnxruntime
 import torch as th
 from schola.sb3.export import SB3PPOModel
+from schola.sb3.utils import merge_spaces
 from stable_baselines3.common.policies import (
     ActorCriticPolicy,
     MultiInputActorCriticPolicy,
@@ -30,6 +31,13 @@ from stable_baselines3.common.policies import (
 FIXTURES_DIRECTORY = Path(__file__).resolve().parent
 LSTM_MODEL = "schola_rllib_lstm"
 LSTM_STEPS = 6
+
+
+def camera_image():
+    image = np.full((1, 3, 64, 64), 0.25, np.float32)
+    image[0, :, 24:40, 40:56] = np.array([1.0, 0.0, 0.0], np.float32)[:, None, None]
+    return image
+
 
 MODELS = {
     "schola_ppo_discrete": (
@@ -55,6 +63,15 @@ MODELS = {
             "target": np.array([[-0.2, 0.9]], np.float32),
         },
     ),
+    "schola_ppo_camera": (
+        gym.spaces.Dict(
+            {"00000000:Camera": gym.spaces.Box(0.0, 1.0, (3, 64, 64), np.float32)}
+        ),
+        gym.spaces.Dict(
+            {"00000000:Rotation": gym.spaces.Box(-10.0, 10.0, (1,), np.float32)}
+        ),
+        {"00000000:Camera": camera_image()},
+    ),
 }
 
 
@@ -65,8 +82,20 @@ def export(name, observation_space, action_space):
         if isinstance(observation_space, gym.spaces.Dict)
         else ActorCriticPolicy
     )
-    policy = policy_class(observation_space, action_space, lambda _: 0.0)
-    SB3PPOModel(policy).save_as_onnx(FIXTURES_DIRECTORY / f"{name}.onnx")
+    policy_kwargs = (
+        {"features_extractor_kwargs": {"normalized_image": True}}
+        if isinstance(observation_space, gym.spaces.Dict)
+        else {}
+    )
+    policy_action_space = (
+        merge_spaces(*action_space.spaces.values())
+        if isinstance(action_space, gym.spaces.Dict)
+        else action_space
+    )
+    policy = policy_class(
+        observation_space, policy_action_space, lambda _: 0.0, **policy_kwargs
+    )
+    SB3PPOModel(policy, action_space).save_as_onnx(FIXTURES_DIRECTORY / f"{name}.onnx")
 
 
 def write_expected(name, feeds):

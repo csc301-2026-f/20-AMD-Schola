@@ -159,3 +159,21 @@ TEST_CASE("an exported PPO policy with a Dict observation matches Python", "[inf
 	Point action = think(policy, Point(observation), action_space);
 	REQUIRE(action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ static_cast<int32_t>(expected.action[0]), static_cast<int32_t>(expected.action[1]) });
 }
+
+TEST_CASE("an exported PPO policy for the camera example's component spaces matches Python", "[inference]") {
+	const Expected expected = read_expected("schola_ppo_camera");
+	OnnxPolicy policy;
+	const size_t pixels = 3 * 64 * 64;
+	const Space camera(BoxSpace{ std::vector<float>(pixels, 0.0f), std::vector<float>(pixels, 1.0f), { 3, 64, 64 } });
+	const Space action_space(DictSpace{ { { "00000000:Rotation", Space(BoxSpace{ { -10.0f }, { 10.0f }, { 1 } }) } } });
+	load_and_init(policy, "schola_ppo_camera", Space(DictSpace{ { { "00000000:Camera", camera } } }), action_space);
+
+	Point action = think(policy, Point(DictPoint{ { { "00000000:Camera", Point(BoxPoint{ expected.observation }) } } }), action_space);
+	const Point *rotation = action.get_if<DictPoint>()->find("00000000:Rotation");
+	REQUIRE(rotation != nullptr);
+	const std::vector<float> &values = rotation->get_if<BoxPoint>()->values;
+	REQUIRE(values.size() == expected.action.size());
+	for (size_t i = 0; i < values.size(); ++i) {
+		REQUIRE(values[i] == Catch::Approx(expected.action[i]).margin(1e-6));
+	}
+}
