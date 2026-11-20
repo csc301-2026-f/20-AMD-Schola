@@ -43,7 +43,7 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 
 ## Training and inference status
 
-- **Inference** works once a model exists at `policies/race_track.onnx`.
+- **Inference** runs the trained policy committed at `policies/race_track.onnx` (stored with Git LFS).
 - **Training** uses the native `ScholaTrainingConnector` over gRPC and Schola’s SB3 Python environment. The connector creates its own training host. See the commands below.
 
 ## Files
@@ -132,7 +132,7 @@ the inference scene moves them smoothly.
 
 ## Running
 
-Open `Godot/project.godot`, open `res://examples/race_track/scenes/race_track_inference.tscn`, and run it (F6). Without `policies/race_track.onnx`, the stepper reports that the model cannot be read.
+Open `Godot/project.godot`, open `res://examples/race_track/scenes/race_track_inference.tscn`, and run it (F6) to watch the committed trained policy drive. The policy is stored with Git LFS. If `policies/race_track.onnx` is only a small text file, the policy cannot load: run `git lfs install` and `git lfs pull` from the repository root.
 
 Build both native extensions using the setup in `Godot/README.md`. Install Python
 training dependencies from the repository root (Python 3.12):
@@ -156,10 +156,11 @@ test-drives the current policy for one 50-second episode without random actions.
 The score is roughly the metres driven along the track, minus 10 if the car crashed
 or got stuck; one lap is 452 m. Training is noisy, so a later policy can drive worse
 than an earlier one. Only a policy that beats the best score so far is saved, as
-`race_track.zip` and `race_track.onnx` under `policies/` (ignored by Git), so you can
-stop training at any time and keep the best policy. Use `--port` for another port,
-`--godot /path/to/godot` when Godot is not on PATH, and omit `--headless` to watch;
-each test drive then opens its own window.
+`race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at
+any time and keep the best policy. Saving replaces the committed `race_track.onnx`;
+`git restore Godot/examples/race_track/policies/race_track.onnx` brings it back. Use
+`--port` for another port, `--godot /path/to/godot` when Godot is not on PATH, and omit
+`--headless` to watch; each test drive then opens its own window.
 Each action advances one physics frame at a fixed 60 Hz simulation timestep.
 The script closes its Godot process when training/export finishes or fails.
 
@@ -180,3 +181,5 @@ Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headle
 
 `--steps` is the number of additional training steps when resuming. The saved
 policy is test-driven first, and a new policy replaces it only if it scores higher.
+Resuming needs `race_track.zip` from your own training run; only the ONNX model is
+committed.
