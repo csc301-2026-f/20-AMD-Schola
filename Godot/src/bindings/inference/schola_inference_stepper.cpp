@@ -53,6 +53,9 @@ bool ScholaInferenceStepper::is_enabled() const {
 }
 
 godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
+	if (stepping) {
+		return report("ScholaInferenceStepper.add_agent: cannot add agents during a step; use call_deferred(\"add_agent\", agent)", godot::ERR_BUSY);
+	}
 	godot::Error error = prepare(p_agent);
 	if (error != godot::OK) {
 		return error;
