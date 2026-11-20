@@ -220,6 +220,7 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 	// so the script can tell the two apart. Overriding it is optional: a
 	// scene with nothing to put back can leave it out.
 	const godot::Variant seed = p_settings.seed.has_value() ? godot::Variant(static_cast<int64_t>(*p_settings.seed)) : godot::Variant();
+	episode_step = 0;
 	GDVIRTUAL_CALL_PTR(node, _reset_episode, seed, to_dictionary(p_settings.options));
 
 	// Read every agent's first observation of the fresh episode.
@@ -245,7 +246,6 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 		entry.finished = false;
 	}
 	episode_active = true;
-	episode_step = 0;
 	r_states = std::move(states);
 	node->emit_signal("episode_started");
 	return schola::Status::ok();

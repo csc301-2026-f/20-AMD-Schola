@@ -88,7 +88,8 @@ public:
 
 	/**
 	 * @return Steps completed since the last reset. During a step's hooks,
-	 *         the current step is not counted yet. 0 before the first reset.
+	 *         the current step is not counted yet. 0 before the first reset and
+	 *         during reset callbacks and initial observation collection.
 	 */
 	int64_t get_episode_step() const;
 
