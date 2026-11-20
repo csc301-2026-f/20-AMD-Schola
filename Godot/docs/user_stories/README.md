@@ -11,7 +11,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US5](US5.md) | Configure Schola through Godot-native tools | Vansh | Native configuration merged |
 | [US7](US7.md) | Run and ship an ONNX policy | Bohdan | Complete on main |
 | [US8](US8.md) | Compose agents from reusable sensors and actuators | Guneev | Implemented on feature branch; PR open |
-| [US9](US9.md) | Test an environment without Python | Unassigned | Approved; standalone workflow pending |
+| [US9](US9.md) | Test an environment without Python | Shahyar | Implemented in PR #57; review in progress |
 | [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Implemented and tested on feature branch; PR open |
 | [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Approved; Godot implementation pending |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Multi-agent routing tested; Python training proof pending |

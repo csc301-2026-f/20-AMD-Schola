@@ -500,6 +500,10 @@ godot::Dictionary ScholaTrainingHost::close() {
 	return encode_result(shutdown_core());
 }
 
+bool ScholaTrainingHost::is_session_active() const {
+	return session_state == SessionState::ACTIVE;
+}
+
 void ScholaTrainingHost::_exit_tree() {
 	schola::Status status = shutdown_core();
 	if (!status.is_ok()) {
@@ -515,4 +519,5 @@ void ScholaTrainingHost::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("reset", "request"), &ScholaTrainingHost::reset);
 	godot::ClassDB::bind_method(godot::D_METHOD("step", "request"), &ScholaTrainingHost::step);
 	godot::ClassDB::bind_method(godot::D_METHOD("close"), &ScholaTrainingHost::close);
+	godot::ClassDB::bind_method(godot::D_METHOD("is_session_active"), &ScholaTrainingHost::is_session_active);
 }

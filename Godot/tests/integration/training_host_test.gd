@@ -203,12 +203,14 @@ func test_freed_environment_fails_and_closes_session() -> void:
 	var environment := _add_environment(root, "FreedEnvironment", "agent")
 	var host := _add_host(root)
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_true()
 	environment.free()
 
 	var result := host.set_autoreset_mode(AUTORESET_DISABLED)
 
 	assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_str(_status_message(result)).contains("was freed")
+	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.define())).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 
@@ -366,3 +368,20 @@ func test_disabled_autoreset_preserves_terminal_state() -> void:
 	assert_bool(terminal["value"]["state"][0]["agent"]["terminated"]).is_true()
 	assert_bool(retained["value"]["state"][0]["agent"]["terminated"]).is_true()
 	assert_int(environment.reset_count).is_equal(1)
+
+
+func test_session_activity_tracks_initialization_recoverable_errors_and_close() -> void:
+	var root := _test_root()
+	_add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_bool(host.is_session_active()).is_false()
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_true()
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var invalid := host.step({"actions": [{"agent": "invalid"}]})
+	assert_int(_status_code(invalid)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_bool(host.is_session_active()).is_true()
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_false()
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_false()
