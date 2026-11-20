@@ -6,6 +6,8 @@
 #include "bindings/environment/schola_environment.h"
 #include "core/environment/environment.h"
 #include "core/spaces/point.h"
+#include "core/spaces/space.h"
+#include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/ref_counted.hpp>
@@ -30,6 +32,19 @@ class ScholaEnvironmentTestDriver : public godot::RefCounted {
 public:
 	uint64_t interaction_revision(ScholaAgent *agent) const {
 		return agent->get_interaction_revision();
+	}
+
+	// Rebuilds a space from the Dictionary ScholaTrainingHost.define() reports,
+	// the way the training extension does, then writes it back out. A perfect
+	// round trip returns the input unchanged under "space".
+	godot::Dictionary space_from_dictionary(const godot::Variant &p_value) {
+		schola::Space space;
+		const schola::Status status = schola::dictionary_to_space(p_value, space);
+		godot::Dictionary result = response(status);
+		if (status.is_ok()) {
+			result["space"] = schola::space_to_dictionary(space);
+		}
+		return result;
 	}
 	// "agents" maps each agent ID to its resolved agent_type.
 	godot::Dictionary initialize(ScholaEnvironment *p_node) {
@@ -162,6 +177,7 @@ public:
 protected:
 	static void _bind_methods() {
 		godot::ClassDB::bind_method(godot::D_METHOD("interaction_revision", "agent"), &ScholaEnvironmentTestDriver::interaction_revision);
+		godot::ClassDB::bind_method(godot::D_METHOD("space_from_dictionary", "value"), &ScholaEnvironmentTestDriver::space_from_dictionary);
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
 		godot::ClassDB::bind_method(godot::D_METHOD("reset", "environment", "settings"), &ScholaEnvironmentTestDriver::reset, DEFVAL(godot::Dictionary()));
 		godot::ClassDB::bind_method(godot::D_METHOD("step", "environment", "actions"), &ScholaEnvironmentTestDriver::step);

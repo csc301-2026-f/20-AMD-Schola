@@ -147,6 +147,9 @@ Image sensors compose like any other sensor for training and ONNX inference.
 `ScholaImageSensor` supplies shared image settings and layout helpers; use one of
 the concrete camera classes rather than adding the base directly.
 
+The [camera target example](../examples/camera_target/README.md) composes
+`ScholaCameraSensor` with a rotation actuator and runs an exported policy.
+
 ## Observation adapters and tests
 
 `agent.observation_adapters` processes the validated sensor dictionary. A

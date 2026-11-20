@@ -223,6 +223,15 @@ def use_grpc(target_environment):
         # which breaks the generated Schola::ERROR enum value.
         target_environment.Append(CPPDEFINES=["NOGDI"])
 
+# Test-only native code each extension adds with integration_tests=yes.
+# Each folder stays inside its own extension, so the training test client
+# never ends up in the runtime library or the other way around.
+INTEGRATION_TEST_SOURCES = {
+    "schola": "tests/integration/native",
+    "schola_training": "tests/integration/native_training",
+}
+
+
 def build_extension(
     name, source_directories, addon_directory, configure=None, extra_sources=()
 ):
@@ -242,10 +251,11 @@ def build_extension(
         extension_environment.subst("$SHLIBSUFFIX"),
     )
     sources = sources_under(*source_directories) + list(extra_sources)
-    if name == "schola" and ARGUMENTS.get("integration_tests", "no") == "yes":
+    test_directory = INTEGRATION_TEST_SOURCES.get(name)
+    if test_directory and ARGUMENTS.get("integration_tests", "no") == "yes":
         # Keep test-only flags out of godot-cpp and the other target environments.
         extension_environment.Append(CPPDEFINES=["SCHOLA_INTEGRATION_TESTS"])
-        sources += sources_under("tests/integration/native")
+        sources += sources_under(test_directory)
     # Each extension compiles src/core with its own flags, so their objects are kept apart.
     library = extension_environment.SharedLibrary(
         f"build/{platform_name}/{library_filename}",
@@ -300,7 +310,7 @@ training_targets = []
 if grpc_enabled:
     training_targets = build_extension(
         "schola_training",
-        ["src/core", "src/transport", "src/training"],
+        ["src/core", "src/interop", "src/transport", "src/training"],
         "schola_training",
         configure=configure_training,
         extra_sources=gym_proto_sources,
