@@ -14,6 +14,8 @@ namespace schola {
 
 class OnnxPolicy final : public Policy {
 public:
+	static constexpr int32_t MAX_STATE_SEQUENCE_LENGTH = 65536;
+
 	OnnxPolicy();
 	~OnnxPolicy() override;
 
@@ -22,6 +24,8 @@ public:
 	bool is_loaded() const;
 	Status set_max_state_sequence_length(int32_t p_length);
 	int32_t get_max_state_sequence_length() const;
+	std::vector<int64_t> get_state_sequence_lengths() const;
+	std::vector<std::string> get_sequence_warnings() const;
 	const std::vector<std::string> &get_input_names() const;
 	const std::vector<std::string> &get_output_names() const;
 

@@ -198,12 +198,24 @@ writes the new state into a separate pending entry that is committed only after 
 succeeds. A failed inference leaves that agent's state unchanged, but if a stepper fails partway
 through a step, the agents before the failing one keep their new state.
 
-If a state input has a dynamic sequence dimension right after the batch dimension, the state keeps
-a history of ``max_state_sequence_length`` entries. Each step drops the oldest entry and appends the
-newest one. ONNX Runtime cannot read the ``max_seq_len`` metadata that the exporter attaches to each
-state input, so set ``max_state_sequence_length`` to the value used in training. The default is one.
-A wrong value gives wrong actions with no error. RLlib LSTM exports have no sequence dimension, so
-they do not use this setting.
+If a state input has a sequence dimension right after the batch dimension, the state keeps a
+history of entries. Each step drops the oldest entry and appends the newest one. The length of that
+history comes from the model: Schola's exporter copies each state input's ``has_seq_dim``,
+``max_seq_len``, and ``seq_dim`` into the model metadata as ``<input>.<field>``, for example
+``state_in_h.max_seq_len``, and the policy reads them when it loads the model.
+
+``max_state_sequence_length`` defaults to 0, which uses the declared length. A model that declares
+none uses one, and ``initialize()`` warns once that the length should be set. Any value from 1 to
+65536 overrides the model; ``initialize()`` warns once if it differs from the declared length, and
+fails if the model fixes the sequence to another size. ``get_state_sequence_lengths()`` returns the
+length each state input uses. RLlib LSTM exports declare no sequence dimension, so neither applies.
+
+Loading fails with a clear error if that metadata is invalid: ``has_seq_dim`` is not ``True``,
+``true``, ``1``, ``False``, ``false`` or ``0``; ``max_seq_len`` is not an integer from 1 to 65536;
+``seq_dim`` is not 1; or the declared length contradicts a fixed sequence dimension in the tensor
+shape.
+
+Unreal Schola does not read this metadata; its ``MaxStateSequenceLength`` is still set by hand.
 
 Call ``reset_state(agent)`` or ``reset_states()`` on the stepper, or ``reset()`` on a
 :cpp:class:`ScholaPolicyState`, when an agent's episode restarts.
