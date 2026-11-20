@@ -32,3 +32,17 @@ func test_inference_scene_drives_the_car_with_a_schola_exported_policy() -> void
 		assert_array(Array(agent.get_node(component).get_configuration_errors())).is_empty()
 
 	assert_float(absf(car.engine_force) + absf(car.steering)).is_greater(0.0)
+
+
+func test_inference_scene_shows_the_actions_the_policy_chose() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var policy := ScholaOnnxPolicy.new()
+	policy.model_path = EXPORTED_MODEL
+	scene.get_node("InferenceStepper").policy = policy
+	add_child(scene)
+
+	for frame in 60:
+		await get_tree().physics_frame
+	var controls: RaceTrackControls = scene.get_node("Car/Agent/Controls")
+	assert_object(scene.get_node("ActionDisplay").controls).is_same(controls)
+	assert_float(absf(controls.action[0]) + absf(controls.action[1])).is_greater(0.0)

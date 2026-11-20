@@ -27,8 +27,9 @@ The agent composes child nodes in this order:
 
 1. **Track** (`ScholaPathSensor3D`): six track-relative floats sampled 10 m ahead of the car, from a reusable sensor accepting any `Path3D`.
 2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
-3. **Controls** (`ScholaVehicleActuator3D`): two actions, with the original vehicle
-   steering/throttle/brake gain and smoothing. Also reusable in other vehicle scenes.
+3. **Controls** (`RaceTrackControls`): two actions through the reusable
+   `ScholaVehicleActuator3D`, with the original vehicle steering/throttle/brake gain
+   and smoothing. It also keeps the last action for the on-screen action display.
 
 The agent script only handles placement/reset. It has no `_observe` or `_act`
 overrides, so the native adapter dispatches the child components.
@@ -58,6 +59,8 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 | `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
 | `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
+| `scripts/race_track_controls.gd` | The car's vehicle actuator, which also keeps the last action | None |
+| `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel and pedals showing the agent's actions | None |
 
 ## Track and car
 
@@ -117,6 +120,15 @@ limits abrupt high-speed direction changes.
 - **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track.
 
 AMD's Blueprint updates its stored track distance before computing progress, so its progress reward is always 0. This example rewards progress instead.
+
+## Action display
+
+The training and inference scenes show the agent's latest action in the
+bottom-left corner: a steering wheel that turns with the steering action, and
+brake and gas pedals that fill with the pedal action. It shows the action the
+model chose, before the car smooths it. During training, PPO adds random
+exploration, so the wheel and pedals jump between steps; the trained policy in
+the inference scene moves them smoothly.
 
 ## Running
 

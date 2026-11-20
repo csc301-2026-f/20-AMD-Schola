@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
 [ext_resource type="Script" path="res://examples/race_track/scripts/race_track_environment.gd" id="2_environment"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="3_car"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="4_display"]
 
 [node name="RaceTrackTrain" type="Node3D"]
 
@@ -20,3 +21,6 @@ maximum_stalled_steps = 120
 [node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
 
 [node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]
+
+[node name="ActionDisplay" parent="." instance=ExtResource("4_display")]
+controls_path = NodePath("../RaceTrackEnvironment/Car/Agent/Controls")

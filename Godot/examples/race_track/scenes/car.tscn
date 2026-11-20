@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://examples/race_track/scripts/race_track_agent.gd" id="1_agent"]
 
 [ext_resource type="Script" path="res://addons/schola/components/velocity_sensor_3d.gd" id="2_velocity"]
-[ext_resource type="Script" path="res://addons/schola/components/vehicle_actuator_3d.gd" id="3_controls"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/race_track_controls.gd" id="3_controls"]
 [ext_resource type="Script" path="res://addons/schola/components/path_sensor_3d.gd" id="4_track"]
 
 [ext_resource type="Script" path="res://examples/race_track/scripts/arcade_vehicle.gd" id="5_physics"]

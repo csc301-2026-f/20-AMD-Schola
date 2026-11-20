@@ -1,7 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="2_car"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="3_display"]
 
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_race_track"]
 model_path = "res://examples/race_track/policies/race_track.onnx"
@@ -19,3 +20,6 @@ shadow_enabled = true
 [node name="InferenceStepper" type="ScholaInferenceStepper" parent="."]
 policy = SubResource("ScholaOnnxPolicy_race_track")
 agents = Array[NodePath]([NodePath("../Car/Agent")])
+
+[node name="ActionDisplay" parent="." instance=ExtResource("3_display")]
+controls_path = NodePath("../Car/Agent/Controls")
