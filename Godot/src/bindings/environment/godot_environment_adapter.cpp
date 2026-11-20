@@ -399,3 +399,10 @@ schola::Status GodotEnvironmentAdapter::get_agents(std::vector<schola::Agent *> 
 int64_t GodotEnvironmentAdapter::get_episode_step() const {
 	return episode_step;
 }
+
+void GodotEnvironmentAdapter::release() {
+	agents.clear();
+	initialized = false;
+	episode_active = false;
+	episode_step = 0;
+}

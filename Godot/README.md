@@ -300,13 +300,27 @@ Start the scene first. On its first physics frame, after every node's `_ready()`
 schola sb3 train ppo editor --port 8000 --timesteps 100000
 ```
 
-Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training. One node runs one session.
+Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training.
+
+When Python closes a session normally, the connector keeps the port and waits for Python's next session, as Unreal Schola does. `schola rllib train` relies on this: it connects once to read the agents and their spaces, closes, and connects again to train. Each session gets a fresh internal `ScholaTrainingHost`, with the same agent IDs and spaces. Training ends when a session fails, or when Python does not start another session within `start_timeout_sec` of closing one.
 
 - `port` defaults to 8000. `-ScholaPort=<n>` on the command line overrides it, as in Unreal Schola, and is also accepted after `--` as a user argument.
 - `start_timeout_sec` (default 45 s) matches the Python client's `environment_start_timeout`. `step_timeout_sec` defaults to 60 s. Set either to 0 to wait forever.
-- `is_training()` is true from Python's connection until the session ends. `training_finished(error: String)` is emitted once: with an empty string when Python closed normally, otherwise with the reason, which is also pushed as an error.
+- `is_training()` is true while a session is running. `session_closed()` is emitted each time Python closes a session normally. `training_finished(error: String)` is emitted once, when training ends: with an empty string when Python finished normally, otherwise with the reason, which is also pushed as an error.
 
 The connector does nothing in the editor. Keep it in a training-only scene: exported games normally exclude `addons/schola_training/`.
+
+### Multiple agents
+
+Every `ScholaAgent` under a `ScholaEnvironment` is trained in the same episode, as in Unreal Schola. The [two-agent example](examples/multi_agent/README.md) shows the pattern.
+
+- **Identity.** Python identifies agents by their resolved agent ID (`agent_id`, or the node name), and lists them sorted by ID, not in scene order. IDs and spaces are fixed when the session starts and stay the same for every episode, and for every session if Python reconnects. Two agents with the same ID in one environment stop the session from starting.
+- **Spaces.** Each agent declares its own observation and action spaces, which may differ. Agents with the same `agent_type` share a policy in RLlib.
+- **Steps.** Python sends one action per unfinished agent. All of them act, in scene-tree order, before any agent is observed, so every observation sees the same world. `_get_step_result(agent)` then runs once per agent, so each agent can get its own reward, or the environment can give every agent a shared team reward.
+- **Episode endings.** Each agent ends its own part of the episode by returning `terminated` or `truncated`. A finished agent no longer acts, and Python receives its final result unchanged on each later step. The episode ends when every agent has finished.
+- **Protocol errors.** A step that leaves out an unfinished agent's action, or acts for a finished or unknown agent, is rejected before any agent moves, and it ends the training session.
+
+Train agents with different spaces using RLlib (`schola rllib train`), which gives each agent its own policy and handles agents finishing on different steps. Schola's SB3 wrapper requires every agent to share one observation and action space, and every agent in an environment to finish on the same step.
 
 ## Running a trained policy
 
@@ -411,6 +425,7 @@ Dependencies must point toward `core`. Both extensions compile `src/interop`, wh
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US7: Run and ship an ONNX policy | `src/core/policy/`, `src/core/stepper/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
 | US10: Stack recent observations | `src/core/adapters/` |
+| US12: Train multiple agents | `examples/multi_agent/` and `tests/integration/multi_agent_training_test.gd`, using the US1, US3, and US4 code above |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 
