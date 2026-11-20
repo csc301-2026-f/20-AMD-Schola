@@ -15,7 +15,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Implemented and tested on feature branch; PR open |
 | [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Approved; Godot implementation pending |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Multi-agent routing tested; Python training proof pending |
-| [US13](US13.md) | Train and deploy through a production example | Bohdan | RaceTrack draft on feature branch; end-to-end proof pending |
+| [US13](US13.md) | Train and deploy through a production example | Bohdan | Trained RaceTrack policy and checks on feature branch; retraining proof pending |
 | [US14](US14.md) | Read the state sequence length from the model | Unassigned | Waiting on upstream ONNX metadata export |
 | [US15](US15.md) | Define observation and action spaces in code | Vansh | Callback and constructors on feature branch; runtime resolution pending |
 
