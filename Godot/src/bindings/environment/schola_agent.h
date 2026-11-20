@@ -29,6 +29,10 @@ public:
 	ScholaAgent();
 	~ScholaAgent() override;
 
+	/** Pause training participation without ending this agent's trajectory. */
+	void set_training_paused(bool p_paused);
+	bool is_training_paused() const;
+
 	// IDs must be unique within one environment
 	// empty agent_id : use the godot node name
 	// nonempty id : use configured value
@@ -115,6 +119,7 @@ private:
 
 	// Stores the Inspector value; an empty ID means use this node's name
 	godot::String agent_id;
+	bool training_paused = false;
 	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;
 	godot::Ref<ScholaSpace> observation_space;

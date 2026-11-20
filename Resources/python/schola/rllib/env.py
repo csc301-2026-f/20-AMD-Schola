@@ -510,6 +510,7 @@ class RayEnv(BaseRayEnv, MultiAgentEnv):  # type: ignore
 
         agents_in_obs = set(observations[self._env_id].keys())
         self._current_agents = agents_in_obs
+        self._observed_agents = set(agents_in_obs)
         # Update agents attribute to match current active agents
         self.agents = list(agents_in_obs)
         logger.debug(f"RayEnv reset with agents: {agents_in_obs}")
@@ -596,16 +597,13 @@ class RayEnv(BaseRayEnv, MultiAgentEnv):  # type: ignore
                 current_active_agents.add(agent_id)
 
         self._current_agents = current_active_agents
+        self._observed_agents.update(all_agents_this_step)
         # Update agents attribute to match current active agents
-        self.agents = (
-            list(current_active_agents)
-            if current_active_agents
-            else list(self.possible_agents)
-        )
+        self.agents = list(current_active_agents)
 
         # Compute __all__ flag
         agents_in_this_env = (
-            self._current_agents | self._terminated_agents | self._truncated_agents
+            self._observed_agents | self._terminated_agents | self._truncated_agents
         )
         num_done = len(self._terminated_agents | self._truncated_agents)
         num_total = len(agents_in_this_env)
@@ -687,6 +685,7 @@ class _SingleEnvWrapper(MultiAgentEnv):
     def _reset(self, observations: dict[str, Any]):
         """Inverse of reset To be called from RayVecEnv."""
         self._current_agents = set(observations.keys())
+        self._observed_agents = set(observations.keys())
         self._terminated_agents = set()
         self._truncated_agents = set()
         self._reset_on_next_step = False
@@ -714,7 +713,8 @@ class _SingleEnvWrapper(MultiAgentEnv):
             self._truncated_agents = self._truncated_agents | set(
                 filter(lambda x: truncateds[x], truncateds.keys())
             )
-            self._current_agents = (self._current_agents | observed_agents) - (
+            self._observed_agents.update(observed_agents)
+            self._current_agents = observed_agents - (
                 self._terminated_agents | self._truncated_agents
             )
 
@@ -947,7 +947,7 @@ class RayVecEnv(BaseRayEnv, VectorMultiAgentEnv):  # type: ignore
             env._step(observations[env_id], terminateds[env_id], truncateds[env_id])
 
             agents_in_this_env = (
-                env._current_agents | env._terminated_agents | env._truncated_agents
+                env._observed_agents | env._terminated_agents | env._truncated_agents
             )
             num_done = len(env._terminated_agents | env._truncated_agents)
             num_total = len(agents_in_this_env)

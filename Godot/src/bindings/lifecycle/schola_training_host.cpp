@@ -228,6 +228,9 @@ godot::Dictionary encode_step_result(const schola::StepResult &result) {
 	for (auto &environment : result.state.environments) {
 		godot::Dictionary agents;
 		for (auto &[agent_id, agent] : environment.agents) {
+			if (agent.paused) {
+				continue;
+			}
 			godot::Dictionary encoded_agent;
 			encoded_agent["observation"] = schola::point_to_variant(agent.observation);
 			encoded_agent["reward"] = agent.reward;

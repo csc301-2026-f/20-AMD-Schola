@@ -76,6 +76,28 @@ Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
 vector interfaces still require a fixed population. Definitions are exchanged
 once; arbitrary new IDs or changed spaces require a new training definition.
 
+Temporary training pauses
+-------------------------
+
+Set ``ScholaAgent.training_paused`` to suspend training callbacks without
+terminating the agent. Clear it to resume the same ID and node. The property does
+not pause Godot processing or physics, and reset preserves it unless the game's
+reset hook changes it.
+
+Actions must still match the last published roster. An already-requested action
+is skipped if the node is paused at dispatch. A transition whose action or
+observation was already collected is published once before the pause takes
+effect; an action that ran finishes its normal result hook. Subsequent responses omit paused agents, so their
+actions must also be omitted. Resuming produces a fresh observation with zero
+reward; the agent acts on the following step. Observed paused agents prevent
+episode completion. Empty action maps are valid when every participant is paused.
+Initially paused agents enter only after resuming and being observed.
+
+Removal still terminates a paused agent. Finished IDs cannot resume until reset,
+and replacing a paused node with a different node using the same ID is invalid.
+Use the updated Schola RLlib adapters, which distinguish ready agents from episode
+participants. SB3's fixed-size interface does not support training pauses.
+
 Episode completion
 ------------------
 

@@ -77,7 +77,8 @@ public:
 	 * @brief Steps every unfinished agent and captures an owned state snapshot.
 	 *
 	 * Requires ACTIVE. Actions must name exactly the currently active agents. A successful
-	 * response names every actor plus any births from the declared possible IDs. Each
+	 * response names every actor plus declared births, resumes, or paused snapshots.
+	 * Paused snapshots require no actions and keep observed participants alive. Each
 	 * successful call increments the step count. The lifecycle becomes COMPLETE
 	 * when every observed agent is terminated or truncated by the environment.
 	 * Otherwise it remains ACTIVE. The output changes only on success.

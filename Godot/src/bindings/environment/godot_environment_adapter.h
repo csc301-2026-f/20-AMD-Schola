@@ -46,7 +46,8 @@ public:
 
 	/** Applies actions to the prior active roster, then discovers births and departures.
 	 * Departures receive a terminal transition using their last observation and zero reward.
-	 * Births receive an initial observation and zero reward, and act on the next call.
+	 * Births and resumes receive an observation and zero reward, and act on the next call.
+	 * Paused agents retain snapshots without callbacks; serializers omit them.
 	 * Definitions must match the initialized possible roster. Finished IDs retire until reset.
 	 */
 	schola::Status step(const std::map<schola::AgentId, schola::Point> &p_actions,

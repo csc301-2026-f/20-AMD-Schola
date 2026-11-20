@@ -871,3 +871,24 @@ TEST_CASE("an initially empty population waits for its first participant", "[lif
 	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) } }, output).is_ok());
 	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);
 }
+
+TEST_CASE("paused agents need no actions and resume without retiring their IDs", "[lifecycle][population]") {
+	testing::FakeEnvironment environment;
+	EnvironmentLifecycle lifecycle(0, environment);
+	start_active(lifecycle, environment, { "agent_0", "agent_1" });
+	auto paused = make_agent_state(0, 0.0f);
+	paused.paused = true;
+	environment.step_states = { { "agent_0", paused }, { "agent_1", make_agent_state(1, 1.0f, true) } };
+	EnvironmentState output;
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).is_ok());
+	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
+	environment.step_states.erase("agent_1");
+	REQUIRE(lifecycle.step({}, output).is_ok());
+	CHECK(output.agents.at("agent_0").paused);
+	environment.step_states = { { "agent_0", make_agent_state(0, 0.0f) } };
+	REQUIRE(lifecycle.step({}, output).is_ok());
+	CHECK_FALSE(output.agents.at("agent_0").paused);
+	environment.step_states = { { "agent_0", make_agent_state(1, 1.0f, true) } };
+	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) } }, output).is_ok());
+	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);
+}

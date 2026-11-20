@@ -103,7 +103,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 	}
 	size_t unfinished_count = 0;
 	for (const auto &[agent_id, previous] : last_state.agents) {
-		if (previous.terminated || previous.truncated) {
+		if (previous.terminated || previous.truncated || previous.paused) {
 			continue;
 		}
 		++unfinished_count;
@@ -126,6 +126,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		valid = valid && step_states.count(agent_id) != 0;
 	}
 	for (const auto &[agent_id, value] : step_states) {
+		valid = valid && !(value.paused && (value.terminated || value.truncated));
 		const auto previous = last_state.agents.find(agent_id);
 		if (previous != last_state.agents.end() && (previous->second.terminated || previous->second.truncated)) {
 			valid = false;
@@ -133,7 +134,7 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 	}
 	if (!valid) {
 		state = LifecycleState::FAULTED;
-		return Status::error(StatusCode::INVALID_DATA, "step must return all acting agents and only new, declared births");
+		return Status::error(StatusCode::INVALID_DATA, "step must return every actor and only unfinished declared agents");
 	}
 
 	episode_step_count++;

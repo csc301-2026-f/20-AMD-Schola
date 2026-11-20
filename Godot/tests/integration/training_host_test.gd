@@ -603,7 +603,7 @@ func test_identity_changes_before_action_dispatch_reject_stale_actions() -> void
 
 
 func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void:
-	for phase in ["action", "observe", "result", "before_step"]:
+	for phase in ["action", "observe", "result", "before_step", "pause_after_reattach"]:
 		var root := _test_root()
 		var environment := _dynamic_environment(root)
 		var first = environment.get_agents()[0]
@@ -619,8 +619,11 @@ func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void
 			environment.remove_child(second)
 		else:
 			first.on_action = func(): environment.remove_child(second)
-		var reattach := func(): environment.add_child(second)
-		if phase in ["action", "before_step"]:
+		var reattach := func():
+			environment.add_child(second)
+			if phase == "pause_after_reattach":
+				second.training_paused = true
+		if phase in ["action", "before_step", "pause_after_reattach"]:
 			third.on_action = reattach
 		elif phase == "observe":
 			third.on_observe = reattach
@@ -646,6 +649,7 @@ func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void
 		environment.on_step_result = Callable()
 		assert_int(_status_code(host.step({"actions": [{"a": 1, "c": 2}]}))).is_equal(STATUS_OK)
 		assert_object(second.last_action).is_null()
+		second.training_paused = false
 		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
 		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2, "c": 1}]}))).is_equal(STATUS_OK)
 		assert_int(second.last_action).is_equal(2)
@@ -859,3 +863,110 @@ func test_dynamic_population_completion_obeys_all_autoreset_modes() -> void:
 				assert_bool(following["value"]["state"][0]["b"]["terminated"]).is_false()
 			else:
 				assert_bool(following["value"]["state"][0]["b"]["terminated"]).is_true()
+
+
+func test_training_pause_preserves_identity_and_resumes_without_an_action() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	var first = environment.get_agents()[0]
+	var second = _add_agent(environment, "b", "b")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var callbacks: Array[String] = []
+	second.on_observe = func(): callbacks.append("observe")
+	second.on_action = func(): callbacks.append("act")
+	first.on_action = func(): second.training_paused = true
+	var paused := host.step({"actions": [{"a": 1, "b": 2}]})
+	assert_int(_status_code(paused)).is_equal(STATUS_OK)
+	assert_array(paused["value"]["state"][0].keys()).contains_exactly(["a"])
+	assert_array(callbacks).is_empty()
+	assert_object(second.last_action).is_null()
+	first.on_action = Callable()
+	first.training_paused = true
+	var all_paused := host.step({"actions": [{"a": 1}]})
+	assert_int(_status_code(all_paused)).is_equal(STATUS_OK)
+	assert_dict(all_paused["value"]["state"][0]).is_empty()
+	for iteration in range(2):
+		assert_int(_status_code(host.step({"actions": [{}]}))).is_equal(STATUS_OK)
+	second.training_paused = false
+	var resumed := host.step({"actions": [{}]})
+	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
+	var state: Dictionary = resumed["value"]["state"][0]["b"]
+	assert_bool(state["terminated"]).is_false()
+	assert_float(state["reward"]).is_equal(0.0)
+	assert_int(state["observation"]).is_equal(0)
+	assert_array(callbacks).contains_exactly(["observe"])
+	assert_int(_status_code(host.step({"actions": [{"b": 2}]}))).is_equal(STATUS_OK)
+	assert_int(second.last_action).is_equal(2)
+
+
+func test_paused_agents_prevent_completion_and_removal_still_terminates() -> void:
+	for mode in [AUTORESET_DISABLED, AUTORESET_SAME_STEP, AUTORESET_NEXT_STEP]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var second = _add_agent(environment, "b", "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host, mode))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		second.training_paused = true
+		environment.episode_length = 1
+		var result := host.step({"actions": [{"a": 1, "b": 2}]})
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_bool(result["value"]["state"][0]["a"]["terminated"]).is_true()
+		assert_bool(result["value"]["state"][0].has("b")).is_false()
+		assert_dict(result["value"]["initial_state"]).is_empty()
+		assert_int(_status_code(host.step({"actions": [{}]}))).is_equal(STATUS_OK)
+		assert_int(environment.reset_count).is_equal(1)
+		second.free()
+		var removed := host.step({"actions": [{}]})
+		assert_int(_status_code(removed)).is_equal(STATUS_OK)
+		assert_bool(removed["value"]["state"][0]["b"]["terminated"]).is_true()
+		assert_float(removed["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+
+
+func test_initially_paused_agents_are_observed_only_after_resuming() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	var second = _add_agent(environment, "b", "b")
+	second.training_paused = true
+	var callbacks: Array[String] = []
+	second.on_observe = func(): callbacks.append("observe")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var initial := host.reset({})
+	assert_array(initial["value"][0].keys()).contains_exactly(["a"])
+	assert_array(callbacks).is_empty()
+	second.training_paused = false
+	var resumed := host.step({"actions": [{"a": 1}]})
+	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
+	assert_float(resumed["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+	assert_object(second.last_action).is_null()
+
+
+func test_birth_pausing_during_observation_is_announced_before_omission() -> void:
+	var root := _test_root()
+	var environment := _dynamic_environment(root)
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var second = _add_agent(environment, "b", "b")
+	var observations: Array[String] = []
+	second.on_observe = func():
+		observations.append("observe")
+		second.training_paused = true
+	var birth := host.step({"actions": [{"a": 1}]})
+	assert_int(_status_code(birth)).is_equal(STATUS_OK)
+	assert_bool(birth["value"]["state"][0].has("b")).is_true()
+	assert_float(birth["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+	var paused := host.step({"actions": [{"a": 1, "b": 2}]})
+	assert_int(_status_code(paused)).is_equal(STATUS_OK)
+	assert_bool(paused["value"]["state"][0].has("b")).is_false()
+	assert_array(observations).contains_exactly(["observe"])
+	assert_object(second.last_action).is_null()
+	second.on_observe = Callable()
+	second.training_paused = false
+	var resumed := host.step({"actions": [{"a": 1}]})
+	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
+	assert_bool(resumed["value"]["state"][0]["b"]["terminated"]).is_false()
+	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)

@@ -56,7 +56,7 @@ struct InitialAgentState {
 };
 
 /**
- * An agent's observation resulting from some step. Mirrors the shared
+ * An agent's observation resulting from some step. Wire fields mirror the shared
  * AgentState message (Proto/State.proto).
  */
 struct AgentState {
@@ -75,6 +75,9 @@ struct AgentState {
 
 	// Free-form string context for Python, same role as InitialAgentState::info.
 	std::map<std::string, std::string> info;
+
+	// Internal scheduling state: alive, but omitted from outward action rosters.
+	bool paused = false;
 };
 
 /**
@@ -132,6 +135,8 @@ public:
 	 *
 	 * Out:  r_states includes every acting agent and newly active declared IDs.
 	 *       A birth has an initial observation and zero reward; it acts next step.
+	 *       Paused snapshots retain identity but require no actions and are omitted at
+	 *       serialization. Resume snapshots have zero reward and act next step.
 	 *       Previously finished IDs must not reappear before reset.
 	 */
 	virtual Status step(const std::map<AgentId, Point> &p_actions, std::map<AgentId, AgentState> &r_states) = 0;

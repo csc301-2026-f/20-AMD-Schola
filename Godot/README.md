@@ -329,6 +329,40 @@ a varying population within a declared capacity, rather than adding new space
 definitions during training. Use a client supporting dynamic multi-agent rosters
 (such as RLlib); SB3's fixed-size vector interface still requires fixed populations.
 
+### Pause and resume training agents
+
+Set `agent.training_paused = true` to suspend a live agent without terminating
+its trajectory. Set it back to `false` to resume the same ID and node within the
+episode. This affects training participation only; Godot processing and physics
+continue normally.
+
+```gdscript
+waiting_unit.training_paused = true
+# Later, when this unit can participate again:
+waiting_unit.training_paused = false
+```
+
+Actions always match the last published roster. If a pause is requested after
+that roster was sent, supply its already-requested action once; Schola skips it
+if the agent is paused at dispatch. Once the next response omits the agent, omit
+its actions too. While paused, `_act`, `_observe`, and `_get_step_result` do not
+run. A transition whose action or observation was already collected is published
+once before the pause takes effect. An action that ran finishes its normal result
+hook. This also announces a birth that pauses during its first observation. Resuming publishes a fresh observation with zero
+reward and requests the first new action on the following step.
+
+Observed paused agents keep the episode open, including when all agents are
+paused. Continue stepping with empty action maps while Godot gameplay schedules
+resumption. Initially paused agents are omitted from reset and participate only
+after their first observation; unused IDs do not hold an episode open. Reset
+preserves the property unless your `_reset_episode` changes it. Removing a paused
+node still produces a terminal transition, and pausing a finished ID cannot
+resurrect it. Pause state does not permit same-episode node replacement.
+
+Use the updated Schola RLlib adapters for this scheduling behavior; they track
+agents ready for actions separately from all episode participants. SB3 still
+requires fixed populations and does not support pausing training agents.
+
 ## Directory structure
 
 ```text
