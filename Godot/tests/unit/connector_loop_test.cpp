@@ -221,6 +221,19 @@ TEST_CASE("a close from Python ends the session with CLOSED and no error", "[con
 	CHECK(session.backend.close_count == 1);
 	CHECK(session.connector.close_count == 1);
 	CHECK_FALSE(session.loop.is_running());
+	CHECK(session.loop.ended_normally());
+}
+
+TEST_CASE("starting a new session clears the previous normal close", "[connector]") {
+	Session session;
+	session.connector.updates.push_back(close_update());
+	REQUIRE(session.start().is_ok());
+	REQUIRE(session.loop.tick(50ms).get_code() == StatusCode::CLOSED);
+	REQUIRE(session.loop.ended_normally());
+
+	REQUIRE(session.start().is_ok());
+
+	CHECK_FALSE(session.loop.ended_normally());
 }
 
 TEST_CASE("a backend failure is reported to Python and ends the session", "[connector]") {
@@ -249,6 +262,7 @@ TEST_CASE("tick times out and reports it when Python stops sending", "[connector
 	REQUIRE(session.connector.failure.has_value());
 	CHECK(session.connector.failure->get_code() == StatusCode::TIMEOUT);
 	CHECK_FALSE(session.loop.is_running());
+	CHECK_FALSE(session.loop.ended_normally());
 }
 
 TEST_CASE("a disconnect ends the session without answering Python", "[connector]") {
@@ -262,6 +276,8 @@ TEST_CASE("a disconnect ends the session without answering Python", "[connector]
 	CHECK(session.connector.close_count == 1);
 	CHECK(session.backend.close_count == 1);
 	CHECK_FALSE(session.loop.is_running());
+	// Same CLOSED code as a normal close, but Python never said goodbye.
+	CHECK_FALSE(session.loop.ended_normally());
 }
 
 TEST_CASE("stop closes the backend and connector once and is safe to repeat", "[connector]") {
