@@ -6,8 +6,9 @@ extends ScholaEnvironment
 @export var maximum_steps: int = 500 # Zero disables the step limit.
 const LOCATION_SCALE := 5.0
 const OFF_TRACK_PENALTY := -10.0
+const DEFAULT_MAXIMUM_TRACK_DISTANCE := 10.0
 @export var terminate_off_track := true
-@export var maximum_track_distance: float = 10.0
+@export var maximum_track_distance: float = DEFAULT_MAXIMUM_TRACK_DISTANCE
 @export var terminate_on_tilt := true
 @export var maximum_tilt_degrees: float = 10.0
 
