@@ -375,6 +375,7 @@ def onnx_model_checker():
 
         # check the metadata of the model (embedded on state inputs)
         if metadata is not None:
+            model_metadata = {prop.key: prop.value for prop in model.metadata_props}
             found_metadata = 0
             for inp in model.graph.input:
                 if inp.name in metadata:
@@ -389,6 +390,11 @@ def onnx_model_checker():
                     assert found_metadata_key == len(
                         inp_metadata
                     ), f"Expected to find {len(inp_metadata)} metadata keys for {inp.name}. Found {found_metadata_key}"
+                    for key, value in inp_metadata.items():
+                        global_key = f"{inp.name}.{key}"
+                        assert (
+                            model_metadata.get(global_key) == value
+                        ), f"Global metadata {global_key} should be {value!r}"
                     found_metadata += 1
             assert found_metadata == len(
                 metadata
