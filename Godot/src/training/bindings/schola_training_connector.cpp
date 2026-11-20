@@ -134,7 +134,7 @@ void ScholaTrainingConnector::_physics_process(double p_delta) {
 void ScholaTrainingConnector::_exit_tree() {
 	if (loop.is_running()) {
 		finish(schola::Status::error(schola::StatusCode::CLOSED,
-						   "ScholaTrainingConnector left the scene tree, so Godot closed the training session."),
+					   "ScholaTrainingConnector left the scene tree, so Godot closed the training session."),
 				false);
 	}
 }
