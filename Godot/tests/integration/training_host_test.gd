@@ -105,6 +105,19 @@ func test_invalid_environment_names_node_and_public_diagnostic() -> void:
 	assert_str(_status_message(result)).contains("Add a ScholaAgent node")
 
 
+func test_status_message_keeps_non_ascii_node_names() -> void:
+	var root := _test_root()
+	var environment := TestEnvironment.new() as ScholaEnvironment
+	environment.name = "环境Ünïcode"
+	root.add_child(environment)
+	var host := _add_host(root)
+
+	var result := host.initialize_session()
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_str(_status_message(result)).contains("环境Ünïcode")
+
+
 func test_discovery_order_becomes_stable_environment_ids() -> void:
 	var root := _test_root()
 	_add_environment(root, "FirstEnvironment", "first_agent")
