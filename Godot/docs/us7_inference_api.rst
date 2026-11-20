@@ -128,8 +128,11 @@ A few rules keep this safe:
 - The ``agents`` list is only read when the game starts. After that, use ``add_agent()``.
 - Add an agent to the scene before calling ``add_agent()``. Otherwise it returns
   ``ERR_INVALID_PARAMETER``.
-- To remove an agent inside ``_observe()`` or ``_act()``, use ``queue_free()``. Removing it
-  immediately can skip an agent or give one the wrong action for that frame.
+- Inside ``_observe()`` or ``_act()``, defer additions with
+  ``stepper.call_deferred("add_agent", agent)``. Immediate additions return ``ERR_BUSY``.
+- Prefer ``queue_free()`` when removing agents inside those callbacks. Immediate removal
+  interrupts the current step with an error before any later agent acts; actions already
+  applied are not rolled back. The next step uses the remaining agents.
 - ``remove_child()`` and ``reparent()`` also remove the agent from the stepper. Call ``add_agent()``
   again afterwards.
 - Do not call ``free()`` on the stepper or its parent from an agent's ``_observe()`` or ``_act()``.
