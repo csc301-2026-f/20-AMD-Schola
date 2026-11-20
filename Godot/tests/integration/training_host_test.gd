@@ -16,6 +16,19 @@ const AUTORESET_SAME_STEP := 0
 const AUTORESET_NEXT_STEP := 1
 const AUTORESET_DISABLED := 2
 
+
+class StepCountEnvironment extends TestEnvironment:
+	var reset_steps: Array[int] = []
+
+	func _reset_episode(seed: Variant, options: Dictionary) -> void:
+		reset_steps.append(get_episode_step())
+		super._reset_episode(seed, options)
+
+
+class StepCountAgent extends TestAgent:
+	func _observe() -> Variant:
+		return get_parent().get_episode_step()
+
 var _previous_scene: Node
 
 
@@ -78,6 +91,43 @@ func _start(host: ScholaTrainingHost, autoreset_mode := AUTORESET_DISABLED) -> D
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.set_autoreset_mode(autoreset_mode))).is_equal(STATUS_OK)
 	return host.define()
+
+
+func test_reset_callbacks_and_initial_observations_see_zero_completed_steps(
+	autoreset_mode: int,
+	_test_parameters := [[AUTORESET_DISABLED], [AUTORESET_SAME_STEP], [AUTORESET_NEXT_STEP]]
+) -> void:
+	var root := _test_root()
+	var environment := StepCountEnvironment.new()
+	var agent := StepCountAgent.new()
+	agent.agent_id = "clock"
+	agent.observation_space = _space()
+	agent.action_space = _space()
+	environment.add_child(agent)
+	root.add_child(environment)
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host, autoreset_mode))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var action := {"actions": [{"clock": 0}]}
+	assert_int(_status_code(host.step(action))).is_equal(STATUS_OK)
+	var terminal := host.step(action)
+	assert_int(_status_code(terminal)).is_equal(STATUS_OK)
+
+	var observation: Variant
+	if autoreset_mode == AUTORESET_DISABLED:
+		var reset := host.reset({})
+		assert_int(_status_code(reset)).is_equal(STATUS_OK)
+		observation = reset.value[0]["clock"].observation
+	elif autoreset_mode == AUTORESET_SAME_STEP:
+		observation = terminal.value.initial_state[0]["clock"].observation
+	else:
+		var reset_step := host.step(action)
+		assert_int(_status_code(reset_step)).is_equal(STATUS_OK)
+		observation = reset_step.value.state[0]["clock"].observation
+
+	assert_array(environment.reset_steps).contains_exactly([0, 0])
+	assert_int(observation).is_equal(0)
+	assert_int(environment.get_episode_step()).is_equal(0)
 
 
 func test_empty_scene_returns_actionable_status() -> void:

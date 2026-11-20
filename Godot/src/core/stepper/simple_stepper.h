@@ -38,6 +38,8 @@ private:
 	};
 
 	Policy *policy = nullptr;
+	bool stepping = false;
+	uint64_t entries_revision = 0;
 	std::vector<Entry> entries;
 	Space observation_space;
 	Space action_space;
