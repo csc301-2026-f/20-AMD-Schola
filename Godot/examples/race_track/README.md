@@ -1,50 +1,142 @@
-# RaceTrack example (US13 draft)
+# RaceTrack example
 
-A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAndSDKs/ScholaExamples/tree/main/Content/Examples/RaceTrack): a car learns to drive around a track. It is the US13 production example: it trains through Schola's Python tools over gRPC and runs the exported ONNX policy in Godot with Python closed.
+A Godot port of AMD's [RaceTrack example](https://github.com/GPUOpen-LibrariesAndSDKs/ScholaExamples/tree/main/Content/Examples/RaceTrack): a car learns to drive around a track. It is the [US13](../../docs/user_stories/US13.md) production example: it trains through Schola's Python tools over gRPC and runs the exported ONNX policy in Godot with Python closed.
 
-The original example was derived from AMD’s Unreal assets. This local version deliberately changes course size, vehicle handling, and starting position for an arcade driving demo.
+The original example was derived from AMD's Unreal assets. This version deliberately changes course size, vehicle handling, and starting position for an arcade driving demo.
 
-## Local component demo
+## Quick start: watch the trained policy
 
-Open this worktree's `Godot/project.godot`, then open
-`res://examples/race_track/scenes/component_demo.tscn` and press F6.
-W applies throttle, S applies brakes, A/D steer, and R resets the episode.
-Above 7 m/s (about 25 km/h), tap S while turning to initiate a mild drift.
-Rear grip and lateral stabilization ease down, with a small capped yaw assist;
-release the brake and keep steering to sustain it. Straighten out for 0.25 s
-or slow below 4.5 m/s to recover grip smoothly. Drift yaw assistance is stronger
-than normal cornering, with a 2 rad/s assist limit. The HUD shows drift
-blend percentage, and small fading dust puffs behind the rear tires show when
-they are sliding on the ground. Drift thresholds, grip fractions and yaw assist are Inspector
-settings on the car’s `arcade_vehicle.gd` script.
-The mechanic reads physics control properties, so policy actions trigger it too.
-The HUD shows native host steps, speed, track observations, velocity, and reward.
-This is a keyboard controller through `ScholaTrainingHost`, not a trained policy.
-The keyboard scene disables off-track, tilt, and step-limit endings; press R to
-reset. The training scene retains configurable episode limits.
+1. Build both native extensions using the setup in the [Godot README](../../README.md#build-and-run).
+2. Open `Godot/project.godot` in Godot 4.7.2.
+3. Open `res://examples/race_track/scenes/race_track_inference.tscn` and press F6.
+
+The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
+
+## Results
+
+`evaluate.gd` drives the inference scene for one 50-second episode without Python and reports the metres driven along the track. One lap is about 452 m.
+
+| Policy | Distance in 50 s | Laps |
+|---|---|---|
+| Committed policy (`policies/race_track.onnx`) | 724.7 m | 1.60 |
+| Random actions (seeded uniform steering and pedal) | 57.4 m | 0.13 |
+| Untrained exported fixture (`tests/inference/fixtures/schola_ppo_race_car.onnx`) | 0.0 m | 0.00 |
+
+All three stayed on the track. Physics runs at a fixed 60 Hz, so repeated runs give the same numbers. Reproduce them from the repository root:
+
+```sh
+godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/evaluate.gd
+```
+
+Pass ONNX paths, or `random`, after `--` to score other policies:
+
+```sh
+godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/evaluate.gd -- res://examples/race_track/policies/race_track.onnx random
+```
+
+The script exits with status 1 if a policy cannot run. In CI, `tests/integration/race_track_inference_test.gd` checks that the inference scene points at the committed policy and drives the car with a Schola-exported stand-in policy.
+
+## Train your own policy
+
+### Set up Python
+
+Install the training dependencies from the repository root with Python 3.12, then import the project once:
+
+```sh
+# Linux and macOS
+uv venv --python 3.12 Godot/.venv
+uv pip install --python Godot/.venv/bin/python -e 'Resources/python[sb3]'
+godot --headless --path Godot --import
+```
+
+```powershell
+# Windows
+uv venv --python 3.12 Godot\.venv
+uv pip install --python Godot\.venv\Scripts\python.exe -e "Resources/python[sb3]"
+godot --headless --path Godot --import
+```
+
+In the commands below, Windows users replace `Godot/.venv/bin/python` with `Godot\.venv\Scripts\python.exe`.
+
+### Train and export
+
+From the repository root:
+
+```sh
+Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --steps 100000
+```
+
+The script launches the training scene, connects on localhost port 8000, and trains Stable-Baselines3 PPO with the composed dictionary observations and actions. Each action advances one physics frame at a fixed 60 Hz.
+
+Every 25,000 steps, and once at the end, it starts a second copy of the scene on the next port (8001) and test-drives the current policy for one 50-second episode without random actions. The score is roughly the metres driven along the track, minus 10 if the car crashed or got stuck. Training is noisy, so a later policy can drive worse than an earlier one. Only a policy that beats the best score so far is saved, as `race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at any time and keep the best policy.
+
+Saving replaces the committed `race_track.onnx`; `git restore Godot/examples/race_track/policies/race_track.onnx` brings it back. The script closes its Godot processes when training finishes or fails.
+
+Options:
+
+- `--port N` uses ports N and N+1 instead of 8000 and 8001.
+- `--godot PATH` points at Godot when it is not on PATH as `godot`.
+- Omit `--headless` to watch; each test drive then opens its own window.
+
+### Run the exported policy
+
+Open `race_track_inference.tscn` and press F6, or score it with `evaluate.gd` as in [Results](#results).
+
+### Continue training
+
+Continue training the saved best policy rather than starting over:
+
+```sh
+Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --resume --steps 300000
+```
+
+`--steps` is the number of additional training steps when resuming. The saved policy is test-driven first, and a new policy replaces it only if it scores higher. Resuming needs `race_track.zip` from your own training run; only the ONNX model is committed.
+
+## Checks
+
+A short training run checks the whole Python pipeline. It first runs 600 gRPC steps and checks for finite observations and rewards, acceleration, and episode autoreset. It then performs a short PPO update, test-drives the result and exports ONNX. It does not show that the policy has learned to finish a lap.
+
+```sh
+Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --smoke --steps 1024
+```
+
+A deterministic handling check drives the keyboard demo for 360 native steps. It checks observation shapes, acceleration, turning, upright stability and vehicle motion, and verifies brake-triggered drift and that reset clears velocity and all controls.
+
+```sh
+godot --headless --path Godot --fixed-fps 60 res://examples/race_track/scenes/component_demo.tscn -- --race-track-smoke
+```
+
+The integration tests `race_track_inference_test.gd`, `race_track_training_scene_test.gd` and `vehicle_components_test.gd` under `Godot/tests/integration/` check the inference scene, the training scene's configuration and spaces, and the reusable sensors and actuator. The training-scene suite needs the training extension and is skipped without it.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Cannot get class 'ScholaTrainingConnector'` or `'ScholaInferenceStepper'` when a scene opens | The native extensions are missing or out of date. Rebuild both with the default SCons target in the [Godot README](../../README.md#build-and-run). `ScholaTrainingConnector` comes from the training extension, which needs the gRPC package. |
+| `train.py` cannot find Godot | Pass `--godot` with the full path to the Godot executable. On Windows, use the `_console.exe` build so Godot's output appears in the terminal. |
+| `train.py` cannot connect, or the connector reports that the port is in use | Another process holds port 8000 or 8001. Pass `--port` with a free port; test drives use the next one. |
+| `ScholaTrainingConnector: ...` error after 45 seconds | Godot waited `start_timeout_sec` (45 s by default) for Python to connect. Start the scene through `train.py`, or check the port. |
+| The policy cannot load, and `policies/race_track.onnx` is only a small text file | The policy is stored with Git LFS and has not been downloaded. Run `git lfs install` and `git lfs pull` from the repository root. |
+| The inference scene reports `inference_failed`, or the policy's spaces do not match | The ONNX model was trained for a different observation or action layout. Renaming, reordering or reconfiguring the Track, Velocity or Controls components, or changing the look-ahead distance, needs a newly trained policy. |
+| `--resume` fails to find `race_track.zip` | Only the ONNX model is committed. Train once without `--resume` first. |
+
+## Keyboard demo
+
+Open `res://examples/race_track/scenes/component_demo.tscn` and press F6. W applies throttle, S applies brakes, A/D steer, and R resets the episode. This is a keyboard controller through `ScholaTrainingHost`, not a trained policy. The HUD shows native host steps, speed, track observations, velocity, and reward.
+
+Above 7 m/s (about 25 km/h), tap S while turning to start a mild drift. Rear grip and lateral stabilization ease down, with a small capped yaw assist; release the brake and keep steering to sustain it. Straighten out for 0.25 s or slow below 4.5 m/s to recover grip smoothly. Drift yaw assistance is stronger than normal cornering, with a 2 rad/s assist limit. The HUD shows the drift blend percentage, and small fading dust puffs behind the rear tires show when they are sliding. Drift thresholds, grip fractions and yaw assist are Inspector settings on the car's `arcade_vehicle.gd` script. The mechanic reads physics control properties, so policy actions trigger it too.
+
+The keyboard scene disables off-track, tilt, stall, and step-limit endings; press R to reset. The training scene keeps its configurable episode limits.
+
+## How the agent is composed
 
 The agent composes child nodes in this order:
 
 1. **Track** (`ScholaPathSensor3D`): six track-relative floats sampled 10 m ahead of the car, from a reusable sensor accepting any `Path3D`.
 2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
-3. **Controls** (`RaceTrackControls`): two actions through the reusable
-   `ScholaVehicleActuator3D`, with the original vehicle steering/throttle/brake gain
-   and smoothing. It also keeps the last action for the on-screen action display.
+3. **Controls** (`RaceTrackControls`): two actions through the reusable `ScholaVehicleActuator3D`, with the original vehicle steering/throttle/brake gain and smoothing. It also keeps the last action for the on-screen action display.
 
-The agent script only handles placement/reset. It has no `_observe` or `_act`
-overrides, so the native adapter dispatches the child components.
-
-A deterministic headless check drives 360 native steps, checks observation shapes, acceleration, turning, upright stability
-and vehicle motion, and verifies brake-triggered drift and that reset clears velocity and all controls:
-
-```sh
-godot --headless --path Godot res://examples/race_track/scenes/component_demo.tscn -- --race-track-smoke
-```
-
-## Training and inference status
-
-- **Inference** runs the trained policy committed at `policies/race_track.onnx` (stored with Git LFS).
-- **Training** uses the native `ScholaTrainingConnector` over gRPC and Schola’s SB3 Python environment. The connector creates its own training host. See the commands below.
+The agent script only handles placement and reset. It has no `_observe` or `_act` overrides, so the native adapter dispatches the child components.
 
 ## Files
 
@@ -54,30 +146,23 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 | `scenes/car.tscn` | The car, its wheels and camera, and its `ScholaAgent` | `RaceTrackAgent`, a `SportsCar` |
 | `scenes/race_track_train.tscn` | Track, a `ScholaEnvironment` with the car, and `ScholaTrainingConnector` | `Maps/RaceTrackTrain` |
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
+| `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
+| `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel and pedals showing the agent's actions | None |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, and start position | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
-| `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
-| `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
 | `scripts/race_track_controls.gd` | The car's vehicle actuator, which also keeps the last action | None |
-| `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel and pedals showing the agent's actions | None |
+| `scripts/evaluation.gd`, `evaluate.gd` | Python-free policy scoring and the random-action baseline | None |
+| `train.py` | PPO training, test drives, best-policy saving, and ONNX export | None |
+| `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
 
 ## Track and car
 
-- Course control points and handles use 45% of the original dimensions; road
-  width stays 10 m so the car still has room to turn. The loop ends at its start.
-- Both road edges have 1.2 m tall, 0.5 m thick solid walls, sampled every 1.5 m
-  with overlapping collision boxes. The start is on the centerline.
-- The 900 kg car has a shorter body, low center of mass, damped suspension,
-  grounded lateral grip and speed-dependent downforce. Pitch and roll are locked
-  for predictable flat-track arcade handling, while yaw and collisions remain physical.
-  This intentionally does not model banked tracks, loops, or realistic aerial rotation.
-- Full normalized input is 1, steering is limited to 28 degrees, and steering
-  reduces to 25% at 18 m/s. Engine force fades toward a 28 m/s top speed.
-  Braking remains available at that speed. Suspension and grip are scene/script settings.
-- `arcade_vehicle.gd` owns grounded grip; the reusable actuator owns controls,
-  optional speed-sensitive steering and optional engine speed limiting. These
-  speed options default to disabled for other scenes.
+- Course control points and handles use 45% of the original dimensions; road width stays 10 m so the car still has room to turn. The loop ends at its start.
+- Both road edges have 1.2 m tall, 0.5 m thick solid walls, sampled every 1.5 m with overlapping collision boxes. The start is on the centerline.
+- The 900 kg car has a shorter body, low center of mass, damped suspension, grounded lateral grip and speed-dependent downforce. Pitch and roll are locked for predictable flat-track arcade handling, while yaw and collisions remain physical. This intentionally does not model banked tracks, loops, or realistic aerial rotation.
+- Full normalized input is 1, steering is limited to 28 degrees, and steering reduces to 25% at 18 m/s. Engine force fades toward a 28 m/s top speed. Braking remains available at that speed. Suspension and grip are scene/script settings.
+- `arcade_vehicle.gd` owns grounded grip; the reusable actuator owns controls, optional speed-sensitive steering and optional engine speed limiting. These speed options default to disabled for other scenes.
 
 ## Spaces
 
@@ -90,96 +175,28 @@ godot --headless --path Godot res://examples/race_track/scenes/component_demo.ts
 
 1. The point on the track centre 10 m ahead of the closest point, divided by 5 m (values 1-3).
 2. The track direction at that point (values 4-6).
-
-Looking 10 m ahead lets the car see a corner before it reaches it. With only the
-closest point, the car noticed the hairpin too late to brake and got stuck on its wall.
 3. The car's velocity, divided by 2 m/s (values 7-9).
-The old trailing constant zero is removed. Track features retain bounds of
-[-100000, 100000]; velocity is unbounded and divided by 2 m/s.
 
-**Policy compatibility:** these dictionary spaces replace the original flat Box
-spaces. Train and export a fresh policy for this layout; old ONNX policies are
-not assumed compatible. Renaming or reordering components also changes the layout.
-Changing the look-ahead distance changes what the track values mean, so it also
-needs a freshly trained policy.
+Looking 10 m ahead lets the car see a corner before it reaches it. With only the closest point, the car noticed the hairpin too late to brake and got stuck on its wall. Track features keep bounds of [-100000, 100000]; velocity is unbounded.
 
 **Action:**
 
 1. Steering; positive turns right.
 2. Throttle when positive, brake when negative.
 
-Inputs are normalized in [-1, 1] and smoothed before reaching the physics body.
-The keyboard supplies full throttle/brake or steering; speed-sensitive steering
-limits abrupt high-speed direction changes.
+Inputs are normalized in [-1, 1] and smoothed before reaching the physics body. Speed-sensitive steering limits abrupt high-speed direction changes.
+
+**Policy compatibility:** these dictionary spaces replace the original flat Box spaces, so policies trained for AMD's Unreal example are not compatible. Renaming, reordering or reconfiguring components changes the layout, and changing the look-ahead distance changes what the track values mean; both need a newly trained policy.
 
 ## Episode and reward
 
 - **Reset:** the car returns to its start and stops.
 - **Terminated:** the car is 10 m or more from the track centre, or rolled more than 10°. The reward for that step is -10.
-- **Training episodes:** truncated after 3000 steps (50 simulated seconds). Two seconds without forward progress ends the episode with -10, so a car stuck at a wall resets. The keyboard demo disables stall endings.
-- **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track.
+- **Training episodes:** truncated after 3000 steps (50 simulated seconds). Two seconds without forward progress ends the episode with -10, so a car stuck at a wall resets.
+- **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track. Progress wraps at the start/finish line, so completing a lap does not produce a track-length penalty.
 
 AMD's Blueprint updates its stored track distance before computing progress, so its progress reward is always 0. This example rewards progress instead.
 
 ## Action display
 
-The training and inference scenes show the agent's latest action in the
-bottom-left corner: a steering wheel that turns with the steering action, and
-brake and gas pedals that fill with the pedal action. It shows the action the
-model chose, before the car smooths it. During training, PPO adds random
-exploration, so the wheel and pedals jump between steps; the trained policy in
-the inference scene moves them smoothly.
-
-## Running
-
-Open `Godot/project.godot`, open `res://examples/race_track/scenes/race_track_inference.tscn`, and run it (F6) to watch the committed trained policy drive. The policy is stored with Git LFS. If `policies/race_track.onnx` is only a small text file, the policy cannot load: run `git lfs install` and `git lfs pull` from the repository root.
-
-Build both native extensions using the setup in `Godot/README.md`. Install Python
-training dependencies from the repository root (Python 3.12):
-
-```sh
-uv venv --python 3.12 Godot/.venv
-uv pip install --python Godot/.venv/bin/python -e 'Resources/python[sb3]'
-godot --headless --path Godot --import
-```
-
-Train and export from the repository root:
-
-```sh
-Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --steps 100000
-```
-
-The script launches the training scene, connects on localhost port 8000, and trains
-PPO with the composed dictionary observations/actions. Every 25,000 steps, and once
-at the end, it starts a second copy of the scene on the next port (8001) and
-test-drives the current policy for one 50-second episode without random actions.
-The score is roughly the metres driven along the track, minus 10 if the car crashed
-or got stuck; one lap is 452 m. Training is noisy, so a later policy can drive worse
-than an earlier one. Only a policy that beats the best score so far is saved, as
-`race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at
-any time and keep the best policy. Saving replaces the committed `race_track.onnx`;
-`git restore Godot/examples/race_track/policies/race_track.onnx` brings it back. Use
-`--port` for another port, `--godot /path/to/godot` when Godot is not on PATH, and omit
-`--headless` to watch; each test drive then opens its own window.
-Each action advances one physics frame at a fixed 60 Hz simulation timestep.
-The script closes its Godot process when training/export finishes or fails.
-
-For a short integration check, add `--smoke --steps 1024`. This first checks 600
-gRPC steps for finite observations/rewards, acceleration and episode autoreset,
-then performs a short PPO update, test-drives it and exports ONNX. A short run checks the
-pipeline; it does not establish that the policy has learned to finish a lap.
-
-Open `race_track_inference.tscn` with F6 after export to run the model without
-Python. Progress rewards wrap at the start/finish line so completing a lap does
-not produce a track-length penalty.
-
-Continue training the saved best policy rather than starting over:
-
-```sh
-Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --resume --steps 300000
-```
-
-`--steps` is the number of additional training steps when resuming. The saved
-policy is test-driven first, and a new policy replaces it only if it scores higher.
-Resuming needs `race_track.zip` from your own training run; only the ONNX model is
-committed.
+The training and inference scenes show the agent's latest action in the bottom-left corner: a steering wheel that turns with the steering action, and brake and gas pedals that fill with the pedal action. It shows the action the model chose, before the car smooths it. During training, PPO adds random exploration, so the wheel and pedals jump between steps; the trained policy in the inference scene moves them smoothly.
