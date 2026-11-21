@@ -95,9 +95,8 @@ Step 2: Create the Policy
 Create a :cpp:class:`ScholaOnnxPolicy` resource (**New Resource > ScholaOnnxPolicy**) and save it as a
 ``.tres`` file:
 
-- ``model_path`` - The ``.onnx`` file, for example ``res://models/agent.onnx``
-- ``max_state_sequence_length`` - Only for recurrent models with a sequence of states; see
-  `Recurrent ONNX Models`_
+- ``model_path`` - The ``.onnx`` file, for example ``res://models/agent.onnx``. Recurrent models
+  take their state sequence length from the model itself; see `Recurrent ONNX Models`_
 
 One policy resource can serve any number of agents that share the same spaces.
 
@@ -175,10 +174,10 @@ For a custom loop, such as a turn-based game, call the policy directly:
             schola::Point action = definition.action_space.make_point();
             policy.think(observation, *state, action);
 
-``initialize()`` loads the model if none is loaded yet, or if ``model_path`` or
-``max_state_sequence_length`` changed since the last load. It then reads the agent's spaces and
-checks that they fit the model. It must be called before ``create_state()`` and ``infer()``. For a
-model without memory, the ``state`` argument of ``infer()`` can be omitted.
+``initialize()`` loads the model if none is loaded yet, or if ``model_path`` changed since the last
+load. It then reads the agent's spaces and checks that they fit the model. It must be called before
+``create_state()`` and ``infer()``. For a model without memory, the ``state`` argument of
+``infer()`` can be omitted.
 
 Call ``load()`` earlier, for example during a loading screen, to avoid a pause when the first agent
 appears, or call it again to reload after changing ``model_path``.
@@ -204,11 +203,10 @@ history comes from the model: Schola's exporter copies each state input's ``has_
 ``max_seq_len``, and ``seq_dim`` into the model metadata as ``<input>.<field>``, for example
 ``state_in_h.max_seq_len``, and the policy reads them when it loads the model.
 
-``max_state_sequence_length`` defaults to 0, which uses the declared length. A model that declares
-none uses one, and ``initialize()`` warns once that the length should be set. Any value from 1 to
-65536 overrides the model; ``initialize()`` warns once if it differs from the declared length, and
-fails if the model fixes the sequence to another size. ``get_state_sequence_lengths()`` returns the
-length each state input uses. RLlib LSTM exports declare no sequence dimension, so neither applies.
+The length cannot be set by hand. A model whose sequence dimension declares no length uses one,
+and ``initialize()`` warns once that the model should be re-exported with Schola.
+``get_state_sequence_lengths()`` returns the length each state input uses. RLlib LSTM exports declare
+no sequence dimension, so they keep a single state entry.
 
 Loading fails with a clear error if that metadata is invalid: ``has_seq_dim`` is not ``True``,
 ``true``, ``1``, ``False``, ``false`` or ``0``; ``max_seq_len`` is not an integer from 1 to 65536;
