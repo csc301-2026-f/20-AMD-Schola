@@ -8,7 +8,6 @@ import numpy as np
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.vec_env import VecMonitor
 from schola.core.protocols.protobuf.grpc_protocol import GrpcProtocol
 from schola.core.simulators.external_simulator import ExternalSimulator
@@ -48,9 +47,18 @@ def test_drive(model, godot, port):
     process = launch(godot, port, "--race-track-start-line")
     env = None
     try:
-        env = VecMonitor(connect(port))
-        score, _ = evaluate_policy(model, env, n_eval_episodes=1)
-        return score
+        env = connect(port)
+        obs = env.reset()
+        metres = 0.0
+        drifting = 0
+        done = [False]
+        while not done[0]:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, _, done, infos = env.step(action)
+            metres += float(infos[0]["progress"])
+            drifting += float(infos[0]["drift"]) > 0.5
+        print(f"Test drive: {metres:.1f} m, drifting {drifting / 60:.1f} s", flush=True)
+        return metres
     finally:
         stop(process, env)
 
@@ -74,7 +82,7 @@ class KeepBest(BaseCallback):
         steps = self.model.num_timesteps
         if score <= self.best:
             print(
-                f"Test drive after {steps} steps: {score:.1f}, best is still {self.best:.1f}",
+                f"Test drive after {steps} steps: {score:.1f} m, best is still {self.best:.1f} m",
                 flush=True,
             )
             return
@@ -86,7 +94,7 @@ class KeepBest(BaseCallback):
             action_space=self.action_space,
         )
         print(
-            f"Test drive after {steps} steps: {score:.1f}, new best saved", flush=True
+            f"Test drive after {steps} steps: {score:.1f} m, new best saved", flush=True
         )
 
 
@@ -170,7 +178,7 @@ def main():
         if args.resume:
             model = PPO.load(output / "race_track.zip", env=monitored_env, device="cpu")
             best = test_drive(model, godot, args.port + 1)
-            print(f"Saved model test drive: {best:.1f}", flush=True)
+            print(f"Saved model test drive: {best:.1f} m", flush=True)
         else:
             model = PPO(
                 "MultiInputPolicy",
@@ -191,7 +199,7 @@ def main():
         )
         keep_best.check()
         print(
-            f'Training complete, best test drive {keep_best.best:.1f}: {output / "race_track.onnx"}',
+            f'Training complete, best test drive {keep_best.best:.1f} m: {output / "race_track.onnx"}',
             flush=True,
         )
     finally:

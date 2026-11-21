@@ -12,6 +12,7 @@ const DEFAULT_MAXIMUM_TRACK_DISTANCE := 10.0
 @export var terminate_on_tilt := true
 @export var maximum_tilt_degrees: float = 10.0
 @export var random_start := false
+@export var drift_bonus := 0.25
 
 var _previous_distance := 0.0
 var _stalled_steps := 0
@@ -48,9 +49,11 @@ func _get_step_result(_agent: ScholaAgent) -> Variant:
 	_stalled_steps = _stalled_steps + 1 if progress < 0.005 else 0
 	var stalled := maximum_stalled_steps > 0 and _stalled_steps >= maximum_stalled_steps
 	var terminated := stalled or (terminate_off_track and distance_from_track >= maximum_track_distance) or (terminate_on_tilt and tilted)
-	var reward := 0.01 * exp(-pow(distance_from_track / LOCATION_SCALE, 2.0)) + progress
+	var drift := float(car.get("drift_amount"))
+	var reward := 0.01 * exp(-pow(distance_from_track / LOCATION_SCALE, 2.0)) + progress * (1.0 + drift_bonus * drift)
 	return {
 		"reward": OFF_TRACK_PENALTY if terminated else reward,
 		"terminated": terminated,
 		"truncated": maximum_steps > 0 and get_episode_step() + 1 >= maximum_steps,
+		"info": {"progress": str(progress), "drift": str(drift)},
 	}

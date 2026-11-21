@@ -16,13 +16,13 @@ The car drives with the committed policy, `policies/race_track.onnx`, which is s
 
 `evaluate.gd` drives the inference scene for one 50-second episode without Python and reports the metres driven along the track.
 
-These results are for the earlier flat 452 m track. The committed policy was trained there, before the Rays sensor was added, so it does not match the current car; retrain it for the current track as described below.
+The committed policy was trained from scratch with `train.py` for 350,000 steps, about 1 hour 45 minutes with the Godot window open.
 
 | Policy | Distance in 50 s | Laps |
 |---|---|---|
-| Committed policy (`policies/race_track.onnx`) | 724.7 m | 1.60 |
-| Random actions (seeded uniform steering and pedal) | 57.4 m | 0.13 |
-| Untrained exported fixture (`tests/inference/fixtures/schola_ppo_race_car.onnx`) | 0.0 m | 0.00 |
+| Committed policy (`policies/race_track.onnx`) | 1094.0 m | 1.21 |
+| Random actions (seeded uniform steering and pedal) | 58.6 m | 0.06 |
+| Untrained exported fixture (`tests/inference/fixtures/schola_ppo_race_car.onnx`) | 20.2 m | 0.02 |
 
 All three stayed on the track. Physics runs at a fixed 60 Hz, so repeated runs give the same numbers. Reproduce them from the repository root:
 
@@ -70,7 +70,7 @@ Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headle
 
 The script launches the training scene, connects on localhost port 8000, and trains Stable-Baselines3 PPO with the composed dictionary observations and actions. Each action advances one physics frame at a fixed 60 Hz.
 
-Training episodes start at random points on the track. Every 25,000 steps, and once at the end, the script starts a second copy of the scene on the next port (8001) and test-drives the current policy from the start line for one 50-second episode without random actions. The score is roughly the metres driven along the track, minus 10 if the car touched a wall, crashed into an obstacle or got stuck. Training is noisy, so a later policy can drive worse than an earlier one. Only a policy that beats the best score so far is saved, as `race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at any time and keep the best policy.
+Training episodes start at random points on the track. Every 25,000 steps, and once at the end, the script starts a second copy of the scene on the next port (8001) and test-drives the current policy from the start line for one 50-second episode without random actions. The score is the metres driven along the track before the episode ends, so the policy that gets farthest is kept even though training also rewards drifting. Each test drive also prints how long the car drifted. Training is noisy, so a later policy can drive worse than an earlier one. Only a policy that beats the best score so far is saved, as `race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at any time and keep the best policy.
 
 Saving replaces the committed `race_track.onnx`; `git restore Godot/examples/race_track/policies/race_track.onnx` brings it back. The script closes its Godot processes when training finishes or fails.
 
@@ -201,7 +201,7 @@ Inputs are normalized in [-1, 1] and smoothed before reaching the physics body. 
 - **Reset:** the car returns to its start and stops. In the training scene it starts at a random point instead, at least 30 m before the next obstacle, so every part of the track gets practice. Test drives (started with `--race-track-start-line`) and the inference scene start at the start line.
 - **Terminated:** the car is `maximum_track_distance` or more from the track centre, or tilted more than `maximum_tilt_degrees`. The reward for that step is -10. The training scene uses 4.5 m, so touching a wall ends the episode, and 60°, so hills and jumps don't.
 - **Training episodes:** truncated after 3000 steps (50 simulated seconds). Two seconds without forward progress ends the episode with -10, so a car stuck at an obstacle resets.
-- **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track. Progress wraps at the start/finish line, so completing a lap does not produce a track-length penalty.
+- **Reward on other steps:** `0.01 * exp(-(distance from centre / 5 m)^2)` plus the metres moved along the track, multiplied by `1 + drift_bonus * drift amount`. `drift_bonus` is 0.25 and the drift amount goes from 0 to 1, so drifting pays up to 25% more per metre, but only while the car moves forward; a drift that loses distance never pays. Each step's info reports `progress` and `drift`, which `train.py` uses to score test drives in metres. Progress wraps at the start/finish line, so completing a lap does not produce a track-length penalty.
 
 AMD's Blueprint updates its stored track distance before computing progress, so its progress reward is always 0. This example rewards progress instead.
 
