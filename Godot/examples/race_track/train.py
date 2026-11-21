@@ -1,6 +1,4 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
-"""Train the race track with Schola's native gRPC connector and save the best policy as ONNX."""
-
 import argparse
 import math
 from pathlib import Path
@@ -93,7 +91,9 @@ class KeepBest(BaseCallback):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Train the race track with Schola's native gRPC connector and save the best policy as ONNX."
+    )
     parser.add_argument("--godot", default="godot", help="Godot executable path")
     parser.add_argument("--steps", type=int, default=100_000)
     parser.add_argument(
