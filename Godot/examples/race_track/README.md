@@ -79,7 +79,13 @@ Options:
 - `--port N` uses ports N and N+1 instead of 8000 and 8001.
 - `--godot PATH` points at Godot when it is not on PATH as `godot`.
 - Omit `--headless` to watch; each test drive then opens its own window.
-- `--attach` trains a scene you started yourself instead of launching one. Open `race_track_train.tscn` in the editor, press F6, and start the script within 45 seconds, before the scene stops waiting for Python. The scene then runs at normal game speed, about 60 steps per second, so training is slower. Test drives still open their own Godot, so `--godot` is still needed.
+- `--attach` trains a scene you started yourself instead of launching one. Test drives still open their own Godot, so `--godot` is still needed.
+
+### Train from the editor
+
+Open `race_track_train.tscn` and press F6. Its `EditorTrainer` node starts `train.py --attach` with the Python in `Godot/.venv`, `.venv` or `venv` at the repository root, or `python` on PATH. It adds `--resume` when `policies/race_track.zip` exists, so training continues from your best policy. Python's output appears in the Output panel, and closing the game window stops Python. Set the number of training steps in the node's `steps` property; the default is 100,000.
+
+The scene runs at normal game speed, about 55 steps per second, so this is several times slower than `--headless`. The training connector waits up to 300 seconds (`step_timeout_sec`) for Python's next step, long enough for a test drive in its own window.
 
 ### Run the exported policy
 
@@ -118,7 +124,7 @@ The integration tests `race_track_inference_test.gd`, `race_track_training_scene
 | `Cannot get class 'ScholaTrainingConnector'` or `'ScholaInferenceStepper'` when a scene opens | The native extensions are missing or out of date. Rebuild both with the default SCons target in the [Godot README](../../README.md#build-and-run). `ScholaTrainingConnector` comes from the training extension, which needs the gRPC package. |
 | `train.py` cannot find Godot | Pass `--godot` with the full path to the Godot executable. On Windows, use the `_console.exe` build so Godot's output appears in the terminal. |
 | `train.py` cannot connect, or the connector reports that the port is in use | Another process holds port 8000 or 8001. Pass `--port` with a free port; test drives use the next one. |
-| `ScholaTrainingConnector: ...` error after 45 seconds | Godot waited `start_timeout_sec` (45 s by default) for Python to connect. Start the scene through `train.py`, or check the port. |
+| `ScholaTrainingConnector: ...` error after 45 seconds | Godot waited `start_timeout_sec` (45 s by default) for Python to connect. Start the scene through `train.py`, or press F6 on `race_track_train.tscn` and check the Output panel for Python errors. |
 | The policy cannot load, and `policies/race_track.onnx` is only a small text file | The policy is stored with Git LFS and has not been downloaded. Run `git lfs install` and `git lfs pull` from the repository root. |
 | The inference scene reports `inference_failed`, or the policy's spaces do not match | The ONNX model was trained for a different observation or action layout. Renaming, reordering or reconfiguring the Track, Velocity, Rays or Controls components, or changing the look-ahead distance, needs a newly trained policy. |
 | `--resume` fails to find `race_track.zip` | Only the ONNX model is committed. Train once without `--resume` first. |
@@ -158,6 +164,7 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scripts/race_track_controls.gd` | The car's vehicle actuator, which also keeps the last action | None |
 | `scripts/evaluation.gd`, `evaluate.gd` | Python-free policy scoring and the random-action baseline | None |
 | `train.py` | PPO training, test drives, best-policy saving, and ONNX export | None |
+| `scripts/editor_trainer.gd` | Starts `train.py` when the training scene is played from the editor | None |
 | `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
 
 ## Track and car
