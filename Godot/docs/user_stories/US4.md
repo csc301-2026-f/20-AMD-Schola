@@ -1,8 +1,8 @@
 # US4: Execute the episode lifecycle
 
 - **Owner:** Shahyar
-- **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Status:** Complete on main; dynamic populations and pause/resume open in PR #52
+- **Last updated:** Nov. 21, 2026
 
 ## Story
 
@@ -19,7 +19,7 @@ As an ML practitioner, I want Schola to coordinate observations, actions, reward
 
 ## Progress
 
-- The Godot training lifecycle host merged in [PR #32](https://github.com/csc301-2026-f/20-AMD-Schola/pull/32) ([`80dbfa0`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/80dbfa0)). Lifecycle changes for dynamic agent populations are open in [PR #52](https://github.com/csc301-2026-f/20-AMD-Schola/pull/52).
+- The Godot training lifecycle host merged in [PR #32](https://github.com/csc301-2026-f/20-AMD-Schola/pull/32) ([`80dbfa0`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/80dbfa0)). Dynamic populations and training pause/resume are open in [PR #52](https://github.com/csc301-2026-f/20-AMD-Schola/pull/52).
 - `ScholaTrainingHost` is fully implemented. It discovers environment nodes and constructs one lifecycle per environment.
 - Session initialization is atomic: a failure does not expose a partially initialized session.
 - Godot-facing host operations enforce main-thread execution.
@@ -32,3 +32,9 @@ As an ML practitioner, I want Schola to coordinate observations, actions, reward
 ## Ownership boundary
 
 US4 owns episode coordination and the Godot training host. Python client connectivity, gRPC transport, and Python-to-Godot integration testing belong to US3 and do not block US4 completion.
+
+## Recent fixes and open validation
+
+[PR #64](https://github.com/csc301-2026-f/20-AMD-Schola/pull/64) merged on Nov. 20 and resets the episode step count before `_reset_episode()` and the initial observation, including all autoreset modes. [PR #66](https://github.com/csc301-2026-f/20-AMD-Schola/pull/66) preserves non-ASCII text in host status messages.
+
+[PR #52](https://github.com/csc301-2026-f/20-AMD-Schola/pull/52) remains open with merge conflicts. Its fake-protocol and native tests do not replace a real RLlib sampler run covering all agents paused, resumption, and population changes across resets. This enhancement does not undo completion of the fixed-population lifecycle baseline.

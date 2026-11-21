@@ -1,8 +1,8 @@
 # US5: Configure Schola through Godot-native tools
 
 - **Owner:** Vansh
-- **Status:** Native configuration merged
-- **Last updated:** Nov. 17, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 21, 2026
 
 ## Story
 

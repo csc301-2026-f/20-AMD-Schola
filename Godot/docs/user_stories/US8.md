@@ -1,9 +1,9 @@
 # US8: Compose agents from reusable sensors and actuators
 
 - **Owner:** Guneev
-- **Status:** Implemented on feature branch; PR open
+- **Status:** Complete on main (PR #51)
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 21, 2026
 
 ## Story
 
@@ -26,7 +26,11 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 ## Progress
 
-[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) also uses these components in its RaceTrack branch.
+[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) merged on Nov. 18. Main contains native sensor/actuator base nodes, deterministic scene-tree composition, reusable ray-cast and movement components, GDScript extension hooks, configuration diagnostics, and the component playground. Direct agent hooks remain supported.
+
+The PR reports 116 core, 31 inference, 21 transport and 103 Godot integration test cases passing on Linux, plus the playground smoke check. These are recorded PR results, not fresh test runs performed for this status update. Interactive Inspector, other-platform and exported-build checks were not performed in that PR's validation.
+
+Real and fake camera infrastructure is also on main; the remaining camera workflow is tracked under [US11](US11.md). Draft [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) adds RaceTrack-specific use and further reusable components; those additions are not yet merged.
 
 ## Scope limits
 

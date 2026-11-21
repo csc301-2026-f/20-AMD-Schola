@@ -2,12 +2,17 @@
 
 This document records work that is not represented as a separate active user story. Items here are not commitments. They should become stories only when a concrete user outcome, AMD priority, and maintainable cross-engine design justify the additional scope.
 
+Last checked: Nov. 21, 2026. See the [story tracker](README.md) for merged/open PR evidence.
+
 ## Required integration and release work
 
 These tasks complete or validate existing stories rather than introducing new product capabilities:
 
-- Land the scene-level connector from [US3](US3.md) and connect it to the [US13 RaceTrack example](US13.md).
-- Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. Include the simultaneous-agent training run tracked in [US12](US12.md).
+- The [US3](US3.md) scene connector is merged. Finish and merge the [US12](US12.md) reconnect/multi-agent work and the [US13 RaceTrack example](US13.md), which already uses the production connector on its branch.
+- Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. US13 still needs retraining with recorded steps/scores and another seed; US12 still needs an actual RLlib CLI learning run on Windows/Linux. Random-action episodes and a committed ONNX policy are separate evidence.
+- Complete review and merge of [US11](US11.md) and [US15](US15.md), including their outstanding camera-training and post-conflict checks.
+- Validate the open US1/US4 dynamic-population extension (PR #52) with the actual RLlib sampler: all agents paused, resumption, and population changes across resets. Resolve its merge conflicts and rerun tests.
+- Retain the [US10](US10.md) live-stacking-training check and [US14](US14.md) upstream-blocked recurrent-trainer fixture as explicit validation gaps after implementation merge.
 - Document the approved move from the specification's preferred C# implementation to the C++ GDExtension architecture.
 - Maintain setup, usage, architecture, troubleshooting, and packaging documentation.
 - Verify error behavior and Inspector configuration warnings consistently across Godot-facing APIs.
@@ -19,7 +24,7 @@ These tasks complete or validate existing stories rather than introducing new pr
 These capabilities already exist in Unreal Schola or have a clear equivalent, but are not currently proposed as course commitments:
 
 - **Parallel headless training:** Run multiple isolated environment instances in one Godot process using its supported headless mode. Validate stable environment IDs, isolated episode state, session-wide failure behavior, configuration documentation, and a simple throughput comparison. Camera observations would require a supported renderer or a clear incompatibility error. Distributed training across machines or processes remains out of scope.
-- Additional actuator types beyond the movement, rotation and teleport nodes on the US8 branch.
+- Additional actuator types beyond the movement, rotation and teleport nodes merged with US8; review new vehicle components with US13.
 - Additional non-visual sensors after the US8 composition contract is stable.
 - Text spaces and points if the shared protocol and Python consumers require them.
 - Pipelined inference, but only if profiling demonstrates that synchronous inference causes unacceptable frame stalls.

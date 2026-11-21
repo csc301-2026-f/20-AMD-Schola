@@ -1,9 +1,9 @@
 # US9: Test an environment without Python
 
 - **Owner:** Shahyar
-- **Status:** Complete
+- **Status:** Complete on main (PR #57)
 - **Priority:** Stretch goal
-- **Last updated:** Nov. 18, 2026
+- **Last updated:** Nov. 21, 2026
 
 ## Story
 
@@ -24,6 +24,8 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 - Tests demonstrate at least one complete episode, including reset and terminal-state handling.
 
 ## Progress
+
+[PR #57](https://github.com/csc301-2026-f/20-AMD-Schola/pull/57) merged on Nov. 20. The manual environment example and the native session-active query are on main. The PR reports 26 Windows headless tests passing across the example, host and UI suites. Exported-build and broader platform validation remain follow-up work.
 
 The nine focused tests and 14 host tests passed together headlessly
 on Windows after rebuilding the native runtime extension. The original five

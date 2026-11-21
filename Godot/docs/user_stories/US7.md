@@ -2,7 +2,7 @@
 
 - **Owner:** Bohdan
 - **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 21, 2026
 
 ## Story
 
@@ -27,3 +27,7 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 - Training-only dependencies are separated from the inference add-on.
 - Windows debug and release exports run the policy without Python or the training add-on.
 - The demonstration agent runs its trained policy in the D3 demo with Python closed.
+
+## Recent integration
+
+[PR #62](https://github.com/csc301-2026-f/20-AMD-Schola/pull/62) merged automatic recurrent-state sequence-length resolution; its remaining trainer fixture is tracked in [US14](US14.md). [PR #63](https://github.com/csc301-2026-f/20-AMD-Schola/pull/63) merged guards against agent-list mutation during inference callbacks. [PR #65](https://github.com/csc301-2026-f/20-AMD-Schola/pull/65) prevents Godot from importing native object files as scene assets. The new RaceTrack production example remains on draft [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) and is not counted as merged US7 evidence.
