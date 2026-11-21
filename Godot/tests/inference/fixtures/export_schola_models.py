@@ -66,6 +66,7 @@ MODELS = {
             {
                 "00000000:Track": gym.spaces.Box(-100000.0, 100000.0, (6,), np.float32),
                 "00000001:Velocity": gym.spaces.Box(-np.inf, np.inf, (3,), np.float32),
+                "00000002:Rays": gym.spaces.Box(0.0, 1.0, (27,), np.float32),
             }
         ),
         gym.spaces.Dict(
@@ -74,6 +75,10 @@ MODELS = {
         {
             "00000000:Track": np.array([[0.2, -0.1, 1.0, 0.0, 0.0, 0.3]], np.float32),
             "00000001:Velocity": np.array([[0.5, 0.0, 0.1]], np.float32),
+            "00000002:Rays": np.array(
+                [[0.0, 1.0, 0.8] * 4 + [1.0, 1.0, 0.35] + [0.0, 0.0, 0.0] * 4],
+                np.float32,
+            ),
         },
     ),
 }
