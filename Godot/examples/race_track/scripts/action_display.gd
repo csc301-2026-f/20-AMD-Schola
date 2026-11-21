@@ -9,6 +9,7 @@ const MUTED := Color(1.0, 1.0, 1.0, 0.7)
 
 @export var controls_path: NodePath
 @onready var controls: RaceTrackControls = get_node(controls_path)
+@onready var car: VehicleBody3D = controls.get_node(controls.body_path)
 var panel := StyleBoxFlat.new()
 
 
@@ -39,6 +40,9 @@ func _draw() -> void:
 	_label(font, 62.0, "STEER", direction + "%d%%" % percent)
 	_pedal(font, 140.0, maxf(-pedal, 0.0), BRAKE, "BRAKE")
 	_pedal(font, 192.0, maxf(pedal, 0.0), GAS, "GAS")
+	draw_line(Vector2(222.0, 46.0), Vector2(222.0, 166.0), EMPTY, 2.0)
+	draw_string(font, Vector2(222.0, 100.0), str(roundi(car.linear_velocity.length() * 3.6)), HORIZONTAL_ALIGNMENT_CENTER, 78.0, 34)
+	_label(font, 261.0, "SPEED", "km/h")
 
 
 func _pedal(font: Font, x: float, amount: float, color: Color, title: String) -> void:

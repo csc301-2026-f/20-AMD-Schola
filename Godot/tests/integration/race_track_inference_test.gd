@@ -45,4 +45,5 @@ func test_inference_scene_shows_the_actions_the_policy_chose() -> void:
 		await get_tree().physics_frame
 	var controls: RaceTrackControls = scene.get_node("Car/Agent/Controls")
 	assert_object(scene.get_node("ActionDisplay").controls).is_same(controls)
+	assert_object(scene.get_node("ActionDisplay").car).is_same(scene.get_node("Car"))
 	assert_float(absf(controls.action[0]) + absf(controls.action[1])).is_greater(0.0)
