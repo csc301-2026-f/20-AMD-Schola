@@ -37,12 +37,13 @@ def stop(process, env):
         if env is not None:
             env.close()
     finally:
-        process.terminate()
-        try:
-            process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+        if process is not None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
 
 
 def test_drive(model, godot, port):
@@ -106,6 +107,11 @@ def main():
     )
     parser.add_argument("--headless", action="store_true")
     parser.add_argument(
+        "--attach",
+        action="store_true",
+        help="Train a scene already running in Godot instead of launching one",
+    )
+    parser.add_argument(
         "--smoke",
         action="store_true",
         help="Check motion and autoreset before training",
@@ -123,7 +129,7 @@ def main():
     godot = [args.godot, "--path", str(project), "--fixed-fps", "60"]
     if args.headless:
         godot.append("--headless")
-    process = launch(godot, args.port)
+    process = None if args.attach else launch(godot, args.port)
     env = None
     try:
         env = connect(args.port)

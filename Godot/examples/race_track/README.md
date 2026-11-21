@@ -77,6 +77,7 @@ Options:
 - `--port N` uses ports N and N+1 instead of 8000 and 8001.
 - `--godot PATH` points at Godot when it is not on PATH as `godot`.
 - Omit `--headless` to watch; each test drive then opens its own window.
+- `--attach` trains a scene you started yourself instead of launching one. Open `race_track_train.tscn` in the editor, press F6, and start the script within 45 seconds, before the scene stops waiting for Python. The scene then runs at normal game speed, about 60 steps per second, so training is slower. Test drives still open their own Godot, so `--godot` is still needed.
 
 ### Run the exported policy
 
