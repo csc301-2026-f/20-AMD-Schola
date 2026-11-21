@@ -58,7 +58,7 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 godot::Dictionary encode_status(const schola::Status &status) {
 	godot::Dictionary dict;
 	dict["code"] = static_cast<int>(status.get_code());
-	dict["message"] = godot::String(status.get_message().c_str());
+	dict["message"] = godot::String::utf8(status.get_message().c_str());
 	return dict;
 }
 
@@ -500,11 +500,15 @@ godot::Dictionary ScholaTrainingHost::close() {
 	return encode_result(shutdown_core());
 }
 
+bool ScholaTrainingHost::is_session_active() const {
+	return session_state == SessionState::ACTIVE;
+}
+
 void ScholaTrainingHost::_exit_tree() {
 	schola::Status status = shutdown_core();
 	if (!status.is_ok()) {
 		godot::UtilityFunctions::push_error(
-				godot::String("ScholaTrainingHost shutdown failed: ") + status.get_message().c_str());
+				godot::String("ScholaTrainingHost shutdown failed: ") + godot::String::utf8(status.get_message().c_str()));
 	}
 }
 
@@ -515,4 +519,5 @@ void ScholaTrainingHost::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("reset", "request"), &ScholaTrainingHost::reset);
 	godot::ClassDB::bind_method(godot::D_METHOD("step", "request"), &ScholaTrainingHost::step);
 	godot::ClassDB::bind_method(godot::D_METHOD("close"), &ScholaTrainingHost::close);
+	godot::ClassDB::bind_method(godot::D_METHOD("is_session_active"), &ScholaTrainingHost::is_session_active);
 }

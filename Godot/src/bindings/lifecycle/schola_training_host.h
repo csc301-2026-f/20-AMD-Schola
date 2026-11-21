@@ -67,6 +67,8 @@ public:
 	 * @return A Godot result dictionary containing status and a null value.
 	 */
 	godot::Dictionary close();
+	/** @brief Whether this session still accepts operations. Call on the main thread. */
+	bool is_session_active() const;
 	/** @brief Closes the session when the host leaves the scene tree. */
 	void _exit_tree() override;
 

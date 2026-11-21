@@ -86,6 +86,11 @@ running the suite.
 
 CI runs the same suite headlessly against the supported Godot version.
 
+For manual environment debugging without Python or a transport connection,
+run the [US9 example](examples/manual_environment/README.md). It uses the
+runtime extension's existing `ScholaTrainingHost` API and supports explicit
+reset, seeded starts, individual actions, and inspection of episode results.
+
 Godot has an [upstream race](https://github.com/godotengine/godot/issues/98062) that can abort a completed headless import while editor add-ons are shutting down. If the import reaches completion and exits with status 134, rerun the import command. CI retries this step at most 3 times and still fails persistent import errors.
 
 ## Build and run
