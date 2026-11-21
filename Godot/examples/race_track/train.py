@@ -22,8 +22,8 @@ SCENE = "res://examples/race_track/scenes/race_track_train.tscn"
 TEST_DRIVE_STEPS = 25_000
 
 
-def launch(godot, port):
-    return subprocess.Popen([*godot, SCENE, "--", f"--ScholaPort={port}"])
+def launch(godot, port, *flags):
+    return subprocess.Popen([*godot, SCENE, "--", f"--ScholaPort={port}", *flags])
 
 
 def connect(port):
@@ -47,7 +47,7 @@ def stop(process, env):
 
 
 def test_drive(model, godot, port):
-    process = launch(godot, port)
+    process = launch(godot, port, "--race-track-start-line")
     env = None
     try:
         env = VecMonitor(connect(port))
@@ -142,7 +142,11 @@ def main():
         )
         if args.smoke:
             obs = env.reset()
-            assert [value.shape for value in obs.values()] == [(1, 6), (1, 3)], obs
+            assert [value.shape for value in obs.values()] == [
+                (1, 6),
+                (1, 3),
+                (1, 27),
+            ], obs
             peak_speed = 0.0
             episodes = 0
             for _ in range(600):

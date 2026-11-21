@@ -11,6 +11,7 @@ const DEFAULT_MAXIMUM_TRACK_DISTANCE := 10.0
 @export var maximum_track_distance: float = DEFAULT_MAXIMUM_TRACK_DISTANCE
 @export var terminate_on_tilt := true
 @export var maximum_tilt_degrees: float = 10.0
+@export var random_start := false
 
 var _previous_distance := 0.0
 var _stalled_steps := 0
@@ -21,8 +22,19 @@ var _stalled_steps := 0
 
 func _reset_episode(_seed: Variant, _options: Dictionary) -> void:
 	_stalled_steps = 0
-	agent.place_at_start()
+	if random_start and not "--race-track-start-line" in OS.get_cmdline_user_args():
+		agent.place(agent.track.transform_at(_clear_offset()))
+	else:
+		agent.place_at_start()
 	_previous_distance = agent.track.progress_of(car.global_position)
+
+
+func _clear_offset() -> float:
+	var length := agent.track.curve.get_baked_length()
+	var offset := get_rng().randf() * length
+	while not agent.track.is_clear(offset):
+		offset = get_rng().randf() * length
+	return offset
 
 
 func _get_step_result(_agent: ScholaAgent) -> Variant:

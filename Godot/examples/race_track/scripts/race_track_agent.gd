@@ -12,7 +12,10 @@ func _ready() -> void:
 	place_at_start()
 
 func place_at_start() -> void:
-	car.global_transform = track.start_transform()
+	place(track.start_transform())
+
+func place(pose: Transform3D) -> void:
+	car.global_transform = pose
 	car.linear_velocity = Vector3.ZERO
 	car.angular_velocity = Vector3.ZERO
 	controls.reset()

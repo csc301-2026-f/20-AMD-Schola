@@ -17,6 +17,9 @@ shadow_enabled = true
 script = ExtResource("2_environment")
 maximum_steps = 3000
 maximum_stalled_steps = 120
+maximum_track_distance = 4.5
+maximum_tilt_degrees = 60.0
+random_start = true
 
 [node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
 

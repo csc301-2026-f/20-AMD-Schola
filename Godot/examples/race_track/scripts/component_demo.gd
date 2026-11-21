@@ -85,7 +85,7 @@ func _physics_process(_delta: float) -> void:
 			push_error("Arcade handling failed: peak speed %.2f, upright %.3f, turn %.3f" % [peak_speed, minimum_upright, maximum_turn])
 			get_tree().quit(1)
 			return
-		if observation.size() != 2 or observation[keys[0]].size() != 6 or velocity.size() != 3 or not saw_velocity:
+		if observation.size() != 3 or observation[keys[0]].size() != 6 or velocity.size() != 3 or observation[keys[2]].size() != 27 or not saw_velocity:
 			push_error("Race track smoke: missing composed observations or vehicle motion")
 			get_tree().quit(1)
 			return
