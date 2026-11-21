@@ -11,8 +11,9 @@ const DEFAULT_MAXIMUM_TRACK_DISTANCE := 10.0
 @export var maximum_track_distance: float = DEFAULT_MAXIMUM_TRACK_DISTANCE
 @export var terminate_on_tilt := true
 @export var maximum_tilt_degrees: float = 10.0
+@export var terminate_on_obstacle := false
 @export var random_start := false
-@export var drift_bonus := 0.25
+@export var drift_bonus := 0.5
 
 var _previous_distance := 0.0
 var _stalled_steps := 0
@@ -48,7 +49,8 @@ func _get_step_result(_agent: ScholaAgent) -> Variant:
 	var tilted := car.global_basis.y.normalized().dot(Vector3.UP) < cos(deg_to_rad(maximum_tilt_degrees))
 	_stalled_steps = _stalled_steps + 1 if progress < 0.005 else 0
 	var stalled := maximum_stalled_steps > 0 and _stalled_steps >= maximum_stalled_steps
-	var terminated := stalled or (terminate_off_track and distance_from_track >= maximum_track_distance) or (terminate_on_tilt and tilted)
+	var hit_obstacle := terminate_on_obstacle and car.get_colliding_bodies().any(func(body: Node) -> bool: return body.is_in_group("obstacle"))
+	var terminated := stalled or hit_obstacle or (terminate_off_track and distance_from_track >= maximum_track_distance) or (terminate_on_tilt and tilted)
 	var drift := float(car.get("drift_amount"))
 	var reward := 0.01 * exp(-pow(distance_from_track / LOCATION_SCALE, 2.0)) + progress * (1.0 + drift_bonus * drift)
 	return {

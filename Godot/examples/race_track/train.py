@@ -49,16 +49,21 @@ def test_drive(model, godot, port):
     try:
         env = connect(port)
         obs = env.reset()
+        score = 0.0
         metres = 0.0
         drifting = 0
         done = [False]
         while not done[0]:
             action, _ = model.predict(obs, deterministic=True)
-            obs, _, done, infos = env.step(action)
+            obs, reward, done, infos = env.step(action)
+            score += float(reward[0])
             metres += float(infos[0]["progress"])
             drifting += float(infos[0]["drift"]) > 0.5
-        print(f"Test drive: {metres:.1f} m, drifting {drifting / 60:.1f} s", flush=True)
-        return metres
+        print(
+            f"Test drive: score {score:.1f}, {metres:.1f} m, drifting {drifting / 60:.1f} s",
+            flush=True,
+        )
+        return score
     finally:
         stop(process, env)
 
@@ -82,7 +87,7 @@ class KeepBest(BaseCallback):
         steps = self.model.num_timesteps
         if score <= self.best:
             print(
-                f"Test drive after {steps} steps: {score:.1f} m, best is still {self.best:.1f} m",
+                f"Test drive after {steps} steps: score {score:.1f}, best is still {self.best:.1f}",
                 flush=True,
             )
             return
@@ -94,7 +99,8 @@ class KeepBest(BaseCallback):
             action_space=self.action_space,
         )
         print(
-            f"Test drive after {steps} steps: {score:.1f} m, new best saved", flush=True
+            f"Test drive after {steps} steps: score {score:.1f}, new best saved",
+            flush=True,
         )
 
 
@@ -178,7 +184,7 @@ def main():
         if args.resume:
             model = PPO.load(output / "race_track.zip", env=monitored_env, device="cpu")
             best = test_drive(model, godot, args.port + 1)
-            print(f"Saved model test drive: {best:.1f} m", flush=True)
+            print(f"Saved model test drive: score {best:.1f}", flush=True)
         else:
             model = PPO(
                 "MultiInputPolicy",
@@ -199,7 +205,7 @@ def main():
         )
         keep_best.check()
         print(
-            f'Training complete, best test drive {keep_best.best:.1f} m: {output / "race_track.onnx"}',
+            f'Training complete, best test drive score {keep_best.best:.1f}: {output / "race_track.onnx"}',
             flush=True,
         )
     finally:

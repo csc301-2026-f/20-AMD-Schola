@@ -40,6 +40,9 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	assert_int(environment.maximum_stalled_steps).is_equal(120)
 	assert_float(environment.maximum_track_distance).is_equal(4.5)
 	assert_bool(environment.random_start).is_true()
+	assert_bool(environment.terminate_on_obstacle).is_true()
+	assert_bool(environment.car.contact_monitor).is_true()
+	assert_int(environment.car.max_contacts_reported).is_greater(0)
 
 	var observation: ScholaDictSpace = agent.get_effective_observation_space()
 	assert_array(observation.spaces.keys()).contains_exactly(["00000000:Track", "00000001:Velocity", "00000002:Rays"])
