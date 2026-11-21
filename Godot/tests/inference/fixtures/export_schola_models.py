@@ -25,6 +25,7 @@ import onnxruntime
 import torch as th
 from schola.core.model import ScholaModel, StateMetadata
 from schola.sb3.export import SB3PPOModel
+from schola.sb3.utils import merge_spaces
 from stable_baselines3.common.policies import (
     ActorCriticPolicy,
     MultiInputActorCriticPolicy,
@@ -60,6 +61,26 @@ MODELS = {
             "target": np.array([[-0.2, 0.9]], np.float32),
         },
     ),
+    "schola_ppo_race_car": (
+        gym.spaces.Dict(
+            {
+                "00000000:Track": gym.spaces.Box(-100000.0, 100000.0, (6,), np.float32),
+                "00000001:Velocity": gym.spaces.Box(-np.inf, np.inf, (3,), np.float32),
+                "00000002:Rays": gym.spaces.Box(0.0, 1.0, (27,), np.float32),
+            }
+        ),
+        gym.spaces.Dict(
+            {"00000000:Controls": gym.spaces.Box(-1.0, 1.0, (2,), np.float32)}
+        ),
+        {
+            "00000000:Track": np.array([[0.2, -0.1, 1.0, 0.0, 0.0, 0.3]], np.float32),
+            "00000001:Velocity": np.array([[0.5, 0.0, 0.1]], np.float32),
+            "00000002:Rays": np.array(
+                [[0.0, 1.0, 0.8] * 4 + [1.0, 1.0, 0.35] + [0.0, 0.0, 0.0] * 4],
+                np.float32,
+            ),
+        },
+    ),
 }
 
 
@@ -70,8 +91,13 @@ def export(name, observation_space, action_space):
         if isinstance(observation_space, gym.spaces.Dict)
         else ActorCriticPolicy
     )
-    policy = policy_class(observation_space, action_space, lambda _: 0.0)
-    SB3PPOModel(policy).save_as_onnx(FIXTURES_DIRECTORY / f"{name}.onnx")
+    policy_action_space = (
+        merge_spaces(*action_space.spaces.values())
+        if isinstance(action_space, gym.spaces.Dict)
+        else action_space
+    )
+    policy = policy_class(observation_space, policy_action_space, lambda _: 0.0)
+    SB3PPOModel(policy, action_space).save_as_onnx(FIXTURES_DIRECTORY / f"{name}.onnx")
 
 
 def write_expected(name, feeds):

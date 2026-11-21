@@ -1,0 +1,34 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/race_track_environment.gd" id="2_environment"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="3_car"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="4_display"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/editor_trainer.gd" id="5_trainer"]
+
+[node name="RaceTrackTrain" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 0, 50, 0)
+shadow_enabled = true
+
+[node name="RaceTrack" parent="." instance=ExtResource("1_race_track")]
+
+[node name="RaceTrackEnvironment" type="ScholaEnvironment" parent="."]
+script = ExtResource("2_environment")
+maximum_steps = 3000
+maximum_stalled_steps = 120
+maximum_track_distance = 4.5
+maximum_tilt_degrees = 60.0
+random_start = true
+
+[node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
+
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]
+step_timeout_sec = 300.0
+
+[node name="EditorTrainer" type="Node" parent="."]
+script = ExtResource("5_trainer")
+
+[node name="ActionDisplay" parent="." instance=ExtResource("4_display")]
+controls_path = NodePath("../RaceTrackEnvironment/Car/Agent/Controls")

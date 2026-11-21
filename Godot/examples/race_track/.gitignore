@@ -1,0 +1,4 @@
+*.zip
+*.onnx
+!policies/race_track.onnx
+*.onnx.data
