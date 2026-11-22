@@ -30,8 +30,8 @@ Status load(OnnxPolicy &r_policy, const std::string &p_name) {
 	return r_policy.load_model(bytes.data(), bytes.size(), p_name);
 }
 
-Space box(int32_t p_size) {
-	return Space(BoxSpace{ std::vector<float>(p_size, -10.0f), std::vector<float>(p_size, 10.0f), { p_size } });
+Space box(int32_t p_size, float p_bound = 10.0f) {
+	return Space(BoxSpace{ std::vector<float>(p_size, -p_bound), std::vector<float>(p_size, p_bound), { p_size } });
 }
 
 InteractionDefinition definition(Space p_observation, Space p_action) {
@@ -108,6 +108,31 @@ TEST_CASE("think matches Dict observations and actions by key", "[inference]") {
 		const DictPoint *dict = fixture.action.get_if<DictPoint>();
 		REQUIRE(dict->entries[0].second.get_if<DiscretePoint>()->value == 1);
 		REQUIRE(box_values(dict->entries[1].second) == std::vector<float>{ 0.0f, 9.0f });
+	}
+}
+
+TEST_CASE("think rejects integer actions that do not fit int32", "[inference][regression]") {
+	const bool discrete = GENERATE(true, false);
+	const float value = GENERATE(2147483648.0f, 4294967296.0f, -2147483904.0f, -4294967296.0f);
+	const int32_t size = discrete ? 1 : 2;
+	const Space action = discrete ? Space(DiscreteSpace{ 4 }) : Space(MultiDiscreteSpace{ { 4, 4 } });
+	Fixture fixture(discrete ? "int64_discrete.onnx" : "int64_multi_discrete.onnx", definition(box(size, 4294967296.0f), action));
+	const Status status = fixture.think(Point(BoxPoint{ std::vector<float>(size, value) }));
+	REQUIRE(status.get_code() == StatusCode::INVALID_DATA);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("int32"));
+}
+
+TEST_CASE("think preserves representable integer actions", "[inference][regression]") {
+	const bool discrete = GENERATE(true, false);
+	const int32_t value = GENERATE(0, 2147483520, (-2147483647 - 1));
+	const int32_t size = discrete ? 1 : 2;
+	const Space action = discrete ? Space(DiscreteSpace{ 4 }) : Space(MultiDiscreteSpace{ { 4, 4 } });
+	Fixture fixture(discrete ? "int64_discrete.onnx" : "int64_multi_discrete.onnx", definition(box(size, 4294967296.0f), action));
+	REQUIRE(fixture.think(Point(BoxPoint{ std::vector<float>(size, static_cast<float>(value)) })).is_ok());
+	if (discrete) {
+		REQUIRE(fixture.action.get_if<DiscretePoint>()->value == value);
+	} else {
+		REQUIRE(fixture.action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ value, value });
 	}
 }
 
