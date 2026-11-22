@@ -39,6 +39,71 @@ fixed until the session closes. Adding, freeing, or removing an environment
 during a session is unsupported. If a configured node disappears, the host
 closes the session instead of assigning its ID to another environment.
 
+Dynamic agent membership
+------------------------
+
+Environment nodes must not be nested, even through grouping nodes. A nested
+``ScholaEnvironment`` reports an Inspector warning and training rejects the
+configuration. Multiple separate, non-nested environments in a scene are valid.
+
+The training definition contains all possible agent IDs and their fixed spaces.
+Override ``ScholaEnvironment._get_possible_agents()`` to return definition-template
+nodes for future spawns; by default, the initial descendants supply definitions.
+Only live descendants participate. Reset rediscovers nodes after the reset hook,
+so episodes may start with different subsets and replacement node instances.
+Reset also discovers births from initial observation callbacks and removes agents
+that leave during those callbacks before publishing the initial population.
+
+Set an explicit ``agent_id`` for each possible agent so Godot node name collisions
+cannot change its identity. New descendants receive an initial observation and
+zero reward and act on the next step.
+
+In dynamic environments, departing agents keep any observation, reward, and info
+already collected that step. For an external cutoff, return ``truncated: true``
+from ``_get_step_result()`` before the node leaves. Departures without a collected
+result use the previous observation and zero reward and are marked terminated.
+An agent whose action was skipped because it was absent still finishes if it is
+reattached later in the step. In a fixed-population environment, freeing or
+removing an agent causes a training error.
+
+A published agent's resolved ID must stay stable until reset. If it changes
+between requests or before action dispatch, training closes the session before
+applying the stale action. Retired IDs are ignored until reset. Replacing
+a still-active node with another using the same ID closes the session. Use a
+fresh declared ID for each respawn that should act within the same episode, such
+as ``player_spawn_2`` after ``player_spawn_1``. IDs can be reused after reset.
+Unused possible IDs do not hold an episode open. Completion occurs when every
+observed agent finishes.
+
+Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
+vector interfaces still require a fixed population. Definitions are exchanged
+once; arbitrary new IDs or changed spaces require a new training definition.
+
+Temporary training pauses
+-------------------------
+
+Set ``ScholaAgent.training_paused`` to suspend training callbacks without
+terminating the agent. Clear it to resume the same ID and node. The property does
+not pause Godot processing or physics, and reset preserves it unless the game's
+reset hook changes it.
+
+Actions must match the last published roster. If a pause is requested after
+an observation is published, Schola still runs its requested action and
+collects the result. At the step boundary it omits the paused agent from the
+response, so subsequent requests omit its actions. When the agent resumes,
+Schola returns a fresh observation and the held reward and info. This completes
+the action that ran before the pause. Initially paused agents enter with zero
+reward after their first published observation.
+
+Observed paused agents prevent episode completion. Empty action maps are valid
+when every participant is paused.
+
+Removal still terminates a paused agent and includes any held reward. Finished
+IDs stay retired until reset, and replacing a paused node with a different node
+using the same ID is invalid.
+Use the updated Schola RLlib adapters, which distinguish ready agents from episode
+participants. SB3's fixed-size interface does not support training pauses.
+
 Episode completion
 ------------------
 

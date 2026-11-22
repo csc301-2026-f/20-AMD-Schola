@@ -1,8 +1,8 @@
 # US7: Run and ship an ONNX policy
 
 - **Owner:** Bohdan
-- **Status:** Complete
-- **Last updated:** Nov. 5, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 17, 2026
 
 ## Story
 
@@ -21,6 +21,7 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 
 ## Progress
 
+- The ONNX runtime, local inference stepper and runtime packaging merged in [PR #16](https://github.com/csc301-2026-f/20-AMD-Schola/pull/16) ([`d945521`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/d945521)). Automatic sequence-length resolution is tracked in [US14](US14.md).
 - The core policy API, ONNX loading, per-agent recurrent state, and observe-infer-act loop are implemented and tested, including the automatic physics loop.
 - Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.

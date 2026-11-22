@@ -91,8 +91,7 @@ func test_last_error_is_cleared_by_the_next_call() -> void:
 
 func test_copy_from_reports_a_state_of_another_size() -> void:
 	var short_policy := _policy("counter.onnx")
-	var long_policy := _policy("counter_seq.onnx")
-	long_policy.max_state_sequence_length = 3
+	var long_policy := _policy("counter_seq_declared.onnx")
 	for policy in [short_policy, long_policy]:
 		assert_int(policy.load()).is_equal(OK)
 		assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
@@ -117,16 +116,19 @@ func test_initialize_reloads_after_the_model_path_changes() -> void:
 	assert_array(_values(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0])))).contains_exactly([2.0, 4.0, 6.0])
 
 
-func test_initialize_applies_a_changed_sequence_length() -> void:
-	var policy := _policy("counter_seq.onnx")
-	var agent := _agent(1, 2, null)
-	policy.max_state_sequence_length = 3
-	assert_int(policy.initialize(agent)).is_equal(OK)
+func test_initialize_takes_the_sequence_length_from_the_model() -> void:
+	var policy := _policy("counter_seq_declared.onnx")
+	assert_bool("max_state_sequence_length" in policy).is_false()
+	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
 	assert_str(str(policy.create_state())).contains("3x2")
+	assert_array(Array(policy.get_state_sequence_lengths())).contains_exactly([3])
 
-	policy.max_state_sequence_length = 5
-	assert_int(policy.initialize(agent)).is_equal(OK)
-	assert_str(str(policy.create_state())).contains("5x2")
+
+func test_initialize_reports_invalid_sequence_metadata() -> void:
+	var policy := _policy("bad_seq_len_zero.onnx")
+	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(ERR_INVALID_DATA)
+	assert_str(policy.get_last_error()).contains("'state_in_h.max_seq_len' must be between 1 and 65536")
+	assert_bool(policy.is_initialized()).is_false()
 
 
 func test_initialize_keeps_a_preloaded_model() -> void:
@@ -318,6 +320,47 @@ func test_stepper_applies_a_deferred_policy_change_after_the_step() -> void:
 	assert_object(stepper.policy).is_same(replacement)
 
 
+func test_stepper_interrupts_when_an_observing_agent_leaves_the_tree() -> void:
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var second := _agent(3, 3, PackedFloat32Array([2.0, 3.0, 4.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(first)).is_equal(OK)
+	assert_int(stepper.add_agent(second)).is_equal(OK)
+	first.on_observe = func() -> void: remove_child(first)
+
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_int(first.actions.size()).is_equal(0)
+	assert_int(second.actions.size()).is_equal(0)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(second.actions[0])).contains_exactly([4.0, 6.0, 8.0])
+
+
+func test_stepper_rejects_immediate_additions_but_accepts_deferred_additions() -> void:
+	var first := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	var second := _agent(3, 3, PackedFloat32Array([2.0, 3.0, 4.0]))
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	assert_int(stepper.add_agent(first)).is_equal(OK)
+	var results: Array = []
+	first.on_act = func() -> void:
+		results.append(stepper.add_agent(second))
+		stepper.call_deferred("add_agent", second)
+
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(results).contains_exactly([ERR_BUSY])
+	assert_int(second.actions.size()).is_equal(0)
+	first.on_act = Callable()
+	await get_tree().process_frame
+
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(second.actions[0])).contains_exactly([4.0, 6.0, 8.0])
+
+
 func test_stepper_reports_a_changed_policy() -> void:
 	var messages: Array = []
 	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
@@ -399,7 +442,8 @@ func test_stepper_survives_an_agent_removed_during_act() -> void:
 		assert_int(stepper.add_agent(agent)).is_equal(OK)
 
 	second.on_act = func() -> void: stepper.remove_agent(second)
-	assert_int(stepper.step()).is_equal(OK)
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_int(third.actions.size()).is_equal(0)
 	assert_int(stepper.step()).is_equal(OK)
 
 	assert_int(first.actions.size()).is_equal(2)
@@ -421,7 +465,8 @@ func test_stepper_survives_an_agent_freed_during_act() -> void:
 	first.on_act = func() -> void:
 		first.on_act = Callable()
 		freed.free()
-	assert_int(stepper.step()).is_equal(OK)
+	assert_int(stepper.step()).is_equal(ERR_UNCONFIGURED)
+	assert_int(third.actions.size()).is_equal(0)
 	assert_int(stepper.step()).is_equal(OK)
 
 	assert_int(first.actions.size()).is_equal(2)
@@ -510,3 +555,26 @@ func test_stepper_warns_about_missing_configuration() -> void:
 	var errors := stepper.get_configuration_errors()
 	assert_str(errors[0]).contains("policy")
 	assert_str(errors[1]).contains("missing")
+
+func test_stepper_uses_stacked_space_and_resets_observation_history() -> void:
+	var agent := _agent(1, 3, PackedFloat32Array([1.0]))
+	var stacker := ScholaStacker.new()
+	stacker.stack_size = 3
+	stacker.add_new_dimension = false
+	agent.observation_adapters = [stacker]
+
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.enabled = false
+	stepper.policy = _policy("box_scale.onnx")
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(agent.actions.back())).contains_exactly([2.0, 0.0, 0.0])
+
+	agent.observation = PackedFloat32Array([2.0])
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(agent.actions.back())).contains_exactly([4.0, 2.0, 0.0])
+
+	stepper.reset_state(agent)
+	assert_int(stepper.step()).is_equal(OK)
+	assert_array(_values(agent.actions.back())).contains_exactly([4.0, 0.0, 0.0])

@@ -35,9 +35,12 @@ private:
 	struct Entry {
 		Agent *agent = nullptr;
 		std::unique_ptr<PolicyState> state;
+		Point observation;
 	};
 
 	Policy *policy = nullptr;
+	bool stepping = false;
+	uint64_t entries_revision = 0;
 	std::vector<Entry> entries;
 	Space observation_space;
 	Space action_space;

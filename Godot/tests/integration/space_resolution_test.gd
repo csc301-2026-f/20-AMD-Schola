@@ -28,6 +28,16 @@ class InheritedCodeAgent extends CodeAgent:
 	pass
 
 
+class TestSensor extends ScholaSensor:
+	func _observe() -> Variant:
+		return 0
+
+
+class TestActuator extends ScholaActuator:
+	func _act(_action: Variant) -> void:
+		pass
+
+
 var _driver: RefCounted
 
 
@@ -162,6 +172,34 @@ func test_callback_wins_even_when_inspector_spaces_are_invalid() -> void:
 	agent.observation_space = ScholaSpaces.discrete(0)
 
 	assert_bool(_define(agent).ok).is_true()
+
+
+func test_callback_can_declare_matching_component_spaces() -> void:
+	var agent := _component_agent()
+	agent.returned = _spaces(agent.get_effective_observation_space(), agent.get_effective_action_space())
+	assert_bool(_define(agent).ok).is_true()
+	assert_int(agent.calls).is_equal(1)
+
+
+func test_callback_rejects_spaces_incompatible_with_component_dispatch() -> void:
+	for invalid_observation in [true, false]:
+		var agent := _component_agent()
+		agent.returned = _spaces(
+			ScholaSpaces.discrete(3) if invalid_observation else agent.get_effective_observation_space(),
+			agent.get_effective_action_space() if invalid_observation else ScholaSpaces.discrete(3)
+		)
+		_assert_fails(_define(agent), INVALID_ARGUMENT, "must match the sensor composition" if invalid_observation else "must match the actuator composition")
+
+
+func _component_agent() -> CodeAgent:
+	var agent := _code_agent(null)
+	var sensor := TestSensor.new()
+	sensor.space = ScholaSpaces.discrete(3)
+	agent.add_child(sensor)
+	var actuator := TestActuator.new()
+	actuator.space = ScholaSpaces.discrete(3)
+	agent.add_child(actuator)
+	return agent
 
 
 # --- Reporting broken callback results ------------------------------------

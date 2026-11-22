@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "core/adapters/observation_adapter.h"
 #include "core/environment/agent.h"
 #include "core/spaces/space.h"
+#include <godot_cpp/core/object_id.hpp>
+
+#include <memory>
+#include <vector>
 
 class ScholaAgent;
 
@@ -30,10 +35,12 @@ public:
 	 * Returns the agent's spaces and agent_type.
 	 *
 	 * The first successful call works out the spaces: from _define_spaces()
-	 * if the script has it, otherwise from the Inspector fields. Later calls
+	 * if the script has it, otherwise from Inspector fields or components. Later calls
 	 * return that same saved copy, so training, inference and every step
 	 * agree on one definition. A failed call saves nothing and can be retried
-	 * once the problem is fixed. To use different spaces, recreate the scene.
+	 * once the problem is fixed. To use different explicit or callback spaces,
+	 * recreate the scene. Component-authored sides can be explicitly redefined
+	 * when a new environment initializes the agent, preserving US8's boundary.
 	 */
 	schola::Status define(schola::InteractionDefinition &r_definition) override;
 
@@ -55,19 +62,30 @@ public:
 	 */
 	schola::Status act(const schola::Point &p_action) override;
 
+	void reset_observation_history() override;
+
 private:
-	// Finds, checks and saves the two spaces. Does nothing once they are saved.
+	// Saves authored spaces and adapters; explicitly redefines composed sides when needed.
 	schola::Status resolve_spaces();
 
+	std::vector<std::unique_ptr<schola::ObservationAdapter>> observation_adapters;
 	ScholaAgent *node = nullptr; // Not owned.
 
 	// The saved spaces. They are plain values copied out of the resources,
 	// so editing a resource later can't change them. observe() and act()
 	// use them every step to convert and check data.
 	schola::Space observation_space;
+	schola::Space adapted_observation_space;
 	schola::Space action_space;
 	// True once the spaces above are saved.
 	bool defined = false;
 	// True while _define_spaces() is running, so it can't loop back into define().
 	bool resolving = false;
+	std::vector<godot::ObjectID> sensors;
+	std::vector<godot::ObjectID> actuators;
+	uint64_t validated_revision = 0;
+	// Dict resources expose mutable Dictionaries whose in-place edits emit no signal.
+	bool mutable_dictionary_spaces = false;
+	schola::Status check_components();
+	schola::Status check_runtime_components() const;
 };

@@ -9,9 +9,11 @@ Next to each model, <name>.expected.txt holds observations and the actions ONNX 
     observation <values...>
     action <values...>
 The LSTM file repeats one observation for several steps, so its actions only change through its memory.
+The memory model keeps a window of past observations, so its actions depend on the declared sequence length.
 
 Regenerate with the Schola Python package installed (pip install -e "./Resources/python[sb3,rllib]"):
-    python Godot/tests/inference/fixtures/export_schola_models.py
+    python Godot/tests/inference/fixtures/export_schola_models.py [names...]
+The committed files were made with onnxruntime 1.30.0 and torch 2.14.0; other versions change the bytes.
 """
 
 import sys
@@ -21,6 +23,7 @@ import gymnasium as gym
 import numpy as np
 import onnxruntime
 import torch as th
+from schola.core.model import ScholaModel, StateMetadata
 from schola.sb3.export import SB3PPOModel
 from stable_baselines3.common.policies import (
     ActorCriticPolicy,
@@ -30,6 +33,8 @@ from stable_baselines3.common.policies import (
 FIXTURES_DIRECTORY = Path(__file__).resolve().parent
 LSTM_MODEL = "schola_rllib_lstm"
 LSTM_STEPS = 6
+MEMORY_MODEL = "schola_memory_seq"
+MEMORY_LENGTH = 4
 
 MODELS = {
     "schola_ppo_discrete": (
@@ -130,13 +135,64 @@ def export_lstm():
     )
 
 
+class MemoryModel(ScholaModel):
+    def __init__(self, observation_space, action_space):
+        super().__init__(observation_space, action_space)
+        self.encode = th.nn.Linear(4, 3)
+        self.decode = th.nn.Linear(3, 2)
+
+    @property
+    def initial_state_dict(self):
+        return {"memory": th.zeros(MEMORY_LENGTH, 3)}
+
+    @property
+    def state_metadata(self):
+        return {
+            "memory": StateMetadata(
+                has_seq_dim=True, max_seq_len=MEMORY_LENGTH, seq_dim=1
+            )
+        }
+
+    def forward(self, *args):
+        obs, memory = args
+        entry = th.tanh(self.encode(obs))
+        return th.tanh(self.decode(entry + memory.sum(dim=1))), entry
+
+
+def export_memory():
+    th.manual_seed(0)
+    observation_space = gym.spaces.Box(-1.0, 1.0, (4,), np.float32)
+    action_space = gym.spaces.Box(-1.0, 1.0, (2,), np.float32)
+    path = FIXTURES_DIRECTORY / f"{MEMORY_MODEL}.onnx"
+    MemoryModel(observation_space, action_space).save_as_onnx(path)
+
+    session = onnxruntime.InferenceSession(str(path))
+    memory = np.zeros((1, MEMORY_LENGTH, 3), np.float32)
+    lines = []
+    for step in range(MEMORY_LENGTH + 2):
+        observation = np.array([[0.5, -0.25, 0.75, -1.0]], np.float32) * (step + 1) / 6
+        feeds = {"obs": observation, "state_in_memory": memory}
+        action, entry = session.run(None, feeds)
+        memory = np.concatenate([memory[:, 1:], entry[:, None]], axis=1)
+        lines.append("observation " + " ".join(repr(float(v)) for v in observation[0]))
+        lines.append("action " + " ".join(repr(float(v)) for v in action[0]))
+    (FIXTURES_DIRECTORY / f"{MEMORY_MODEL}.expected.txt").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
 def main():
+    selected = set(sys.argv[1:])
     for name, (observation_space, action_space, feeds) in MODELS.items():
+        if selected and name not in selected:
+            continue
         export(name, observation_space, action_space)
         write_expected(name, feeds)
         print(f"Exported {name}.onnx")
-    export_lstm()
-    print(f"Exported {LSTM_MODEL}.onnx")
+    for name, run in ((LSTM_MODEL, export_lstm), (MEMORY_MODEL, export_memory)):
+        if not selected or name in selected:
+            run()
+            print(f"Exported {name}.onnx")
     print(
         f"onnxruntime {onnxruntime.__version__}, torch {th.__version__}, python {sys.version.split()[0]}"
     )

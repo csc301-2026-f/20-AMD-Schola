@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "bindings/adapters/schola_observation_adapter.h"
 #include "bindings/environment/schola_space_definition.h"
 #include "core/environment/agent.h"
+#include <godot_cpp/variant/typed_array.hpp>
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
@@ -18,6 +20,8 @@
 #include <vector>
 
 class ScholaSpace;
+class ScholaSensor;
+class ScholaActuator;
 
 // Godot-facing config node for one agent
 // When it has a ScholaEnvironment ancestor, that environment owns its training lifecycle
@@ -28,7 +32,13 @@ class ScholaAgent : public godot::Node {
 
 public:
 	ScholaAgent();
+	std::vector<ScholaSensor *> get_sensors() const;
+	std::vector<ScholaActuator *> get_actuators() const;
 	~ScholaAgent() override;
+
+	/** Pause training participation without ending this agent's trajectory. */
+	void set_training_paused(bool p_paused);
+	bool is_training_paused() const;
 
 	// IDs must be unique within one environment
 	// empty agent_id : use the godot node name
@@ -55,10 +65,18 @@ public:
 
 	// observation and action spaces; these will be inspector resource fields
 	// note: we use godot::Ref<T> to allow multiple agents to point to the same resource
+	void set_observation_adapters(const godot::TypedArray<ScholaObservationAdapter> &p_adapters);
+	godot::TypedArray<ScholaObservationAdapter> get_observation_adapters() const;
+
 	void set_observation_space(const godot::Ref<ScholaSpace> &p_observation_space);
 	godot::Ref<ScholaSpace> get_observation_space() const;
 	void set_action_space(const godot::Ref<ScholaSpace> &p_action_space);
 	godot::Ref<ScholaSpace> get_action_space() const;
+	/** Runtime composition, separate from the serialized Inspector properties. */
+	godot::Ref<ScholaSpace> get_effective_observation_space() const;
+	godot::Ref<ScholaSpace> get_effective_action_space() const;
+	void invalidate_interaction();
+	uint64_t get_interaction_revision() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
 	/** Returns whether this script or a base script defines _define_spaces(), without executing it. */
@@ -131,14 +149,20 @@ protected:
 
 private:
 	void on_script_changed();
+	void refresh_structure_watches();
+	void disconnect_structure_watches();
+	std::vector<godot::ObjectID> structure_watches;
 	void disconnect_space_signals();
 	void connect_space_signals();
 	void refresh_configuration_warnings();
 
 	// Stores the Inspector value; an empty ID means use this node's name
+	uint64_t interaction_revision = 0;
 	godot::String agent_id;
+	bool training_paused = false;
 	// Stores the Inspector value; an empty type means use the resolved agent ID
 	godot::String agent_type;
+	godot::TypedArray<ScholaObservationAdapter> observation_adapters;
 	godot::Ref<ScholaSpace> observation_space;
 	godot::Ref<ScholaSpace> action_space;
 	std::unique_ptr<schola::Agent> agent_adapter;

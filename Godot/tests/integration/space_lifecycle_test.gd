@@ -10,6 +10,12 @@ class TestEnvironment extends ScholaEnvironment:
 		return {"reward": 1.0, "terminated": false, "truncated": false}
 
 
+class PossibleEnvironment extends TestEnvironment:
+	var possible: Array[ScholaAgent] = []
+	func _get_possible_agents() -> Array[ScholaAgent]:
+		return possible
+
+
 class BoxAgent extends ScholaAgent:
 	var definition_calls := 0
 	var width := 3
@@ -85,11 +91,12 @@ func _inspector_agent() -> InspectorAgent:
 	return agent
 
 
-func _host(agent: ScholaAgent) -> ScholaTrainingHost:
+func _host(agent: ScholaAgent, environment: ScholaEnvironment = null) -> ScholaTrainingHost:
 	var root: Node = auto_free(Node.new())
 	get_tree().root.add_child(root)
 	get_tree().current_scene = root
-	var environment := TestEnvironment.new()
+	if environment == null:
+		environment = TestEnvironment.new()
 	root.add_child(environment)
 	environment.add_child(agent)
 	var host := ScholaTrainingHost.new()
@@ -331,6 +338,49 @@ func test_training_policy_and_stepper_share_one_snapshot_and_policy_reinitializa
 	assert_int(stepper.add_agent(agent)).is_equal(OK)
 	assert_int(stepper.step()).is_equal(OK)
 	assert_int(agent.definition_calls).is_equal(1)
+
+
+func test_code_defined_stacker_keeps_adapted_definition_and_history_across_define_calls() -> void:
+	var agent := _agent()
+	agent.observation = 1
+	var stacker := ScholaStacker.new()
+	stacker.output_kind = 1
+	stacker.stack_size = 3
+	stacker.default_point = 0
+	agent.observation_adapters = [stacker]
+	_host(agent)
+	var environment := agent.get_parent() as ScholaEnvironment
+	assert_bool(_driver.call("initialize", environment).ok).is_true()
+	assert_bool(_driver.call("reset", environment).ok).is_true()
+	agent.observation = 2
+	stacker.stack_size = 4
+	agent.last_spaces.observation.n = 0
+	for index in range(2):
+		var definition := _define(agent)
+		assert_bool(definition.ok).is_true()
+		assert_int(definition.observation.spaces.size()).is_equal(3)
+	var stepped: Dictionary = _driver.call("step", environment, {"coder": 1})
+	assert_bool(stepped.ok).override_failure_message(stepped.message).is_true()
+	assert_dict(stepped.states.coder.observation).is_equal({"Point_0": 2, "Point_1": 1, "Point_2": 0})
+	assert_int(agent.definition_calls).is_equal(1)
+
+
+func test_dynamic_training_resolves_detached_possible_agent_before_live_agent() -> void:
+	var prototype := _agent()
+	var live := _agent()
+	var environment := PossibleEnvironment.new()
+	environment.possible = [prototype]
+	var host := _host(live, environment)
+	assert_int(host.initialize_session().status.code).is_equal(0)
+	assert_int(prototype.definition_calls).is_equal(1)
+	assert_int(live.definition_calls).is_equal(0)
+	assert_int(host.set_autoreset_mode(2).status.code).is_equal(0)
+	assert_int(host.define().status.code).is_equal(0)
+	assert_int(host.reset({}).status.code).is_equal(0)
+	assert_int(live.definition_calls).is_equal(1)
+	assert_int(host.step({"actions": [{"coder": 2}]}).status.code).is_equal(0)
+	assert_int(prototype.definition_calls).is_equal(1)
+	assert_int(live.definition_calls).is_equal(1)
 
 
 func test_failed_action_definition_does_not_cache_the_valid_observation_half() -> void:

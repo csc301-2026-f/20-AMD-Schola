@@ -163,6 +163,24 @@ workflow or custom serialization format is introduced.
 
 ## Initialization and snapshot lifetime
 
+Observation adapters apply after either authoring path resolves its raw spaces.
+The saved definition includes the adapted observation space, while `_observe()`
+continues to return values in the raw space. Repeated `define()` calls on script
+agents reuse the adapter instances and their history; episode resets clear history
+without rebuilding definitions. Training startup resolves `get_possible_agents()`,
+including detached prototypes declared by dynamic environments; live instances
+resolve their own definitions when they join and must match the prototype.
+
+Without the callback, US8 sensors and actuators may supply composed spaces instead
+of explicit Inspector assignments. Their live component layout checks remain in
+effect. Component-authored sides retain US8's explicit redefinition behavior when
+a new environment initializes the same agent; uncomposed Inspector sides retain
+their saved values. For a callback agent using component dispatch, each declared
+space must match the corresponding composition unless `_observe()` or `_act()`
+overrides that side. Mismatches fail at definition time rather than indexing an
+incompatible space during a step. Effective-space getters remain metadata/configuration
+queries and never execute the callback.
+
 Steps 3 and 4 implement these rules:
 
 1. Training and standalone inference resolve spaces on the main thread before

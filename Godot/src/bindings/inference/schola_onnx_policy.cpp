@@ -13,6 +13,7 @@
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <string>
 #include <vector>
@@ -42,12 +43,12 @@ godot::String ScholaOnnxPolicy::get_model_path() const {
 	return model_path;
 }
 
-void ScholaOnnxPolicy::set_max_state_sequence_length(int32_t p_length) {
-	max_state_sequence_length = p_length;
-}
-
-int32_t ScholaOnnxPolicy::get_max_state_sequence_length() const {
-	return max_state_sequence_length;
+godot::PackedInt64Array ScholaOnnxPolicy::get_state_sequence_lengths() const {
+	godot::PackedInt64Array lengths;
+	for (int64_t length : policy->get_state_sequence_lengths()) {
+		lengths.push_back(length);
+	}
+	return lengths;
 }
 
 godot::Error ScholaOnnxPolicy::load() {
@@ -55,6 +56,7 @@ godot::Error ScholaOnnxPolicy::load() {
 	definition.reset();
 	stateless_state.reset();
 	last_error = godot::String();
+	sequence_warned = false;
 
 	const godot::PackedByteArray bytes = godot::FileAccess::get_file_as_bytes(model_path);
 	if (bytes.is_empty()) {
@@ -62,10 +64,7 @@ godot::Error ScholaOnnxPolicy::load() {
 		return report_failure("ScholaOnnxPolicy.load: cannot read '" + model_path + "'", error == godot::OK ? godot::ERR_FILE_CORRUPT : error, &last_error);
 	}
 
-	schola::Status status = policy->set_max_state_sequence_length(max_state_sequence_length);
-	if (status.is_ok()) {
-		status = policy->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
-	}
+	const schola::Status status = policy->load_model(bytes.ptr(), static_cast<size_t>(bytes.size()), model_path.utf8().get_data());
 	if (!status.is_ok()) {
 		return report_failure("ScholaOnnxPolicy.load", status, &last_error);
 	}
@@ -95,7 +94,7 @@ godot::PackedStringArray ScholaOnnxPolicy::get_output_names() const {
 
 godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
 	last_error = godot::String();
-	if (!is_loaded() || loaded_path != model_path || policy->get_max_state_sequence_length() != max_state_sequence_length) {
+	if (!is_loaded() || loaded_path != model_path) {
 		const godot::Error error = load();
 		if (error != godot::OK) {
 			return error;
@@ -120,6 +119,12 @@ godot::Error ScholaOnnxPolicy::initialize(ScholaAgent *p_agent) {
 	}
 	definition = std::move(agent_definition);
 	stateless_state = std::move(state);
+	if (!sequence_warned) {
+		sequence_warned = true;
+		for (const std::string &warning : policy->get_sequence_warnings()) {
+			godot::UtilityFunctions::push_warning("ScholaOnnxPolicy(" + model_path + "): " + to_godot_string(warning));
+		}
+	}
 	return godot::OK;
 }
 
@@ -177,8 +182,7 @@ schola::OnnxPolicy *ScholaOnnxPolicy::get_policy() const {
 void ScholaOnnxPolicy::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_model_path", "path"), &ScholaOnnxPolicy::set_model_path);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_model_path"), &ScholaOnnxPolicy::get_model_path);
-	godot::ClassDB::bind_method(godot::D_METHOD("set_max_state_sequence_length", "length"), &ScholaOnnxPolicy::set_max_state_sequence_length);
-	godot::ClassDB::bind_method(godot::D_METHOD("get_max_state_sequence_length"), &ScholaOnnxPolicy::get_max_state_sequence_length);
+	godot::ClassDB::bind_method(godot::D_METHOD("get_state_sequence_lengths"), &ScholaOnnxPolicy::get_state_sequence_lengths);
 	godot::ClassDB::bind_method(godot::D_METHOD("load"), &ScholaOnnxPolicy::load);
 	godot::ClassDB::bind_method(godot::D_METHOD("is_loaded"), &ScholaOnnxPolicy::is_loaded);
 	godot::ClassDB::bind_method(godot::D_METHOD("is_recurrent"), &ScholaOnnxPolicy::is_recurrent);
@@ -191,5 +195,4 @@ void ScholaOnnxPolicy::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("infer", "observation", "state"), &ScholaOnnxPolicy::infer, DEFVAL(godot::Ref<ScholaPolicyState>()));
 
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "model_path", godot::PROPERTY_HINT_FILE, "*.onnx"), "set_model_path", "get_model_path");
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "max_state_sequence_length", godot::PROPERTY_HINT_RANGE, "1,1024,1,or_greater"), "set_max_state_sequence_length", "get_max_state_sequence_length");
 }

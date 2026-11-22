@@ -30,8 +30,8 @@ Status load(OnnxPolicy &r_policy, const std::string &p_name) {
 	return r_policy.load_model(bytes.data(), bytes.size(), p_name);
 }
 
-Space box(int32_t p_size) {
-	return Space(BoxSpace{ std::vector<float>(p_size, -10.0f), std::vector<float>(p_size, 10.0f), { p_size } });
+Space box(int32_t p_size, float p_bound = 10.0f) {
+	return Space(BoxSpace{ std::vector<float>(p_size, -p_bound), std::vector<float>(p_size, p_bound), { p_size } });
 }
 
 InteractionDefinition definition(Space p_observation, Space p_action) {
@@ -46,9 +46,8 @@ struct Fixture {
 	std::unique_ptr<PolicyState> state;
 	Point action;
 
-	Fixture(const std::string &p_model, const InteractionDefinition &p_definition, int32_t p_sequence_length = 1) {
+	Fixture(const std::string &p_model, const InteractionDefinition &p_definition) {
 		REQUIRE(load(policy, p_model).is_ok());
-		REQUIRE(policy.set_max_state_sequence_length(p_sequence_length).is_ok());
 		Status status = policy.init(p_definition);
 		INFO(status.get_message());
 		REQUIRE(status.is_ok());
@@ -112,6 +111,31 @@ TEST_CASE("think matches Dict observations and actions by key", "[inference]") {
 	}
 }
 
+TEST_CASE("think rejects integer actions that do not fit int32", "[inference][regression]") {
+	const bool discrete = GENERATE(true, false);
+	const float value = GENERATE(2147483648.0f, 4294967296.0f, -2147483904.0f, -4294967296.0f);
+	const int32_t size = discrete ? 1 : 2;
+	const Space action = discrete ? Space(DiscreteSpace{ 4 }) : Space(MultiDiscreteSpace{ { 4, 4 } });
+	Fixture fixture(discrete ? "int64_discrete.onnx" : "int64_multi_discrete.onnx", definition(box(size, 4294967296.0f), action));
+	const Status status = fixture.think(Point(BoxPoint{ std::vector<float>(size, value) }));
+	REQUIRE(status.get_code() == StatusCode::INVALID_DATA);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("int32"));
+}
+
+TEST_CASE("think preserves representable integer actions", "[inference][regression]") {
+	const bool discrete = GENERATE(true, false);
+	const int32_t value = GENERATE(0, 2147483520, (-2147483647 - 1));
+	const int32_t size = discrete ? 1 : 2;
+	const Space action = discrete ? Space(DiscreteSpace{ 4 }) : Space(MultiDiscreteSpace{ { 4, 4 } });
+	Fixture fixture(discrete ? "int64_discrete.onnx" : "int64_multi_discrete.onnx", definition(box(size, 4294967296.0f), action));
+	REQUIRE(fixture.think(Point(BoxPoint{ std::vector<float>(size, static_cast<float>(value)) })).is_ok());
+	if (discrete) {
+		REQUIRE(fixture.action.get_if<DiscretePoint>()->value == value);
+	} else {
+		REQUIRE(fixture.action.get_if<MultiDiscretePoint>()->values == std::vector<int32_t>{ value, value });
+	}
+}
+
 TEST_CASE("init rejects spaces that do not fit the model", "[inference]") {
 	OnnxPolicy policy;
 	REQUIRE(policy.init(definition(box(3), box(3))).get_code() == StatusCode::FAILED_PRECONDITION);
@@ -154,8 +178,9 @@ TEST_CASE("think keeps each state separate and leaves it unchanged on failure", 
 	REQUIRE(box_values(fixture.action) == std::vector<float>{ 0.0f, 0.0f });
 }
 
-TEST_CASE("think slides a state sequence of the configured length", "[inference]") {
-	Fixture fixture("counter_seq.onnx", definition(box(1), box(2)), 3);
+TEST_CASE("think slides a state sequence of the declared length", "[inference]") {
+	Fixture fixture("counter_seq_declared.onnx", definition(box(1), box(2)));
+	REQUIRE(fixture.policy.get_sequence_warnings().empty());
 	const Point observation(BoxPoint{ { 0.0f } });
 
 	for (float expected : { 0.0f, 1.0f, 2.0f, 3.0f }) {
@@ -165,7 +190,12 @@ TEST_CASE("think slides a state sequence of the configured length", "[inference]
 	const OnnxPolicyState &state = static_cast<const OnnxPolicyState &>(*fixture.state);
 	REQUIRE(state.to_string() == "OnnxPolicyState(state_in_h: 3x2)");
 	REQUIRE(std::vector<float>(state.get_buffers()[0].values.begin(), state.get_buffers()[0].values.begin() + 6) == std::vector<float>{ 2, 2, 3, 3, 4, 4 });
-	REQUIRE(fixture.policy.set_max_state_sequence_length(5).get_code() == StatusCode::FAILED_PRECONDITION);
+}
+
+TEST_CASE("a declared length runs on a fixed sequence dimension", "[inference]") {
+	Fixture fixture("counter_seq_fixed.onnx", definition(box(1), box(2)));
+	REQUIRE(fixture.state->to_string() == "OnnxPolicyState(state_in_h: 3x2)");
+	REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f } })).is_ok());
 }
 
 TEST_CASE("think accepts any state that fits the model", "[inference]") {
@@ -181,8 +211,7 @@ TEST_CASE("think accepts any state that fits the model", "[inference]") {
 
 TEST_CASE("think rejects a state created before the model was reloaded", "[inference]") {
 	Fixture fixture("counter.onnx", definition(box(1), box(2)));
-	REQUIRE(load(fixture.policy, "counter_seq.onnx").is_ok());
-	REQUIRE(fixture.policy.set_max_state_sequence_length(3).is_ok());
+	REQUIRE(load(fixture.policy, "counter_seq_declared.onnx").is_ok());
 	REQUIRE(fixture.policy.init(definition(box(1), box(2))).is_ok());
 
 	Status status = fixture.think(Point(BoxPoint{ { 0.0f } }));

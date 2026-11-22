@@ -57,13 +57,60 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 	}
 }
 
+schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index, ScholaEnvironment **r_node = nullptr) {
+	godot::Object *object = godot::ObjectDB::get_instance(p_id);
+	if (object == nullptr) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"ScholaEnvironment for environment " + std::to_string(p_index) +
+						" was freed during the active training session");
+	}
+	auto *environment = godot::Object::cast_to<ScholaEnvironment>(object);
+	if (environment == nullptr) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"object for environment " + std::to_string(p_index) +
+						" is no longer a ScholaEnvironment");
+	}
+	if (environment->get_ancestor_environment() != nullptr) {
+		return schola::Status::error(schola::StatusCode::INVALID_DATA,
+				"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
+	}
+	const godot::SceneTree *tree = environment->is_inside_tree() ? environment->get_tree() : nullptr;
+	const godot::Node *scene_root = tree != nullptr ? tree->get_current_scene() : nullptr;
+	bool belongs_to_scene = false;
+	for (const godot::Node *ancestor = environment; ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (ancestor->is_queued_for_deletion()) {
+			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+					"ScholaEnvironment for environment " + std::to_string(p_index) + " or one of its ancestors is queued for deletion");
+		}
+		belongs_to_scene = belongs_to_scene || ancestor == scene_root;
+	}
+	if (!belongs_to_scene) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"ScholaEnvironment for environment " + std::to_string(p_index) + " is outside the current scene");
+	}
+	if (r_node != nullptr) {
+		*r_node = environment;
+	}
+	return schola::Status::ok();
+}
+
 // Works out every agent's spaces now, at session start. The scene configuration
 // check never runs _define_spaces(), so without this a broken callback
 // would only show up later, when Python asks for the definition. Each agent
 // keeps what it resolved, so training's later define() calls get the same
 // spaces back without running the callback again.
-schola::Status resolve_agent_spaces(const ScholaEnvironment *p_environment) {
-	const godot::TypedArray<ScholaAgent> agents = p_environment->get_agents();
+schola::Status resolve_agent_spaces(godot::ObjectID p_id, size_t p_index) {
+	ScholaEnvironment *p_environment = nullptr;
+	auto check = check_environment_node(p_id, p_index, &p_environment);
+	if (!check.is_ok()) {
+		return check;
+	}
+	const std::string description = describe_node(p_environment);
+	const godot::TypedArray<ScholaAgent> agents = p_environment->get_possible_agents();
+	check = check_environment_node(p_id, p_index);
+	if (!check.is_ok()) {
+		return check;
+	}
 	for (int64_t i = 0; i < agents.size(); ++i) {
 		godot::Object *agent_object = agents[i];
 		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(agent_object);
@@ -74,19 +121,57 @@ schola::Status resolve_agent_spaces(const ScholaEnvironment *p_environment) {
 		// Only the error matters here; the agent saves the spaces itself.
 		schola::InteractionDefinition unused;
 		const schola::Status status = agent->get_agent()->define(unused);
+		check = check_environment_node(p_id, p_index);
+		if (!check.is_ok()) {
+			return check;
+		}
 		if (!status.is_ok()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
-					"ScholaEnvironment " + describe_node(p_environment) +
+					"ScholaEnvironment " + description +
 							" has invalid configuration: " + status.get_message());
 		}
 	}
 	return schola::Status::ok();
 }
 
+// Checks the node before each call, since a callback in another environment may have freed it.
+class CheckedEnvironment final : public schola::Environment {
+public:
+	CheckedEnvironment(godot::ObjectID p_id, size_t p_index, schola::Environment &p_environment) :
+			id(p_id), index(p_index), environment(p_environment) {}
+
+	schola::Status initialize(std::map<schola::AgentId, schola::InteractionDefinition> &r_agents) override {
+		const schola::Status status = check_environment_node(id, index);
+		return status.is_ok() ? environment.initialize(r_agents) : status;
+	}
+
+	schola::Status reset(const schola::ResetSettings &p_settings,
+			std::map<schola::AgentId, schola::InitialAgentState> &r_states) override {
+		const schola::Status status = check_environment_node(id, index);
+		return status.is_ok() ? environment.reset(p_settings, r_states) : status;
+	}
+
+	schola::Status step(const std::map<schola::AgentId, schola::Point> &p_actions,
+			std::map<schola::AgentId, schola::AgentState> &r_states) override {
+		const schola::Status status = check_environment_node(id, index);
+		return status.is_ok() ? environment.step(p_actions, r_states) : status;
+	}
+
+	schola::Status get_agents(std::vector<schola::Agent *> &r_agents) const override {
+		const schola::Status status = check_environment_node(id, index);
+		return status.is_ok() ? environment.get_agents(r_agents) : status;
+	}
+
+private:
+	godot::ObjectID id;
+	size_t index;
+	schola::Environment &environment; // Owned by the node behind id.
+};
+
 godot::Dictionary encode_status(const schola::Status &status) {
 	godot::Dictionary dict;
 	dict["code"] = static_cast<int>(status.get_code());
-	dict["message"] = godot::String(status.get_message().c_str());
+	dict["message"] = godot::String::utf8(status.get_message().c_str());
 	return dict;
 }
 
@@ -148,8 +233,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 			schola::AgentId agent_id = to_std_string(godot::String(agent_id_value));
 			auto agent_definition = environment_definition.agents.find(agent_id);
 			if (agent_definition == environment_definition.agents.end()) {
-				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
-						"step request contains an unknown agent ID");
+				return schola::Status::error(schola::StatusCode::NOT_FOUND,
+						"Agent '" + agent_id + "': not part of this environment");
 			}
 
 			schola::Point point;
@@ -159,7 +244,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 					point);
 
 			if (!status.is_ok()) {
-				return status;
+				return schola::Status::error(status.get_code(),
+						"Agent '" + agent_id + "': rejected action: " + status.get_message());
 			}
 			decoded_actions.emplace(agent_id, std::move(point));
 		}
@@ -255,6 +341,9 @@ godot::Dictionary encode_step_result(const schola::StepResult &result) {
 	for (auto &environment : result.state.environments) {
 		godot::Dictionary agents;
 		for (auto &[agent_id, agent] : environment.agents) {
+			if (agent.paused) {
+				continue;
+			}
 			godot::Dictionary encoded_agent;
 			encoded_agent["observation"] = schola::point_to_variant(agent.observation);
 			encoded_agent["reward"] = agent.reward;
@@ -299,31 +388,52 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 				"scene tree has no current scene");
 	}
 
-	std::vector<ScholaEnvironment *> discovered_environments;
-	collect_environments(scene_root, discovered_environments);
-	if (discovered_environments.empty()) {
+	std::vector<godot::ObjectID> discovered_ids;
+	{
+		std::vector<ScholaEnvironment *> discovered_environments;
+		collect_environments(scene_root, discovered_environments);
+		discovered_ids.reserve(discovered_environments.size());
+		for (const auto *environment_node : discovered_environments) {
+			discovered_ids.emplace_back(environment_node->get_instance_id());
+		}
+	}
+	if (discovered_ids.empty()) {
 		return schola::Status::error(schola::StatusCode::NOT_FOUND,
 				"current scene " + describe_node(scene_root) +
 						" contains no ScholaEnvironment nodes; add at least one trainable environment to the scene");
 	}
 
-	std::vector<godot::ObjectID> discovered_ids;
+	std::vector<std::unique_ptr<schola::Environment>> checked;
 	std::vector<std::unique_ptr<schola::EnvironmentLifecycle>> lifecycles;
-	discovered_ids.reserve(discovered_environments.size());
-	lifecycles.reserve(discovered_environments.size());
+	checked.reserve(discovered_ids.size());
+	lifecycles.reserve(discovered_ids.size());
 
-	for (size_t i = 0; i < discovered_environments.size(); ++i) {
-		ScholaEnvironment *environment_node = discovered_environments[i];
+	// Configuration may call the scene's _get_possible_agents() scripts.
+	for (size_t i = 0; i < discovered_ids.size(); ++i) {
+		ScholaEnvironment *environment_node = nullptr;
+		const auto id = discovered_ids[i];
+		auto status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
+		}
 		const godot::PackedStringArray configuration_errors = environment_node->get_scene_configuration_errors();
+		status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
+		}
 		if (!configuration_errors.is_empty()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
 					"ScholaEnvironment " + describe_node(environment_node) +
 							" has invalid configuration: " + join_configuration_errors(configuration_errors));
 		}
 
-		const schola::Status spaces_status = resolve_agent_spaces(environment_node);
-		if (!spaces_status.is_ok()) {
-			return spaces_status;
+		status = resolve_agent_spaces(id, i);
+		if (!status.is_ok()) {
+			return status;
+		}
+		status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
 		}
 
 		schola::Environment *environment = environment_node->get_environment();
@@ -333,18 +443,26 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 							" has no core environment adapter; ensure it is inside the active scene tree");
 		}
 
-		discovered_ids.emplace_back(environment_node->get_instance_id());
+		checked.push_back(std::make_unique<CheckedEnvironment>(id, i, *environment));
 		lifecycles.push_back(std::make_unique<schola::EnvironmentLifecycle>(
 				static_cast<schola::EnvironmentId>(i),
-				*environment));
+				*checked.back()));
 	}
 
+	// The last callback may have removed an environment already checked above.
+	for (size_t i = 0; i < discovered_ids.size(); ++i) {
+		const auto status = check_environment_node(discovered_ids[i], i);
+		if (!status.is_ok()) {
+			return status;
+		}
+	}
 	schola::Status result = coordinator.set_lifecycles(std::move(lifecycles));
 	if (!result.is_ok()) {
 		return result;
 	}
 
 	environment_ids = std::move(discovered_ids);
+	checked_environments = std::move(checked);
 	session_state = SessionState::ACTIVE;
 	return schola::Status::ok();
 }
@@ -370,16 +488,25 @@ schola::Status ScholaTrainingHost::require_main_thread() {
 
 schola::Status ScholaTrainingHost::validate_environment_nodes() const {
 	for (size_t index = 0; index < environment_ids.size(); ++index) {
-		godot::Object *object = godot::ObjectDB::get_instance(environment_ids[index]);
-		if (object == nullptr) {
-			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-					"ScholaEnvironment for environment " + std::to_string(index) +
-							" was freed during the active training session");
+		const schola::Status status = check_environment_node(environment_ids[index], index);
+		if (!status.is_ok()) {
+			return status;
 		}
-		if (godot::Object::cast_to<ScholaEnvironment>(object) == nullptr) {
-			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-					"object for environment " + std::to_string(index) +
-							" is no longer a ScholaEnvironment");
+	}
+	// Callbacks can introduce an unregistered nested environment. Validate the
+	// whole active scene, not just the IDs captured when the session started.
+	const godot::SceneTree *tree = get_tree();
+	godot::Node *scene_root = tree != nullptr ? tree->get_current_scene() : nullptr;
+	if (scene_root == nullptr) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"training session has no active scene");
+	}
+	std::vector<ScholaEnvironment *> scene_environments;
+	collect_environments(scene_root, scene_environments);
+	for (const auto *environment : scene_environments) {
+		if (environment->get_ancestor_environment() != nullptr) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
 		}
 	}
 	return schola::Status::ok();
@@ -394,6 +521,12 @@ schola::Status ScholaTrainingHost::handle_coordinator_result(const schola::Statu
 	if (!p_status.is_ok() && coordinator.get_state() == schola::CoordinatorState::FAULTED) {
 		return fail_session(p_status);
 	}
+	if (p_status.is_ok()) {
+		const schola::Status nodes = validate_environment_nodes();
+		if (!nodes.is_ok()) {
+			return fail_session(nodes);
+		}
+	}
 	return p_status;
 }
 
@@ -405,7 +538,16 @@ schola::Status ScholaTrainingHost::shutdown_core() {
 	session_state = SessionState::SHUTTING_DOWN;
 	schola::Status status = coordinator.close();
 	training_definition.reset();
+	// Hand the environments back, so the next session's host can initialize
+	// them again. Nodes freed during the session are simply skipped.
+	for (const godot::ObjectID &id : environment_ids) {
+		ScholaEnvironment *environment = godot::Object::cast_to<ScholaEnvironment>(godot::ObjectDB::get_instance(id));
+		if (environment != nullptr) {
+			environment->release_environment();
+		}
+	}
 	environment_ids.clear();
+	checked_environments.clear();
 	session_state = SessionState::CLOSED;
 	return status;
 }
@@ -533,11 +675,15 @@ godot::Dictionary ScholaTrainingHost::close() {
 	return encode_result(shutdown_core());
 }
 
+bool ScholaTrainingHost::is_session_active() const {
+	return session_state == SessionState::ACTIVE;
+}
+
 void ScholaTrainingHost::_exit_tree() {
 	schola::Status status = shutdown_core();
 	if (!status.is_ok()) {
 		godot::UtilityFunctions::push_error(
-				godot::String("ScholaTrainingHost shutdown failed: ") + status.get_message().c_str());
+				godot::String("ScholaTrainingHost shutdown failed: ") + godot::String::utf8(status.get_message().c_str()));
 	}
 }
 
@@ -548,4 +694,5 @@ void ScholaTrainingHost::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("reset", "request"), &ScholaTrainingHost::reset);
 	godot::ClassDB::bind_method(godot::D_METHOD("step", "request"), &ScholaTrainingHost::step);
 	godot::ClassDB::bind_method(godot::D_METHOD("close"), &ScholaTrainingHost::close);
+	godot::ClassDB::bind_method(godot::D_METHOD("is_session_active"), &ScholaTrainingHost::is_session_active);
 }

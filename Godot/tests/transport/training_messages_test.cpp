@@ -264,4 +264,19 @@ TEST_CASE("training replies reject missing definitions without modifying output"
 	CHECK(message.SerializeAsString() == before);
 }
 
+TEST_CASE("paused snapshots are omitted from transport without terminal flags", "[training][transport]") {
+	TrainingDefinition definition;
+	definition.environments.resize(1);
+	InteractionDefinition agent;
+	agent.observation_space = Space(DiscreteSpace{ 3 });
+	agent.action_space = Space(DiscreteSpace{ 3 });
+	definition.environments[0].agents["a"] = agent;
+	StepResult result;
+	result.state.environments.resize(1);
+	result.state.environments[0].agents["a"].paused = true;
+	::Schola::State reply;
+	REQUIRE(to_proto(result, definition, reply).is_ok());
+	CHECK(reply.training_state().environment_states(0).agent_states().empty());
+}
+
 #endif

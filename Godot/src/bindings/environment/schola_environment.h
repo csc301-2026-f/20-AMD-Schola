@@ -88,7 +88,8 @@ public:
 
 	/**
 	 * @return Steps completed since the last reset. During a step's hooks,
-	 *         the current step is not counted yet. 0 before the first reset.
+	 *         the current step is not counted yet. 0 before the first reset and
+	 *         during reset callbacks and initial observation collection.
 	 */
 	int64_t get_episode_step() const;
 
@@ -107,13 +108,21 @@ public:
 	/**
 	 * Finds this environment's agents.
 	 *
-	 * Separate environment nodes in one scene are valid. A nested
-	 * ScholaEnvironment is not searched, so its agents are never counted
-	 * twice.
+	 * Separate non-nested environments in one scene are valid. Discovery
+	 * stops at environment nodes, but nesting itself is invalid configuration.
 	 *
 	 * @return The ScholaAgent descendants of this node, in scene-tree order.
 	 */
 	godot::TypedArray<ScholaAgent> get_agents() const;
+
+	/** Returns the nearest environment ancestor, or null for valid non-nested placement. */
+	ScholaEnvironment *get_ancestor_environment() const;
+
+	/** Optional definition templates for every possible training ID, including future spawns.
+	 * Defaults to the current descendants. Templates are not owned or activated.
+	 */
+	GDVIRTUAL0RC(godot::TypedArray<ScholaAgent>, _get_possible_agents)
+	godot::TypedArray<ScholaAgent> get_possible_agents() const;
 
 	/**
 	 * The US1 core adapter for this node.
@@ -129,6 +138,13 @@ public:
 
 	/** Read-only version of get_environment(); returns the same adapter. */
 	const schola::Environment *get_environment() const;
+
+	/**
+	 * Releases the adapter from a closed training session, so a later
+	 * session can initialize it again. Called by ScholaTrainingHost when its
+	 * session closes; does nothing if no adapter was created.
+	 */
+	void release_environment();
 
 	/**
 	 * Checks the Inspector and scene-tree configuration.
@@ -149,7 +165,8 @@ public:
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
-	 * @return Configuration errors and missing required behavior hooks.
+	 * @return Environment configuration errors and missing required behavior hooks,
+	 *         plus one summary per agent with warnings. Details stay on the agent.
 	 */
 	godot::PackedStringArray _get_configuration_warnings() const override;
 
