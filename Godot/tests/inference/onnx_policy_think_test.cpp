@@ -46,9 +46,8 @@ struct Fixture {
 	std::unique_ptr<PolicyState> state;
 	Point action;
 
-	Fixture(const std::string &p_model, const InteractionDefinition &p_definition, int32_t p_sequence_length = 0) {
+	Fixture(const std::string &p_model, const InteractionDefinition &p_definition) {
 		REQUIRE(load(policy, p_model).is_ok());
-		REQUIRE(policy.set_max_state_sequence_length(p_sequence_length).is_ok());
 		Status status = policy.init(p_definition);
 		INFO(status.get_message());
 		REQUIRE(status.is_ok());
@@ -179,8 +178,9 @@ TEST_CASE("think keeps each state separate and leaves it unchanged on failure", 
 	REQUIRE(box_values(fixture.action) == std::vector<float>{ 0.0f, 0.0f });
 }
 
-TEST_CASE("think slides a state sequence of the configured length", "[inference]") {
-	Fixture fixture("counter_seq.onnx", definition(box(1), box(2)), 3);
+TEST_CASE("think slides a state sequence of the declared length", "[inference]") {
+	Fixture fixture("counter_seq_declared.onnx", definition(box(1), box(2)));
+	REQUIRE(fixture.policy.get_sequence_warnings().empty());
 	const Point observation(BoxPoint{ { 0.0f } });
 
 	for (float expected : { 0.0f, 1.0f, 2.0f, 3.0f }) {
@@ -190,31 +190,12 @@ TEST_CASE("think slides a state sequence of the configured length", "[inference]
 	const OnnxPolicyState &state = static_cast<const OnnxPolicyState &>(*fixture.state);
 	REQUIRE(state.to_string() == "OnnxPolicyState(state_in_h: 3x2)");
 	REQUIRE(std::vector<float>(state.get_buffers()[0].values.begin(), state.get_buffers()[0].values.begin() + 6) == std::vector<float>{ 2, 2, 3, 3, 4, 4 });
-	REQUIRE(fixture.policy.set_max_state_sequence_length(5).get_code() == StatusCode::FAILED_PRECONDITION);
 }
 
-TEST_CASE("the declared sequence length is used unless set by hand", "[inference]") {
-	for (const auto &[manual, length] : std::vector<std::pair<int32_t, std::string>>{ { 0, "3" }, { 5, "5" } }) {
-		Fixture fixture("counter_seq_declared.onnx", definition(box(1), box(2)), manual);
-		REQUIRE(fixture.state->to_string() == "OnnxPolicyState(state_in_h: " + length + "x2)");
-		REQUIRE(fixture.policy.get_sequence_warnings().size() == (manual == 0 ? 0 : 1));
-		for (float expected : { 0.0f, 1.0f, 2.0f, 3.0f }) {
-			REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f } })).is_ok());
-			REQUIRE(box_values(fixture.action) == std::vector<float>{ expected, expected });
-		}
-	}
-}
-
-TEST_CASE("a manual length must fit a fixed sequence dimension", "[inference]") {
-	OnnxPolicy policy;
-	REQUIRE(load(policy, "counter_seq_fixed.onnx").is_ok());
-	REQUIRE(policy.init(definition(box(1), box(2))).is_ok());
-
-	REQUIRE(load(policy, "counter_seq_fixed.onnx").is_ok());
-	REQUIRE(policy.set_max_state_sequence_length(5).is_ok());
-	Status status = policy.init(definition(box(1), box(2)));
-	REQUIRE(status.get_code() == StatusCode::INCOMPATIBLE);
-	REQUIRE_THAT(status.get_message(), ContainsSubstring("max_state_sequence_length 5 does not fit state input 'state_in_h'"));
+TEST_CASE("a declared length runs on a fixed sequence dimension", "[inference]") {
+	Fixture fixture("counter_seq_fixed.onnx", definition(box(1), box(2)));
+	REQUIRE(fixture.state->to_string() == "OnnxPolicyState(state_in_h: 3x2)");
+	REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f } })).is_ok());
 }
 
 TEST_CASE("think accepts any state that fits the model", "[inference]") {
@@ -230,8 +211,7 @@ TEST_CASE("think accepts any state that fits the model", "[inference]") {
 
 TEST_CASE("think rejects a state created before the model was reloaded", "[inference]") {
 	Fixture fixture("counter.onnx", definition(box(1), box(2)));
-	REQUIRE(load(fixture.policy, "counter_seq.onnx").is_ok());
-	REQUIRE(fixture.policy.set_max_state_sequence_length(3).is_ok());
+	REQUIRE(load(fixture.policy, "counter_seq_declared.onnx").is_ok());
 	REQUIRE(fixture.policy.init(definition(box(1), box(2))).is_ok());
 
 	Status status = fixture.think(Point(BoxPoint{ { 0.0f } }));

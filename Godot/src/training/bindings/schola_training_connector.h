@@ -22,7 +22,13 @@
  * on 127.0.0.1:port and waits for Python to connect. After that, each physics
  * frame blocks until Python's next reset or step and runs it, so an action and
  * its reward always land on the same frame. The game does not respond while it
- * waits; that is expected while training. One node runs one session.
+ * waits; that is expected while training.
+ *
+ * When Python closes a session normally, the node keeps the port and waits for
+ * Python's next session, as Unreal Schola does: Schola's RLlib trainer connects
+ * once to read the agents and again to train. Each session gets a fresh
+ * ScholaTrainingHost. Training ends when a session fails, or when Python does
+ * not start another session within start_timeout_sec of closing one.
  *
  * It does nothing in the editor. The class belongs to the training add-on,
  * which exported games normally exclude, so keep it in a training-only scene
@@ -59,30 +65,36 @@ public:
 	void _exit_tree() override;
 
 protected:
-	// Binds the properties, is_training(), and the training_finished(error:
-	// String) signal. It is emitted once, when the session ends: with an empty
-	// string when Python closed it normally, and otherwise with the reason,
-	// which is also pushed as an error.
+	// Binds the properties, is_training(), and two signals. session_closed()
+	// is emitted each time Python closes a session normally; the node then
+	// waits for the next one. training_finished(error: String) is emitted
+	// once, when training ends: with an empty string when Python finished
+	// normally, and otherwise with the reason, which is also pushed as an
+	// error.
 	static void _bind_methods();
 
 private:
-	// Runs once, on the first physics frame: creates the host, opens the port,
-	// and waits for Python to start the session.
+	// Runs on the first physics frame, and again after each session Python
+	// closes: replaces the host, opens the port, and waits for Python to start
+	// a session.
 	void start_session();
 	// Creates the runtime's ScholaTrainingHost as an internal child, or returns
 	// null if the runtime add-on is missing.
 	godot::Node *create_host();
-	// Ends the session once and emits training_finished.
-	void finish(const schola::Status &p_status);
+	// Ends training once and emits training_finished. p_normal means Python
+	// finished on purpose, so p_status is not reported as an error.
+	void finish(const schola::Status &p_status, bool p_normal);
 
 	int32_t port = 8000;
 	double start_timeout_sec = 45.0;
 	double step_timeout_sec = 60.0;
-	bool started = false; // A session was attempted; one per node.
+	int32_t resolved_port = 0; // Chosen on the first session; 0 until then.
+	int64_t completed_sessions = 0; // Sessions Python closed normally.
 	bool finished = false; // training_finished has been emitted.
 
-	// The session's three parts: Python's side (gRPC), the game's side (the
-	// host, reached through HostTrainingBackend), and the loop between them.
+	// The session's parts: Python's side (gRPC), the game's side (the host,
+	// reached through HostTrainingBackend), and the loop between them.
+	godot::Node *host = nullptr; // Internal child; replaced each session.
 	std::unique_ptr<schola::Connector> connector;
 	std::unique_ptr<schola::TrainingBackend> backend;
 	schola::ConnectorLoop loop;
