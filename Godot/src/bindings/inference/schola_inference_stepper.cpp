@@ -43,6 +43,9 @@ void ScholaInferenceStepper::set_policy(const godot::Ref<ScholaOnnxPolicy> &p_po
 	policy = p_policy;
 	if (stepper != nullptr) {
 		stepper.reset();
+		// The old agents are gone, so forget their last failure. Otherwise the
+		// same failure from the re-added agents looks like a repeat and stays quiet.
+		last_step_error = godot::String();
 		(void)report("ScholaInferenceStepper.policy: the policy was changed, so its agents were removed; add them again", godot::ERR_UNCONFIGURED);
 	}
 	update_configuration_warnings();
