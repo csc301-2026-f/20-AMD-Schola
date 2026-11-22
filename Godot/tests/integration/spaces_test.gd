@@ -149,6 +149,9 @@ func test_multi_discrete_and_multi_binary_accept_packed_and_plain_arrays() -> vo
 	assert_str(multi_binary.get_validation_error(PackedByteArray([0, 1, 1]))).is_empty()
 	assert_str(multi_binary.get_validation_error([1, 0, 1])).is_empty()
 	assert_str(multi_binary.get_validation_error([1, 2, 1])).contains("0 or 1")
+	# Values past the byte range get the same guidance as 2
+	assert_str(multi_binary.get_validation_error([1, 0, -1])).contains("index 2 is -1 but must be 0 or 1")
+	assert_str(multi_binary.get_validation_error([1, 0, 256])).contains("index 2 is 256 but must be 0 or 1")
 	assert_str(multi_binary.get_validation_error([1, 0.5, 1])).contains("Array element 1")
 
 
