@@ -62,10 +62,15 @@ schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index) {
 				"ScholaEnvironment for environment " + std::to_string(p_index) +
 						" was freed during the active training session");
 	}
-	if (godot::Object::cast_to<ScholaEnvironment>(object) == nullptr) {
+	const auto *environment = godot::Object::cast_to<ScholaEnvironment>(object);
+	if (environment == nullptr) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"object for environment " + std::to_string(p_index) +
 						" is no longer a ScholaEnvironment");
+	}
+	if (environment->get_ancestor_environment() != nullptr) {
+		return schola::Status::error(schola::StatusCode::INVALID_DATA,
+				"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
 	}
 	return schola::Status::ok();
 }
@@ -169,8 +174,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 			schola::AgentId agent_id = to_std_string(godot::String(agent_id_value));
 			auto agent_definition = environment_definition.agents.find(agent_id);
 			if (agent_definition == environment_definition.agents.end()) {
-				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
-						"step request contains an unknown agent ID");
+				return schola::Status::error(schola::StatusCode::NOT_FOUND,
+						"Agent '" + agent_id + "': not part of this environment");
 			}
 
 			schola::Point point;
@@ -180,7 +185,8 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 					point);
 
 			if (!status.is_ok()) {
-				return status;
+				return schola::Status::error(status.get_code(),
+						"Agent '" + agent_id + "': rejected action: " + status.get_message());
 			}
 			decoded_actions.emplace(agent_id, std::move(point));
 		}
@@ -276,6 +282,9 @@ godot::Dictionary encode_step_result(const schola::StepResult &result) {
 	for (auto &environment : result.state.environments) {
 		godot::Dictionary agents;
 		for (auto &[agent_id, agent] : environment.agents) {
+			if (agent.paused) {
+				continue;
+			}
 			godot::Dictionary encoded_agent;
 			encoded_agent["observation"] = schola::point_to_variant(agent.observation);
 			encoded_agent["reward"] = agent.reward;
@@ -395,6 +404,22 @@ schola::Status ScholaTrainingHost::validate_environment_nodes() const {
 			return status;
 		}
 	}
+	// Callbacks can introduce an unregistered nested environment. Validate the
+	// whole active scene, not just the IDs captured when the session started.
+	const godot::SceneTree *tree = get_tree();
+	godot::Node *scene_root = tree != nullptr ? tree->get_current_scene() : nullptr;
+	if (scene_root == nullptr) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"training session has no active scene");
+	}
+	std::vector<ScholaEnvironment *> scene_environments;
+	collect_environments(scene_root, scene_environments);
+	for (const auto *environment : scene_environments) {
+		if (environment->get_ancestor_environment() != nullptr) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
+		}
+	}
 	return schola::Status::ok();
 }
 
@@ -406,6 +431,12 @@ schola::Status ScholaTrainingHost::fail_session(const schola::Status &p_failure)
 schola::Status ScholaTrainingHost::handle_coordinator_result(const schola::Status &p_status) {
 	if (!p_status.is_ok() && coordinator.get_state() == schola::CoordinatorState::FAULTED) {
 		return fail_session(p_status);
+	}
+	if (p_status.is_ok()) {
+		const schola::Status nodes = validate_environment_nodes();
+		if (!nodes.is_ok()) {
+			return fail_session(nodes);
+		}
 	}
 	return p_status;
 }

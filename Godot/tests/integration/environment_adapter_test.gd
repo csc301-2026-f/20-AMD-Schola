@@ -8,6 +8,7 @@ extends GdUnitTestSuite
 
 const STATUS_INVALID_ARGUMENT := 1
 const STATUS_NOT_FOUND := 2
+const STATUS_INVALID_DATA := 3
 const STATUS_FAILED_PRECONDITION := 5
 
 
@@ -119,20 +120,29 @@ func _agent(environment: TestEnvironment, agent_name: String) -> TestAgent:
 	return environment.get_node(agent_name) as TestAgent
 
 
-func test_initialize_reports_resolved_ids_and_skips_nested_environments() -> void:
+func test_initialize_reports_resolved_ids() -> void:
 	var environment := _environment(["Runner"])
 	var chaser := _add_agent(environment, environment, "ChaserNode")
 	chaser.agent_id = "chaser"
 	chaser.agent_type = "hunters"
-	var nested := ScholaEnvironment.new()
-	nested.name = "Nested"
-	environment.add_child(nested)
-	_add_agent(nested, environment, "Inner")
 
 	var response: Dictionary = _driver.call("initialize", environment)
 
 	assert_bool(response.ok).override_failure_message(response.message).is_true()
 	assert_dict(response.agents).is_equal({"Runner": "Runner", "chaser": "hunters"})
+
+
+func test_nested_environment_cannot_initialize() -> void:
+	var outer := _environment(["OuterAgent"])
+	var nested := TestEnvironment.new()
+	nested.name = "Nested"
+	outer.add_child(nested)
+	_add_agent(nested, nested, "Inner")
+
+	var result: Dictionary = _driver.call("initialize", nested)
+
+	assert_int(result.code).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_str(result.message).contains("Nested ScholaEnvironment nodes are unsupported")
 
 
 func test_calls_before_initialize_fail_without_touching_output() -> void:
@@ -190,7 +200,7 @@ func test_failed_initialize_leaves_the_adapter_ready_for_a_retry() -> void:
 	assert_dict(fixed.agents).is_equal({"A": "A"})
 
 
-func test_initialize_twice_fails_and_keeps_the_first_agent_set() -> void:
+func test_initialize_twice_fails_and_reset_rejects_undeclared_agent() -> void:
 	var environment := _environment(["A"])
 	assert_bool(_driver.call("initialize", environment).ok).is_true()
 	_add_agent(environment, environment, "B")
@@ -200,11 +210,11 @@ func test_initialize_twice_fails_and_keeps_the_first_agent_set() -> void:
 	assert_int(again.code).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_str(again.message).contains("initialize() was already called")
 	assert_dict(again.agents).is_equal({"sentinel": "sentinel"})
-	# B joined after the first initialize(), so the adapter never drives it.
 	var reset_response: Dictionary = _driver.call("reset", environment)
-	assert_bool(reset_response.ok).is_true()
-	assert_array(reset_response.states.keys()).contains_exactly(["A"])
-	assert_array(environment.events).contains_exactly(["reset", "observe:A", "started"])
+	assert_int(reset_response.code).is_equal(STATUS_INVALID_DATA)
+	assert_str(reset_response.message).contains("Agent 'B': agent ID must be declared")
+	assert_array(reset_response.states.keys()).contains_exactly(["sentinel"])
+	assert_array(environment.events).contains_exactly(["reset"])
 
 
 func test_reset_seeds_the_rng_and_forwards_seed_and_options() -> void:

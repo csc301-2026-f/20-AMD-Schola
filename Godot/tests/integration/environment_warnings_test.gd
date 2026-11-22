@@ -71,7 +71,7 @@ func test_healthy_agent_has_no_summary_and_fixed_agent_summary_disappears() -> v
 	assert_array(_warnings(environment)).is_empty()
 
 
-func test_descendant_paths_are_reported_and_nested_environments_are_independent() -> void:
+func test_descendant_paths_and_nested_environment_warnings_are_reported() -> void:
 	if _driver == null:
 		return
 	var environment := _environment()
@@ -90,9 +90,10 @@ func test_descendant_paths_are_reported_and_nested_environments_are_independent(
 	assert_array(_warnings(environment)).contains_exactly([
 		"Agent 'player' (Group/Agent) has configuration warnings. Select the agent node for details.",
 	])
-	assert_array(_warnings(nested)).contains_exactly([
-		"Agent 'NestedAgent' (NestedAgent) has configuration warnings. Select the agent node for details.",
-	])
+	var nested_warnings := _warnings(nested)
+	assert_int(nested_warnings.size()).is_equal(2)
+	assert_str(nested_warnings[0]).contains("Nested ScholaEnvironment nodes are unsupported")
+	assert_str(nested_warnings[1]).contains("Agent 'NestedAgent' (NestedAgent) has configuration warnings.")
 
 
 func test_environment_specific_warnings_remain_detailed() -> void:

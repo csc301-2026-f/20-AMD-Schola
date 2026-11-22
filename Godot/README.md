@@ -164,8 +164,11 @@ Agent warning icons identify missing/invalid spaces and missing `_observe` or
 `_act` hooks. The environment shows at most one summary per agent with warnings;
 select that agent node for the specific diagnostics. The environment also reports
 missing agents, missing `_get_step_result`, and duplicate resolved agent IDs, including the conflicting
-node paths. Nested environments are searched independently, so matching agent IDs
-across separate environments are allowed. `_reset_episode` is optional.
+node paths. Nested `ScholaEnvironment` nodes are unsupported: the Inspector warns
+and training rejects environments with an environment ancestor, including through
+grouping nodes. Separate non-nested environments may reuse agent IDs.
+See [the nesting decision](docs/decisions/environment-nesting.md).
+`_reset_episode` is optional.
 
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
@@ -321,6 +324,104 @@ A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPol
 Add a `ScholaStacker` Resource to the agent's `observation_adapters` array to give the policy recent observations. Keep the agent's `observation_space` and `_observe()` output in the original format. The agent applies Resources in array order and reports the final space to the trainer or policy. Set the output kind to Box for axis-based stacking or Dict for slot-suffixed keys. Slot zero is newest. An unset `default_point` uses the input space's default. Agents can share a stacker Resource and each agent keeps its own history. Training resets history automatically at episode start. With local inference, call the stepper's `reset_state(agent)` or `reset_states()` when starting an episode.
 
 Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+
+## Dynamic training populations
+
+Training definitions declare all **possible agent IDs** and their spaces once.
+The active population may then change during an episode or between resets.
+By default, the initial `ScholaAgent` descendants supply those definitions.
+For future spawns, override `ScholaEnvironment._get_possible_agents()` to return
+an `Array[ScholaAgent]` of definition templates for all possible IDs. Templates
+may be outside the environment; the game owns their lifetime. Only actual
+`ScholaAgent` descendants participate in the episode.
+
+For example, keep definition-template nodes in a sibling container and assign
+references through an exported array on your environment script:
+
+```gdscript
+@export var agent_templates: Array[ScholaAgent] = []
+
+func _get_possible_agents() -> Array[ScholaAgent]:
+    return agent_templates
+```
+
+The array must include every possible ID, including agents present initially.
+Each spawned copy gets a unique unused ID from this declared roster.
+
+Spawn a descendant with a declared ID, matching spaces, and matching `agent_type`.
+Set `agent_id` explicitly so a node name collision cannot silently change its
+identity. Schola returns a new agent's first observation with zero reward, and
+Python supplies its first action on the following step.
+
+In environments that override `_get_possible_agents()`, removing a live agent
+finishes its trajectory. If `_get_step_result()` already ran, the departure keeps
+the collected observation, reward, and info. Return `truncated: true` from that
+hook for an external cutoff such as despawning at a level boundary. If the node
+leaves before the hook runs, Schola sends the last observation with zero reward
+and marks it terminated. Use `queue_free()` for removal from a gameplay callback.
+An agent whose action was skipped due to detachment still finishes if reattached
+later in the same step. Fixed-population environments report a freed or removed
+agent as a training error.
+
+Changing a pending agent's resolved ID before its action is dispatched closes
+the session without applying the stale action. An ID that terminates or truncates
+is retired until reset. A node spawned with a retired ID is ignored for the rest
+of that episode. Replacing a still-active node with another using the same ID
+closes the session. To train a respawn in the same episode, use a new declared ID
+such as `player_spawn_2` after `player_spawn_1` dies.
+
+At reset, IDs may be reused with entirely new nodes. The initial roster reflects
+the live population after reset and observation callbacks. Unused possible IDs
+never need actions or delay completion. An episode completes when all observed
+agents finish. An empty initial roster accepts an empty action map to discover
+births.
+
+This preserves the existing Python/protobuf possible-agent contract. It supports
+a varying population within a declared capacity, rather than adding new space
+definitions during training. Use a client supporting dynamic multi-agent rosters
+(such as RLlib); SB3's fixed-size vector interface still requires fixed populations.
+
+### Pause and resume training agents
+
+Set `agent.training_paused = true` to suspend a live agent without terminating
+its trajectory. Set it back to `false` to resume the same ID and node within the
+episode. This affects training participation only; Godot processing and physics
+continue normally.
+
+```gdscript
+waiting_unit.training_paused = true
+# Later, when this unit can participate again:
+waiting_unit.training_paused = false
+```
+
+Actions always match the last published roster. If a pause is requested after
+that roster was sent, supply its already-requested action once; Schola skips it
+if the agent is paused at dispatch. Once the next response omits the agent, omit
+its actions too. While paused, `_act`, `_observe`, and `_get_step_result` do not
+run. A transition whose action or observation was already collected is published
+once before the pause takes effect. An action that ran finishes its normal result
+hook. This also announces a birth that pauses during its first observation. Resuming publishes a fresh observation with zero
+reward and requests the first new action on the following step.
+
+Observed paused agents keep the episode open, including when all agents are
+paused. Continue stepping with empty action maps while Godot gameplay schedules
+resumption. Initially paused agents are omitted from reset and participate only
+after their first observation; unused IDs do not hold an episode open. Reset
+preserves the property unless your `_reset_episode` changes it. Removing a paused
+node still produces a terminal transition, and pausing a finished ID cannot
+resurrect it. Pause state does not permit same-episode node replacement.
+
+Use the updated Schola RLlib adapters for this scheduling behavior; they track
+agents ready for actions separately from all episode participants. SB3 still
+requires fixed populations and does not support pausing training agents.
+
+To run the end-to-end RLlib sampler regression, build and import the Godot
+project as above, install the Python test dependencies and the `rllib` extra,
+then run from the repository root:
+
+```sh
+SCHOLA_TEST_GODOT=/path/to/godot python -m pytest Test/rllib/test_godot_dynamic_population.py -n 0
+```
 
 ## Directory structure
 
