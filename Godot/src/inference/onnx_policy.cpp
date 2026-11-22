@@ -359,8 +359,6 @@ struct OnnxPolicy::Impl {
 	std::vector<std::string> input_names;
 	std::vector<std::string> output_names;
 	std::vector<StateLayout> states;
-	// 0 uses the length declared by the model, or 1 if it declares none.
-	int32_t max_state_sequence_length = 0;
 	OrtPtr<OrtMemoryInfo> memory_info;
 	std::vector<Binding> observations;
 	std::vector<Binding> actions;
@@ -402,13 +400,7 @@ struct OnnxPolicy::Impl {
 	}
 
 	int64_t sequence_length(const StateLayout &p_state) const {
-		if (!p_state.has_sequence) {
-			return 1;
-		}
-		if (max_state_sequence_length > 0) {
-			return max_state_sequence_length;
-		}
-		return p_state.model_sequence_length > 0 ? p_state.model_sequence_length : 1;
+		return p_state.has_sequence && p_state.model_sequence_length > 0 ? p_state.model_sequence_length : 1;
 	}
 
 	Status lookup(const OrtModelMetadata *p_metadata, OrtAllocator *p_allocator, const std::string &p_key, bool &r_found, std::string &r_value) const {
@@ -633,9 +625,6 @@ struct OnnxPolicy::Impl {
 			state.input_shape = inputs[state.input_index].shape;
 			state.input_shape[0] = 1;
 			if (state.has_sequence) {
-				if (state.input_shape[1] > 0 && state.input_shape[1] != sequence_length(state)) {
-					return Status::error(StatusCode::INCOMPATIBLE, context + ": max_state_sequence_length " + std::to_string(max_state_sequence_length) + " does not fit state input '" + inputs[state.input_index].name + "', whose sequence has " + std::to_string(state.input_shape[1]) + " entries");
-				}
 				state.input_shape[1] = sequence_length(state);
 			}
 			state.output_shape = outputs[state.output_index].shape;
@@ -786,21 +775,6 @@ Status OnnxPolicy::load_model(const uint8_t *p_data, size_t p_size, const std::s
 	return Status::ok();
 }
 
-Status OnnxPolicy::set_max_state_sequence_length(int32_t p_length) {
-	if (p_length < 0 || p_length > MAX_STATE_SEQUENCE_LENGTH) {
-		return Status::error(StatusCode::INVALID_ARGUMENT, "set_max_state_sequence_length: length must be between 0 and " + std::to_string(MAX_STATE_SEQUENCE_LENGTH) + ", got " + std::to_string(p_length));
-	}
-	if (impl->initialized) {
-		return Status::error(StatusCode::FAILED_PRECONDITION, "set_max_state_sequence_length: call before init()");
-	}
-	impl->max_state_sequence_length = p_length;
-	return Status::ok();
-}
-
-int32_t OnnxPolicy::get_max_state_sequence_length() const {
-	return impl->max_state_sequence_length;
-}
-
 std::vector<int64_t> OnnxPolicy::get_state_sequence_lengths() const {
 	std::vector<int64_t> lengths;
 	for (const StateLayout &state : impl->states) {
@@ -812,14 +786,8 @@ std::vector<int64_t> OnnxPolicy::get_state_sequence_lengths() const {
 std::vector<std::string> OnnxPolicy::get_sequence_warnings() const {
 	std::vector<std::string> warnings;
 	for (const StateLayout &state : impl->states) {
-		const std::string &name = impl->inputs[state.input_index].name;
-		if (!state.has_sequence) {
-			continue;
-		}
-		if (state.model_sequence_length == 0 && impl->max_state_sequence_length == 0) {
-			warnings.push_back("state input '" + name + "' declares no sequence length, so it uses 1; re-export the model or set max_state_sequence_length to the training value");
-		} else if (state.model_sequence_length > 0 && impl->max_state_sequence_length > 0 && state.model_sequence_length != impl->max_state_sequence_length) {
-			warnings.push_back("max_state_sequence_length " + std::to_string(impl->max_state_sequence_length) + " overrides the length " + std::to_string(state.model_sequence_length) + " declared for state input '" + name + "'");
+		if (state.has_sequence && state.model_sequence_length == 0) {
+			warnings.push_back("state input '" + impl->inputs[state.input_index].name + "' declares no sequence length, so it uses 1; re-export the model with Schola to record the training value");
 		}
 	}
 	return warnings;

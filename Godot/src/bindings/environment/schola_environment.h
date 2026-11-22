@@ -144,7 +144,8 @@ public:
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
-	 * @return Configuration errors and missing required behavior hooks.
+	 * @return Environment configuration errors and missing required behavior hooks,
+	 *         plus one summary per agent with warnings. Details stay on the agent.
 	 */
 	godot::PackedStringArray _get_configuration_warnings() const override;
 
