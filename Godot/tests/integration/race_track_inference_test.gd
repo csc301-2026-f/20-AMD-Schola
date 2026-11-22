@@ -171,6 +171,33 @@ func test_removed_map_obstacle_comes_back_with_r() -> void:
 	assert_bool(obstacle.visible).is_true()
 
 
+func test_brake_lights_turn_on_only_while_braking() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var steppers := _use_exported_model(scene)
+	add_child(scene)
+	for stepper in steppers:
+		stepper.enabled = false
+	var car: VehicleBody3D = scene.get_node("Car")
+	var controls: RaceTrackControls = scene.get_node("Car/Agent/Controls")
+	var lights: Node = car.get_node("BrakeLights")
+	await get_tree().process_frame
+	assert_bool(lights.lit).is_false()
+	assert_bool(lights.get_node("Glow").visible).is_false()
+
+	for frame in 20:
+		controls._act(PackedFloat32Array([0.0, -1.0]))
+		await get_tree().physics_frame
+	await get_tree().process_frame
+	assert_bool(lights.lit).is_true()
+	assert_bool(lights.get_node("Glow").visible).is_true()
+
+	for frame in 60:
+		controls._act(PackedFloat32Array([0.0, 0.5]))
+		await get_tree().physics_frame
+	await get_tree().process_frame
+	assert_bool(lights.lit).is_false()
+
+
 func _press(keycode: Key) -> void:
 	await get_tree().process_frame
 	var key := InputEventKey.new()
