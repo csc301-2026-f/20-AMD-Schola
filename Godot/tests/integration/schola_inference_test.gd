@@ -91,8 +91,7 @@ func test_last_error_is_cleared_by_the_next_call() -> void:
 
 func test_copy_from_reports_a_state_of_another_size() -> void:
 	var short_policy := _policy("counter.onnx")
-	var long_policy := _policy("counter_seq.onnx")
-	long_policy.max_state_sequence_length = 3
+	var long_policy := _policy("counter_seq_declared.onnx")
 	for policy in [short_policy, long_policy]:
 		assert_int(policy.load()).is_equal(OK)
 		assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
@@ -117,21 +116,9 @@ func test_initialize_reloads_after_the_model_path_changes() -> void:
 	assert_array(_values(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0])))).contains_exactly([2.0, 4.0, 6.0])
 
 
-func test_initialize_applies_a_changed_sequence_length() -> void:
-	var policy := _policy("counter_seq.onnx")
-	var agent := _agent(1, 2, null)
-	policy.max_state_sequence_length = 3
-	assert_int(policy.initialize(agent)).is_equal(OK)
-	assert_str(str(policy.create_state())).contains("3x2")
-
-	policy.max_state_sequence_length = 5
-	assert_int(policy.initialize(agent)).is_equal(OK)
-	assert_str(str(policy.create_state())).contains("5x2")
-
-
 func test_initialize_takes_the_sequence_length_from_the_model() -> void:
 	var policy := _policy("counter_seq_declared.onnx")
-	assert_int(policy.max_state_sequence_length).is_equal(0)
+	assert_bool("max_state_sequence_length" in policy).is_false()
 	assert_int(policy.initialize(_agent(1, 2, null))).is_equal(OK)
 	assert_str(str(policy.create_state())).contains("3x2")
 	assert_array(Array(policy.get_state_sequence_lengths())).contains_exactly([3])
