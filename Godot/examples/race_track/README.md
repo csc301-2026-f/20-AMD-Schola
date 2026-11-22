@@ -12,6 +12,8 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
+Press 1, 2, 3 or 4 to switch between the untrained, 25,000-step, 350,000-step and final policies while the car drives, and R to put the car back at the start.
+
 ## Results
 
 `evaluate.gd` drives the inference scene for one 50-second episode without Python and reports the metres driven along the track.
@@ -157,7 +159,8 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scenes/race_track_train.tscn` | Track, a `ScholaEnvironment` with the car, and `ScholaTrainingConnector` | `Maps/RaceTrackTrain` |
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
 | `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
-| `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel and pedals showing the agent's actions | None |
+| `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel, pedals and speed showing the agent's actions | None |
+| `scripts/model_switcher.gd` | Switches the inference scene between four policies with keys 1-4 and restarts the car with R | None |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, start positions, walls, and obstacles | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |

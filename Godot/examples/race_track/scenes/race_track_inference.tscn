@@ -1,11 +1,21 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="2_car"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="3_display"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/model_switcher.gd" id="4_switcher"]
 
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_race_track"]
 model_path = "res://examples/race_track/policies/race_track.onnx"
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_untrained"]
+model_path = "res://examples/race_track/policies/race_track_untrained.onnx"
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_25k_steps"]
+model_path = "res://examples/race_track/policies/race_track_25k_steps.onnx"
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_350k_steps"]
+model_path = "res://examples/race_track/policies/race_track_350k_steps.onnx"
 
 [node name="RaceTrackInference" type="Node3D"]
 
@@ -21,5 +31,29 @@ shadow_enabled = true
 policy = SubResource("ScholaOnnxPolicy_race_track")
 agents = Array[NodePath]([NodePath("../Car/Agent")])
 
+[node name="UntrainedStepper" type="ScholaInferenceStepper" parent="."]
+policy = SubResource("ScholaOnnxPolicy_untrained")
+agents = Array[NodePath]([NodePath("../Car/Agent")])
+enabled = false
+
+[node name="EarlyStepper" type="ScholaInferenceStepper" parent="."]
+policy = SubResource("ScholaOnnxPolicy_25k_steps")
+agents = Array[NodePath]([NodePath("../Car/Agent")])
+enabled = false
+
+[node name="PartlyTrainedStepper" type="ScholaInferenceStepper" parent="."]
+policy = SubResource("ScholaOnnxPolicy_350k_steps")
+agents = Array[NodePath]([NodePath("../Car/Agent")])
+enabled = false
+
 [node name="ActionDisplay" parent="." instance=ExtResource("3_display")]
 controls_path = NodePath("../Car/Agent/Controls")
+
+[node name="ModelSwitcher" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+script = ExtResource("4_switcher")
+stepper_paths = Array[NodePath]([NodePath("../UntrainedStepper"), NodePath("../EarlyStepper"), NodePath("../PartlyTrainedStepper"), NodePath("../InferenceStepper")])
+names = PackedStringArray("UNTRAINED", "25,000 TRAINING STEPS", "350,000 TRAINING STEPS", "650,000 TRAINING STEPS")
+agent_path = NodePath("../Car/Agent")
+selected = 3

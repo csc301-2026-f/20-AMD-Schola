@@ -19,8 +19,9 @@ static func drive(parent: Node, model: String, seconds: float, seed: int = 0) ->
 	var failures: Array[String] = []
 	var random: RandomNumberGenerator = null
 	if model == RANDOM:
-		scene.remove_child(stepper)
-		stepper.free()
+		for node: Node in [stepper, scene.get_node("ModelSwitcher")]:
+			scene.remove_child(node)
+			node.free()
 		random = RandomNumberGenerator.new()
 		random.seed = seed
 	else:
