@@ -1,0 +1,145 @@
+/*
+  Base: a small reset plus default element styles.
+  Only element selectors live here; anything with a class belongs in layout.css or components.css.
+*/
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+/* Headings are set wide and heavy; that width is the site's main typographic signature. */
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 800;
+  font-stretch: 112%;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--step-5); font-stretch: 125%; letter-spacing: -0.02em; line-height: 0.98; }
+h2 { font-size: var(--step-4); }
+h3 { font-size: var(--step-2); font-stretch: 105%; }
+h4 { font-size: var(--step-1); font-stretch: 100%; font-weight: 700; }
+
+p,
+ul,
+ol,
+dl,
+figure,
+blockquote,
+pre,
+table {
+  margin: 0;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
+ul,
+ol {
+  padding-left: 1.25em;
+}
+
+li + li {
+  margin-top: var(--space-2);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--link);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+strong {
+  font-weight: 700;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+/* Inline code gets a quiet tint so class names read as names, not prose. */
+:not(pre) > code {
+  padding: 0.1em 0.3em;
+  background: var(--surface-quiet);
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+
+kbd {
+  padding: 0.05em 0.4em;
+  border: 1px solid var(--rule);
+  border-bottom-width: 2px;
+  border-radius: var(--radius);
+}
+
+hr {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--rule);
+}
+
+/* Keyboard focus is always visible, in AMD red, on every interactive element. */
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--red);
+  color: var(--white);
+}
+
+/* Respect the reduced-motion setting everywhere, including the hero animation. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

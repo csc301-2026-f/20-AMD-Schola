@@ -1,0 +1,250 @@
+/*
+  Layout: page frame, header, footer and the section bands every page is built from.
+  A page is a stack of .band sections; each band holds a .wrap that centres the content.
+*/
+
+/* Centred content column with responsive side gutters. */
+.wrap {
+  width: 100%;
+  max-width: calc(var(--page-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Lets keyboard users jump straight past the navigation. Hidden until focused. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  background: var(--white);
+  color: var(--black);
+  font-weight: 700;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* ---------- Site header ---------- */
+
+.site-header {
+  background: var(--black);
+  color: var(--white);
+  border-bottom: 1px solid var(--grey-900);
+}
+
+.site-header .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  padding-block: var(--space-4);
+}
+
+/* The wordmark: a red "agent" square next to the project name. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: inherit;
+  font-weight: 800;
+  font-stretch: 118%;
+  font-size: var(--step-1);
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.brand::before {
+  content: "";
+  width: 0.8em;
+  height: 0.8em;
+  background: var(--red);
+}
+
+.brand small {
+  color: var(--grey-300);
+  font-size: var(--step--1);
+  font-weight: 500;
+  font-stretch: 100%;
+}
+
+/* Main navigation. On narrow screens it wraps under the wordmark instead of hiding behind a menu. */
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.site-nav li + li {
+  margin-top: 0;
+}
+
+.site-nav a {
+  display: block;
+  padding-block: var(--space-1);
+  color: var(--grey-300);
+  font-size: var(--step--1);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.site-nav a:hover {
+  color: var(--white);
+}
+
+/* Each page marks its own link with aria-current="page"; the red underline shows where you are. */
+.site-nav a[aria-current="page"] {
+  color: var(--white);
+  border-bottom-color: var(--red);
+}
+
+/* ---------- Section bands ---------- */
+
+.band {
+  padding-block: var(--space-8);
+}
+
+.band--tight {
+  padding-block: var(--space-7);
+}
+
+.band--quiet {
+  background: var(--surface-quiet);
+}
+
+/* Dark bands flip the semantic colours, so components inside them adapt automatically. */
+.band--dark {
+  --text: var(--white);
+  --text-muted: var(--grey-300);
+  --surface-quiet: var(--grey-900);
+  --rule: var(--grey-700);
+  --link: var(--red);
+  background: var(--black);
+  color: var(--text);
+}
+
+/* Section heading block: a heading with an optional short lead paragraph under it. */
+.section-head {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 48rem;
+  margin-bottom: var(--space-7);
+}
+
+.section-head p {
+  max-width: var(--measure);
+  color: var(--text-muted);
+  font-size: var(--step-1);
+  line-height: 1.5;
+}
+
+/* Long-form text column. */
+.prose {
+  max-width: var(--measure);
+}
+
+.prose > * + * {
+  margin-top: var(--space-4);
+}
+
+.prose h3 {
+  margin-top: var(--space-6);
+}
+
+/* ---------- Page intro (top of every page except the home page) ---------- */
+
+.page-intro {
+  padding-block: var(--space-8) var(--space-7);
+  background: var(--black);
+  color: var(--white);
+}
+
+.page-intro h1 {
+  max-width: 14ch;
+  font-size: var(--step-5);
+}
+
+.page-intro p {
+  max-width: var(--measure);
+  margin-top: var(--space-5);
+  color: var(--grey-300);
+  font-size: var(--step-1);
+  line-height: 1.5;
+}
+
+/* ---------- Reusable grids ---------- */
+
+/* Two columns: a narrow label column and a wide content column. Collapses on small screens. */
+.split {
+  display: grid;
+  gap: var(--space-5) var(--space-7);
+}
+
+@media (min-width: 52rem) {
+  .split {
+    grid-template-columns: minmax(12rem, 1fr) 2.4fr;
+  }
+}
+
+/* Even columns that fit as many as the width allows. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-6);
+}
+
+/* ---------- Site footer ---------- */
+
+.site-footer {
+  padding-block: var(--space-7);
+  background: var(--black);
+  color: var(--grey-300);
+  font-size: var(--step--1);
+}
+
+.site-footer .wrap {
+  display: grid;
+  gap: var(--space-5);
+}
+
+@media (min-width: 52rem) {
+  .site-footer .wrap {
+    grid-template-columns: 2fr 1fr;
+    align-items: end;
+  }
+}
+
+.site-footer a {
+  color: var(--white);
+}
+
+.site-footer p + p {
+  margin-top: var(--space-2);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footer-links li + li {
+  margin-top: 0;
+}
+
+@media (min-width: 52rem) {
+  .footer-links {
+    justify-content: flex-end;
+  }
+}

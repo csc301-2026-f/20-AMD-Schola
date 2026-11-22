@@ -1,0 +1,484 @@
+/*
+  Components: the reusable pieces pages are assembled from.
+  Each block is self-contained and named after what it shows, BEM-style (.block__part--variant).
+  Colours come from the semantic tokens, so every component works on both light and dark bands.
+*/
+
+/* ---------- Buttons ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border: 2px solid var(--red);
+  border-radius: var(--radius);
+  background: var(--red);
+  color: var(--white);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.button:hover {
+  background: var(--white);
+  border-color: var(--white);
+  color: var(--black);
+}
+
+/* Secondary button: outlined, for the less important action next to a primary one. */
+.button--ghost {
+  background: transparent;
+  border-color: var(--grey-700);
+  color: inherit;
+}
+
+.button--ghost:hover {
+  background: transparent;
+  border-color: var(--white);
+  color: var(--white);
+}
+
+/* ---------- Fact strip: a row of verified numbers, each with a one-line label ---------- */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  margin: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.facts div {
+  padding: var(--space-5) var(--space-5) var(--space-5) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.facts dt {
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  line-height: 1.4;
+}
+
+/* The number sits above its label visually, but stays after it in the markup for screen readers. */
+.facts dd {
+  order: -1;
+  margin: 0 0 var(--space-1);
+  font-size: var(--step-3);
+  font-weight: 800;
+  font-stretch: 115%;
+  line-height: 1;
+}
+
+.facts div {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Pillars: the three things the plugin does, with a red rule on top ---------- */
+
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pillars li {
+  margin: 0;
+  padding-top: var(--space-4);
+  border-top: 3px solid var(--accent);
+}
+
+.pillars h3 {
+  margin-bottom: var(--space-3);
+}
+
+.pillars p {
+  color: var(--text-muted);
+}
+
+/* ---------- Timeline: the deliverables in order, on a vertical rail ---------- */
+
+.timeline {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The rail itself. */
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0.4rem;
+  bottom: 0;
+  left: 0.45rem;
+  width: 2px;
+  background: var(--rule);
+}
+
+.timeline > li {
+  position: relative;
+  margin: 0;
+  padding: 0 0 var(--space-7) var(--space-7);
+}
+
+/* Each stop is a square marker; the current stop is filled red. */
+.timeline > li::before {
+  content: "";
+  position: absolute;
+  top: 0.35rem;
+  left: 0;
+  width: 1rem;
+  height: 1rem;
+  background: var(--surface);
+  border: 2px solid var(--text);
+}
+
+.timeline > li.is-current::before {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.timeline__date {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+.timeline h3 {
+  margin-bottom: var(--space-3);
+}
+
+.timeline p,
+.timeline ul {
+  max-width: var(--measure);
+}
+
+.timeline p + p,
+.timeline p + ul,
+.timeline ul + p {
+  margin-top: var(--space-3);
+}
+
+/* ---------- Status tags (user stories, features) ---------- */
+
+.tag {
+  display: inline-block;
+  padding: 0.15em 0.55em;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  font-size: var(--step--1);
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* Shipped work is the only thing that gets the brand red. */
+.tag--done {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--white);
+}
+
+.tag--partial {
+  color: var(--text);
+}
+
+.tag--planned {
+  color: var(--text-muted);
+  border-style: dashed;
+}
+
+/* ---------- Data table (user stories, CI jobs) ---------- */
+
+.table-scroll {
+  overflow-x: auto;
+  border-top: 2px solid var(--text);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-4) var(--space-4) var(--space-4) 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table thead th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.data-table tbody th {
+  font-weight: 800;
+  font-stretch: 110%;
+  white-space: nowrap;
+}
+
+.data-table td:last-child,
+.data-table th:last-child {
+  padding-right: 0;
+}
+
+/* ---------- Screenshots and figures ---------- */
+
+.shot {
+  margin: 0;
+}
+
+.shot img {
+  width: 100%;
+  border: 1px solid var(--rule);
+}
+
+.shot figcaption {
+  margin-top: var(--space-3);
+  max-width: var(--measure);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+
+/* A two-up grid of screenshots that stacks on small screens. */
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-6);
+}
+
+/* ---------- Code sample ---------- */
+
+.code {
+  margin: 0;
+}
+
+.code pre {
+  padding: var(--space-5);
+  overflow-x: auto;
+  background: var(--black);
+  color: var(--white);
+  border-left: 3px solid var(--red);
+  line-height: 1.55;
+  tab-size: 4;
+}
+
+.code figcaption {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+
+/* ---------- Note: a short aside, e.g. what is still temporary ---------- */
+
+.note {
+  max-width: var(--measure);
+  padding: var(--space-4) var(--space-5);
+  border-left: 3px solid var(--text);
+  background: var(--surface-quiet);
+  font-size: var(--step--1);
+}
+
+.note strong:first-child {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+/* ---------- Stack diagram: the module layers, drawn as nested rows ---------- */
+
+.stack {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stack li {
+  display: grid;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+}
+
+@media (min-width: 44rem) {
+  .stack li {
+    grid-template-columns: 11rem 1fr;
+    align-items: baseline;
+  }
+}
+
+.stack strong {
+  font-stretch: 112%;
+}
+
+.stack span {
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+
+/* The engine-independent core is the foundation, so it is drawn solid. */
+.stack li.is-core {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
+}
+
+.stack li.is-core span {
+  color: var(--grey-300);
+}
+
+/* ---------- Flow: a left-to-right chain of steps (training and inference paths) ---------- */
+
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: flow;
+}
+
+.flow li {
+  flex: 1 1 10rem;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  font-size: var(--step--1);
+  counter-increment: flow;
+}
+
+/* The steps really are a sequence, so they are numbered. */
+.flow li::before {
+  content: counter(flow);
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: var(--step-1);
+  font-stretch: 115%;
+}
+
+.flow strong {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--step-0);
+}
+
+/* ---------- Feedback: what someone asked for, and what we changed ---------- */
+
+.feedback {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feedback li {
+  display: grid;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+@media (min-width: 52rem) {
+  .feedback li {
+    grid-template-columns: 1fr 1.6fr;
+  }
+}
+
+.feedback__ask {
+  font-weight: 700;
+}
+
+.feedback__ask cite {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  font-style: normal;
+  font-weight: 500;
+}
+
+/* ---------- People list (team page) ---------- */
+
+.people {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0 var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.people li {
+  margin: 0;
+  padding-block: var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+.people strong {
+  display: block;
+  font-stretch: 110%;
+}
+
+.people span {
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}
+
+/* ---------- Link list: "where to go next" at the bottom of a page ---------- */
+
+.next-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.next-links li {
+  margin: 0;
+}
+
+.next-links a {
+  display: block;
+  height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+
+.next-links a:hover {
+  border-color: var(--accent);
+}
+
+.next-links strong {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--step-1);
+  font-stretch: 112%;
+}
+
+.next-links span {
+  color: var(--text-muted);
+  font-size: var(--step--1);
+}

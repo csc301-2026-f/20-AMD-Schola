@@ -1,1 +1,171 @@
-<!doctype html><title>Schola for Godot</title><h1>Hello</h1>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schola for Godot</title>
+  <meta name="description" content="CSC301 Team 20's port of AMD Schola, a reinforcement learning toolkit, from Unreal Engine to Godot 4.7.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <!-- Archivo (variable width + weight) for all text, JetBrains Mono for code only. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Shared header: keep identical on every page; only aria-current moves. -->
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">Schola for Godot <small>CSC301 Team 20 with AMD</small></a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="index.html" aria-current="page">Overview</a></li>
+          <li><a href="demos.html">Demos</a></li>
+          <li><a href="stories.html">User stories</a></li>
+          <li><a href="architecture.html">Architecture</a></li>
+          <li><a href="engineering.html">Engineering</a></li>
+          <li><a href="team.html">Team</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero: headline on the left, the D3 default map on the right (see hero.css). -->
+    <section class="hero">
+      <div class="wrap hero__inner">
+        <div>
+          <h1>Reinforcement learning, native to Godot.</h1>
+          <p class="hero__lead">
+            We are porting AMD Schola, a reinforcement learning toolkit built for Unreal Engine,
+            to Godot 4.7 as a C++ GDExtension. Developers build environments from native nodes,
+            connect them to Schola's Python trainers over the same gRPC protocol Unreal uses,
+            and ship trained ONNX policies inside their game with no Python at runtime.
+          </p>
+          <div class="hero__actions">
+            <a class="button" href="demos.html">See the demos</a>
+            <a class="button button--ghost" href="architecture.html">How it works</a>
+          </div>
+        </div>
+
+        <figure class="gridworld">
+          <!-- 36 cells, row by row from the top. data-move is the policy's action in that cell. -->
+          <div class="gridworld__board" role="img"
+               aria-label="The D3 demo's default 6 by 6 map with four hazards. An arrow in each free cell shows the reference policy's move, and a red agent follows the arrows from the bottom-left corner to the goal in the top-right corner in ten steps.">
+            <!-- row 0 -->
+            <span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell cell--goal"></span>
+            <!-- row 1 -->
+            <span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell cell--hazard"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span>
+            <!-- row 2 -->
+            <span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell cell--hazard"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span>
+            <!-- row 3 -->
+            <span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell" data-move="right"></span><span class="cell" data-move="up"></span><span class="cell cell--hazard"></span><span class="cell" data-move="up"></span>
+            <!-- row 4 -->
+            <span class="cell" data-move="up"></span><span class="cell cell--hazard"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell" data-move="right"></span><span class="cell" data-move="up"></span>
+            <!-- row 5 (the agent starts in the first cell) -->
+            <span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell" data-move="right"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span><span class="cell" data-move="up"></span>
+            <span class="gridworld__agent"></span>
+          </div>
+          <figcaption>The D3 demo's default map. Each arrow is the shortest-path reference policy's move; the red agent follows them to the goal.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Verified numbers from main (Nov 22, 2026). Update these when main moves. -->
+    <section class="band band--tight">
+      <div class="wrap">
+        <dl class="facts">
+          <div><dt>user stories merged on main</dt><dd>10</dd></div>
+          <div><dt>native classes registered with Godot</dt><dd>19</dd></div>
+          <div><dt>automated tests (Catch2 and GdUnit4)</dt><dd>390</dd></div>
+          <div><dt>desktop platforms packaged on every Godot PR</dt><dd>3</dd></div>
+          <div><dt>pull requests merged since October</dt><dd>44</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <!-- What the plugin does, in the order a developer meets it. -->
+    <section class="band">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>Define, train, ship.</h2>
+          <p>Schola already let Unreal developers train agents with Python and run the result in-engine. AMD asked us for the same workflow in Godot, with a small core that is easy to extend.</p>
+        </div>
+        <ul class="pillars">
+          <li>
+            <h3>Define an environment</h3>
+            <p>Add a <code>ScholaEnvironment</code> with <code>ScholaAgent</code> children, set their spaces in the Inspector, and write four GDScript hooks. Sensors and actuators can replace hand-written hooks.</p>
+          </li>
+          <li>
+            <h3>Connect to training</h3>
+            <p>One <code>ScholaTrainingConnector</code> node serves Schola's GymService over gRPC, generated from the same <code>.proto</code> files Unreal and Python use. It lives in its own extension.</p>
+          </li>
+          <li>
+            <h3>Ship the policy</h3>
+            <p><code>ScholaOnnxPolicy</code> runs exported models through ONNX Runtime 1.30, including recurrent state. Exported games leave the training extension out entirely.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- The journey at a glance; demos.html tells each step in full. -->
+    <section class="band band--quiet">
+      <div class="wrap split">
+        <div class="section-head">
+          <h2>Eight weeks, three demos.</h2>
+          <p>Each deliverable replaced a stand-in with production code.</p>
+        </div>
+        <ol class="timeline">
+          <li>
+            <span class="timeline__date">October 2, 2026</span>
+            <h3>D1: plan and prototype</h3>
+            <p>Six user stories approved by AMD, and a throwaway C# Inspector prototype. AMD's review moved us to a C++ GDExtension so the plugin works in every Godot build.</p>
+          </li>
+          <li>
+            <span class="timeline__date">October 23, 2026</span>
+            <h3>D2: the first full loop</h3>
+            <p>A 3D grid world trained by a local Python learner, then driven by an exported ONNX policy with Python closed. The spaces and inference were native; the lifecycle and transport were still stand-ins.</p>
+          </li>
+          <li>
+            <span class="timeline__date">November 6, 2026</span>
+            <h3>D3: native end to end</h3>
+            <p>The grid world rebuilt on native environments, agents and one training host, with a map editor, parallel training and packages tested on Windows, Linux and macOS.</p>
+          </li>
+          <li class="is-current">
+            <span class="timeline__date">Since D3</span>
+            <h3>Production pieces</h3>
+            <p>The gRPC scene connector, sensors and actuators, observation stacking, a no-Python debugging example, sequence length read from model metadata, and dynamic agent populations.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Honest status: what a reader should not assume is finished. -->
+    <section class="band">
+      <div class="wrap split">
+        <h2>Where it stands</h2>
+        <div class="prose">
+          <p>The Godot side of training is merged and tested against a C++ client that speaks Schola's protocol. A full training run with Schola's own Python trainer, the RaceTrack production example and multi-agent training are still on branches heading for D4.</p>
+          <p class="note"><strong>About the demos</strong>The D2 and D3 demos train with a temporary JSON connector and a tabular learner, and the packaged D3 model is a shortest-path reference rather than a learned policy. We say so wherever they appear.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Shared footer: keep identical on every page. -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div>
+        <p>Built by CSC301 Team 20 at the University of Toronto, in partnership with AMD. MIT licensed, like Schola.</p>
+        <p>A student project site; not an official AMD page.</p>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Source on GitHub</a></li>
+        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>
