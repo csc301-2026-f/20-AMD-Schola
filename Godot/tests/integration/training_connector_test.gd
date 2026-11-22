@@ -268,7 +268,12 @@ func test_connector_waits_for_python_to_come_back_after_a_session_closes() -> vo
 	var connector: Node = ClassDB.instantiate("ScholaTrainingConnector")
 	var port := 50000 + randi() % 10000
 	connector.port = port
-	connector.start_timeout_sec = 2.0
+	# Python's second session can take seconds to arrive. The port is closed
+	# for a moment between sessions, so its first try is refused and gRPC
+	# waits about 1 s before retrying; on Windows a refused localhost connect
+	# also takes about 2 s. The same timeout bounds how long the connector
+	# waits once Python is gone, so this test takes at least that long.
+	connector.start_timeout_sec = 10.0
 	var closed_sessions: Array[int] = [0]
 	var finished: Array[String] = []
 	connector.session_closed.connect(func() -> void: closed_sessions[0] += 1)
