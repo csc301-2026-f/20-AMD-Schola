@@ -330,6 +330,12 @@
   font-size: var(--step--1);
 }
 
+/* A note that follows a grid or table gets breathing room above it. */
+.columns + .note,
+.table-scroll + .note {
+  margin-top: var(--space-6);
+}
+
 .note strong:first-child {
   display: block;
   margin-bottom: var(--space-1);
@@ -379,6 +385,12 @@
 
 .stack li.is-core span {
   color: var(--grey-300);
+}
+
+/* The developer's own game code sits on top, drawn dashed because it isn't part of the plugin. */
+.stack li.is-user {
+  border-style: dashed;
+  background: transparent;
 }
 
 /* ---------- Flow: a left-to-right chain of steps (training and inference paths) ---------- */

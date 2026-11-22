@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture | Schola for Godot</title>
+  <meta name="description" content="How the Schola Godot plugin is built: an engine-independent C++ core, two GDExtensions, the step lifecycle, and the training and inference paths.">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Shared header: keep identical on every page; only aria-current moves. -->
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">Schola for Godot <small>CSC301 Team 20 with AMD</small></a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="demos.html">Demos</a></li>
+          <li><a href="stories.html">User stories</a></li>
+          <li><a href="architecture.html" aria-current="page">Architecture</a></li>
+          <li><a href="engineering.html">Engineering</a></li>
+          <li><a href="team.html">Team</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-intro">
+      <div class="wrap">
+        <h1>Small core, two extensions.</h1>
+        <p>The plugin is a C++17 GDExtension built in layers. All the reinforcement learning logic sits in a core that knows nothing about Godot, and Godot, gRPC and ONNX Runtime each live in their own module around it.</p>
+      </div>
+    </section>
+
+    <!-- Module layers, top (closest to the developer) to bottom (the core everything depends on). -->
+    <section class="band" aria-labelledby="layers">
+      <div class="wrap split">
+        <div class="section-head">
+          <h2 id="layers">The layers</h2>
+          <p>Every module depends inward on the core, never the other way round.</p>
+        </div>
+        <div class="stack-gap">
+          <ul class="stack">
+            <li class="is-user"><strong>Your game</strong><span>GDScript environments and agents, spaces set in the Inspector, four hooks.</span></li>
+            <li><strong>bindings</strong><span>The Godot nodes and resources: <code>ScholaEnvironment</code>, <code>ScholaAgent</code>, the five space types, sensors, actuators and <code>ScholaTrainingHost</code>.</span></li>
+            <li><strong>inference</strong><span><code>ScholaOnnxPolicy</code> and <code>ScholaInferenceStepper</code>, on the ONNX Runtime 1.30 C API.</span></li>
+            <li><strong>transport, training</strong><span>The gRPC server for Schola's GymService and the <code>ScholaTrainingConnector</code> node, in a separate extension.</span></li>
+            <li><strong>interop</strong><span>Converts Godot values to and from core types. Compiled into both extensions.</span></li>
+            <li class="is-core"><strong>core</strong><span>Plain C++17: spaces, environment interfaces, the lifecycle, the connector loop, stackers and the stepper. No Godot, gRPC, Protocol Buffers or ONNX Runtime headers.</span></li>
+          </ul>
+          <p class="note"><strong>Why it matters</strong>Because the core never touches the engine, about 3,000 lines of lifecycle, spaces and connector logic are covered by 128 Catch2 unit tests that run in seconds without starting Godot. The rule is written into our development contract.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Runtime vs training extension. -->
+    <section class="band band--quiet" aria-labelledby="extensions">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="extensions">Shipped games carry no networking stack</h2>
+          <p>Training needs gRPC and Protocol Buffers. A finished game doesn't, so they live in a different library.</p>
+        </div>
+        <div class="columns">
+          <div class="prose">
+            <h3>schola, the runtime</h3>
+            <p>Seventeen classes: the scene nodes, spaces, sensors and actuators, the training host and ONNX inference. This is what an exported game ships, along with ONNX Runtime.</p>
+          </div>
+          <div class="prose">
+            <h3>schola_training</h3>
+            <p>The gRPC server and the connector node. It creates the runtime's training host by class name and talks to it only through Godot method calls, so it never links runtime C++ code. Exports drop it with one filter: <code>addons/schola_training/*</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- What happens inside one step. A real sequence, so the numbered flow fits. -->
+    <section class="band" aria-labelledby="step">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="step">What happens in one step</h2>
+          <p>The order is fixed so results are reproducible and a bad action can't leave the world half-changed.</p>
+        </div>
+        <div class="stack-gap">
+          <ol class="flow">
+            <li><strong>Validate</strong>Every action is checked against its agent's action space. Missing or extra actions are rejected before anything moves.</li>
+            <li><strong>Act</strong><code>_act(action)</code> runs for every active agent.</li>
+            <li><strong>Observe and score</strong><code>_observe()</code> then <code>_get_step_result(agent)</code> run per agent, in scene-tree order.</li>
+            <li><strong>Reconcile</strong>Agents that joined get a first observation; agents that left become terminal transitions.</li>
+            <li><strong>Finish</strong><code>episode_ended</code> fires once every agent has terminated or been truncated.</li>
+          </ol>
+          <div class="columns">
+            <figure class="code">
+              <pre><code>func _get_step_result(agent: ScholaAgent) -&gt; Dictionary:
+	var reached_goal: bool = agent.position == GOAL
+	return {
+		"reward": 1.0 if reached_goal else -0.01,
+		"terminated": reached_goal,
+		"truncated": not reached_goal and get_episode_step() + 1 &gt;= STEP_LIMIT,
+		"info": {"goal": str(GOAL), "step": str(get_episode_step() + 1)},
+	}</code></pre>
+              <figcaption>One callback returns everything about a step, from <code>examples/manual_environment</code>. There is no built-in step limit; truncation is the developer's rule.</figcaption>
+            </figure>
+            <div class="prose">
+              <h3>When something fails</h3>
+              <p>Every core call returns a status and leaves its outputs untouched on failure. A failed environment moves the session to a faulted state that only accepts <code>close()</code>, and errors reach Python as matching gRPC codes and developers as Godot errors that name the agent at fault.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Training path, Python to scene. -->
+    <section class="band band--dark" aria-labelledby="training">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="training">The training path</h2>
+          <p>Godot speaks the same wire protocol as Unreal, so Schola's existing Python client can drive it unchanged.</p>
+        </div>
+        <div class="stack-gap">
+          <ol class="flow">
+            <li><strong>Python</strong>Schola's own client, from its SB3 or RLlib integrations, connects to the running scene.</li>
+            <li><strong>gRPC</strong>The GymService code is generated from the repository's shared <code>Proto/</code> files, the same ones Unreal and Python use.</li>
+            <li><strong>Hand-off</strong>gRPC worker threads only queue each request. The Godot main thread does all conversion and game work.</li>
+            <li><strong>Scene</strong>The connector's training host resets and steps every <code>ScholaEnvironment</code> in the scene.</li>
+          </ol>
+          <div class="prose">
+            <p>The connector blocks once per physics frame for Python's next request, so an action and its reward always land on the same frame. Small Unreal conventions carry over too: port 8000 by default, a <code>-ScholaPort</code> override, and a 45-second start timeout that matches Python's. Messages can be up to 100 MB each way, enough for camera observations.</p>
+            <p>The Godot side is merged and tested over a real network connection against a C++ client that speaks the protocol. A full training run with Schola's own Python trainer is the piece still being verified for D4.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inference path, inside a shipped game. -->
+    <section class="band" aria-labelledby="inference">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="inference">The inference path</h2>
+          <p>In a shipped game, Python is gone. Each physics frame:</p>
+        </div>
+        <div class="stack-gap">
+          <ol class="flow">
+            <li><strong>Observe</strong>The agent's <code>_observe()</code> or its sensors produce an observation.</li>
+            <li><strong>Adapt</strong>Observation adapters, such as a stacker, run in order.</li>
+            <li><strong>Infer</strong><code>ScholaOnnxPolicy</code> runs the model with that agent's own policy state.</li>
+            <li><strong>Act</strong>The action is checked against the action space and applied.</li>
+          </ol>
+          <div class="prose">
+            <p>The policy holds no per-agent data, so one loaded model can drive many agents. Recurrent models pair <code>state_in</code> and <code>state_out</code> tensors, read their sequence length from the model's metadata, and only commit new state once inference succeeds. Inference runs on the CPU, on the main thread.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Unreal concept map. -->
+    <section class="band band--quiet" aria-labelledby="mapping">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="mapping">From Unreal to Godot</h2>
+          <p>AMD asked for a Godot-native port, not a line-by-line translation. Concepts carry over; the APIs follow Godot's conventions.</p>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th scope="col">Unreal Schola</th><th scope="col">Schola for Godot</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Gym connector manager actor</td><td><code>ScholaTrainingConnector</code> node</td></tr>
+              <tr><td>Multi-agent environment interface</td><td><code>ScholaEnvironment</code> node with GDScript hooks</td></tr>
+              <tr><td>Agent interface</td><td><code>ScholaAgent</code> node</td></tr>
+              <tr><td>NNE policy</td><td><code>ScholaOnnxPolicy</code> on ONNX Runtime 1.30</td></tr>
+              <tr><td>Simple stepper</td><td><code>ScholaInferenceStepper</code></td></tr>
+              <tr><td>Box and Dict stackers</td><td><code>ScholaStacker</code></td></tr>
+              <tr><td>Ray-cast and camera sensors</td><td><code>ScholaRayCastSensor3D</code>, <code>ScholaCameraSensor</code></td></tr>
+              <tr><td>Movement, rotation and teleport actuators</td><td><code>ScholaMovementActuator3D</code>, <code>ScholaRotationActuator3D</code>, <code>ScholaTeleportActuator3D</code></td></tr>
+              <tr><td>Max state sequence length, set by hand</td><td>Read from the ONNX model's metadata</td></tr>
+              <tr><td>StateTree, imitation learning, Text spaces, pipelined stepper</td><td>Not ported, by decision</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key design decisions and why. -->
+    <section class="band" aria-labelledby="decisions">
+      <div class="wrap split">
+        <h2 id="decisions">Decisions we'd make again</h2>
+        <div class="prose">
+          <h3>C++ over C#</h3>
+          <p>C# would have limited the plugin to Godot's .NET build. A C++ GDExtension works in every build and gave us ONNX Runtime's C API directly. Rust was ruled out over licensing concerns with the option we evaluated.</p>
+          <h3>One shared protocol</h3>
+          <p>Godot generates its gRPC code from the repository's <code>Proto/</code> directory and our contract forbids a Godot-only copy, so the engines can't drift apart. gRPC and Protocol Buffers are pinned to the same versions as Unreal Schola.</p>
+          <h3>One variant type for spaces</h3>
+          <p>AMD suggested templated spaces. We kept a single variant type, which keeps validation, conversion and the Godot resources in one place, and we presented that trade-off at the following partner meeting.</p>
+          <h3>No nested environments</h3>
+          <p>Nesting one environment inside another has no clear meaning for training, so it is rejected with an Inspector warning and a clear error. It is written up as an accepted decision record.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--quiet">
+      <div class="wrap">
+        <ul class="next-links">
+          <li><a href="engineering.html"><strong>Engineering</strong><span>How all of this is tested, built and packaged.</span></a></li>
+          <li><a href="demos.html"><strong>Demos</strong><span>See the architecture running.</span></a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Shared footer: keep identical on every page. -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <div>
+        <p>Built by CSC301 Team 20 at the University of Toronto, in partnership with AMD. MIT licensed, like Schola.</p>
+        <p>A student project site; not an official AMD page.</p>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Source on GitHub</a></li>
+        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>
