@@ -72,9 +72,19 @@ schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index, Scho
 		return schola::Status::error(schola::StatusCode::INVALID_DATA,
 				"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
 	}
-	if (!environment->is_inside_tree() || environment->is_queued_for_deletion()) {
+	const godot::SceneTree *tree = environment->is_inside_tree() ? environment->get_tree() : nullptr;
+	const godot::Node *scene_root = tree != nullptr ? tree->get_current_scene() : nullptr;
+	bool belongs_to_scene = false;
+	for (const godot::Node *ancestor = environment; ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (ancestor->is_queued_for_deletion()) {
+			return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+					"ScholaEnvironment for environment " + std::to_string(p_index) + " or one of its ancestors is queued for deletion");
+		}
+		belongs_to_scene = belongs_to_scene || ancestor == scene_root;
+	}
+	if (!belongs_to_scene) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-				"ScholaEnvironment for environment " + std::to_string(p_index) + " was removed or queued for deletion");
+				"ScholaEnvironment for environment " + std::to_string(p_index) + " is outside the current scene");
 	}
 	if (r_node != nullptr) {
 		*r_node = environment;

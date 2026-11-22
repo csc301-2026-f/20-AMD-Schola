@@ -30,12 +30,12 @@ class StepCountAgent extends TestAgent:
 		return get_parent().get_episode_step()
 
 
-class ConfigurationFreeingEnvironment extends TestEnvironment:
-	var victim: Node
+class ConfigurationCallbackEnvironment extends TestEnvironment:
+	var on_configuration: Callable
 
 	func _get_possible_agents() -> Array[ScholaAgent]:
-		if is_instance_valid(victim):
-			victim.free()
+		if on_configuration.is_valid():
+			on_configuration.call()
 		return get_agents()
 
 
@@ -337,13 +337,13 @@ func test_freed_environment_fails_and_closes_session() -> void:
 func test_possible_agents_callback_can_free_another_environment_safely() -> void:
 	for remove_earlier in [false, true]:
 		var root := _test_root()
-		var callback_environment := ConfigurationFreeingEnvironment.new()
+		var callback_environment := ConfigurationCallbackEnvironment.new()
 		_add_agent(callback_environment, "callback_agent", "callback_agent")
 		root.add_child(callback_environment)
 		var victim := _add_environment(root, "Victim", "victim")
 		if remove_earlier:
 			root.move_child(victim, 0)
-		callback_environment.victim = victim
+		callback_environment.on_configuration = victim.free
 		var host := _add_host(root)
 
 		var result := host.initialize_session()
@@ -351,6 +351,37 @@ func test_possible_agents_callback_can_free_another_environment_safely() -> void
 		assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
 		assert_str(_status_message(result)).contains("environment %d was freed" % (0 if remove_earlier else 1))
 		assert_bool(host.is_session_active()).is_false()
+
+
+func test_configuration_rejects_environments_outside_the_scene_or_queued_via_parent() -> void:
+	for mutation in ["reparent", "queue_parent"]:
+		for mutate_earlier in [false, true]:
+			var root := _test_root()
+			var callback_environment := ConfigurationCallbackEnvironment.new()
+			_add_agent(callback_environment, "callback_agent", "callback_agent")
+			root.add_child(callback_environment)
+			var container := Node.new()
+			root.add_child(container)
+			var victim := _add_environment(container, "Victim", "victim")
+			if mutate_earlier:
+				root.move_child(container, 0)
+			if mutation == "reparent":
+				callback_environment.on_configuration = func(): victim.reparent(get_tree().root)
+			else:
+				callback_environment.on_configuration = container.queue_free
+			var host := _add_host(root)
+
+			var result := host.initialize_session()
+
+			var expected_index := 0 if mutate_earlier else 1
+			assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+			assert_str(_status_message(result)).contains("environment %d" % expected_index)
+			if mutation == "reparent":
+				assert_str(_status_message(result)).contains("outside the current scene")
+				victim.free()
+			else:
+				assert_str(_status_message(result)).contains("ancestor").contains("queued for deletion")
+			assert_bool(host.is_session_active()).is_false()
 
 
 func test_environment_freed_by_another_environment_closes_session(
