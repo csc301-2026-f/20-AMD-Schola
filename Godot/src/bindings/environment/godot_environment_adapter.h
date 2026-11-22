@@ -76,6 +76,15 @@ public:
 	 */
 	int64_t get_episode_step() const;
 
+	/**
+	 * Forgets the agent set and any episode, as if initialize() had never
+	 * been called, so the next training session can initialize this
+	 * adapter again. ScholaTrainingHost calls it when its session closes:
+	 * Python's RLlib trainer opens one session to discover the agents and
+	 * another to train, as with Unreal Schola.
+	 */
+	void release();
+
 private:
 	// A live agent found during the latest scene-tree scan.
 	struct AgentEntry {
