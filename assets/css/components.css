@@ -48,7 +48,10 @@
   border-top: 1px solid var(--rule);
 }
 
+/* Each fact stacks its number above its label (see .facts dd). */
 .facts div {
+  display: flex;
+  flex-direction: column;
   padding: var(--space-5) var(--space-5) var(--space-5) 0;
   border-bottom: 1px solid var(--rule);
 }
@@ -69,9 +72,47 @@
   line-height: 1;
 }
 
-.facts div {
+/* ---------- Milestone mark: the big "D1 / D2 / D3" label beside each demo ---------- */
+
+.milestone {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.milestone__mark {
+  color: var(--accent);
+  font-size: var(--step-5);
+  font-weight: 900;
+  font-stretch: 125%;
+  line-height: 0.9;
+}
+
+.milestone__date {
+  color: var(--text-muted);
+  font-size: var(--step--1);
+  font-weight: 600;
+}
+
+/* ---------- Link row: videos, downloads and other outbound links, side by side ---------- */
+
+.link-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+
+.link-row li + li {
+  margin-top: 0;
+}
+
+/* Vertical rhythm for a demo's write-up: text, then figures, then links. */
+.stack-gap > * + * {
+  margin-top: var(--space-6);
 }
 
 /* ---------- Pillars: the three things the plugin does, with a red rule on top ---------- */
@@ -178,11 +219,11 @@
   white-space: nowrap;
 }
 
-/* Shipped work is the only thing that gets the brand red. */
+/* Shipped work is drawn solid; red stays reserved for the agent and accents so tables don't shout. */
 .tag--done {
-  background: var(--red);
-  border-color: var(--red);
-  color: var(--white);
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--surface);
 }
 
 .tag--partial {
