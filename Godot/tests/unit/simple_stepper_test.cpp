@@ -273,6 +273,28 @@ TEST_CASE("an observe failure reuses the last observation and every agent still 
 	REQUIRE(count_at(stepper, 1) == 2);
 }
 
+TEST_CASE("removing an agent preserves the remaining agents cached observations", "[stepper]") {
+	FakeAgent first = make_agent(1.0f);
+	FakeAgent second = make_agent(2.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	REQUIRE(stepper.step().is_ok());
+
+	SECTION("remove by index") {
+		REQUIRE(stepper.remove_agent_at(0).is_ok());
+	}
+	SECTION("remove by pointer") {
+		REQUIRE(stepper.remove_agent(&first) == 1);
+	}
+
+	second.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor broke");
+	REQUIRE(stepper.step().get_code() == StatusCode::RUNTIME_FAILURE);
+	REQUIRE(policy.observations.size() == 3);
+	REQUIRE(box_value(policy.observations.back()) == 2.0f);
+	REQUIRE(second.actions.size() == 2);
+}
+
 TEST_CASE("a think failure means no agent acts", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);

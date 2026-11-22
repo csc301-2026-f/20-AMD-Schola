@@ -35,6 +35,7 @@ private:
 	struct Entry {
 		Agent *agent = nullptr;
 		std::unique_ptr<PolicyState> state;
+		Point observation;
 	};
 
 	Policy *policy = nullptr;
