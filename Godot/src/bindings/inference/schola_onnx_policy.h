@@ -31,8 +31,6 @@ public:
 
 	void set_model_path(const godot::String &p_path);
 	godot::String get_model_path() const;
-	void set_max_state_sequence_length(int32_t p_length);
-	int32_t get_max_state_sequence_length() const;
 	godot::PackedInt64Array get_state_sequence_lengths() const;
 
 	godot::Error load();
@@ -55,7 +53,6 @@ protected:
 private:
 	godot::String model_path;
 	godot::String loaded_path;
-	int32_t max_state_sequence_length = 0;
 	bool sequence_warned = false;
 	godot::String last_error;
 	std::unique_ptr<schola::OnnxPolicy> policy;

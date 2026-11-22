@@ -115,10 +115,33 @@ const schola::Environment *ScholaEnvironment::get_environment() const {
 	return const_cast<ScholaEnvironment *>(this)->get_environment();
 }
 
+void ScholaEnvironment::release_environment() {
+	if (environment_adapter) {
+		environment_adapter->release();
+	}
+}
+
 godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 	godot::TypedArray<ScholaAgent> agents;
 	collect_agents(this, agents);
 	return agents;
+}
+
+ScholaEnvironment *ScholaEnvironment::get_ancestor_environment() const {
+	for (godot::Node *ancestor = get_parent(); ancestor != nullptr; ancestor = ancestor->get_parent()) {
+		if (auto *environment = godot::Object::cast_to<ScholaEnvironment>(ancestor)) {
+			return environment;
+		}
+	}
+	return nullptr;
+}
+
+godot::TypedArray<ScholaAgent> ScholaEnvironment::get_possible_agents() const {
+	godot::TypedArray<ScholaAgent> result;
+	if (GDVIRTUAL_CALL(_get_possible_agents, result)) {
+		return result;
+	}
+	return get_agents();
 }
 
 godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
@@ -127,10 +150,13 @@ godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 
 godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks) const {
 	godot::PackedStringArray errors;
+	if (const auto *ancestor = get_ancestor_environment()) {
+		errors.append("Nested ScholaEnvironment nodes are unsupported: environment ancestor '" + godot::String(ancestor->get_name()) + "'. Move this environment outside that environment's subtree.");
+	}
 	if (p_include_hooks && !schola::configuration::has_hook(this, "_get_step_result")) {
 		errors.append("Implement _get_step_result(agent) in this environment's script to return reward and episode state.");
 	}
-	const godot::TypedArray<ScholaAgent> agents = get_agents();
+	const godot::TypedArray<ScholaAgent> agents = get_possible_agents();
 	if (agents.is_empty()) {
 		errors.append("Add a ScholaAgent node below this environment.");
 	}
@@ -142,7 +168,7 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			continue;
 		}
 		const godot::String id = agent->get_resolved_agent_id();
-		const godot::String path = get_path_to(agent);
+		const godot::String path = is_inside_tree() && agent->is_inside_tree() && get_tree() == agent->get_tree() ? godot::String(get_path_to(agent)) : godot::String(agent->get_name()) + " (instance " + godot::String::num_uint64(agent->get_instance_id()) + ")";
 		const auto existing = agent_paths.find(id);
 		if (existing != agent_paths.end()) {
 			errors.append("Duplicate agent ID '" + id + "' on '" + existing->second + "' and '" + path + "'. Set unique agent IDs or rename nodes that use the name fallback.");
@@ -150,6 +176,12 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			agent_paths.emplace(id, path);
 		}
 		const godot::PackedStringArray agent_errors = p_include_hooks ? agent->_get_configuration_warnings() : agent->get_configuration_errors();
+		if (p_include_hooks) {
+			if (!agent_errors.is_empty()) {
+				errors.append("Agent '" + id + "' (" + path + ") has configuration warnings. Select the agent node for details.");
+			}
+			continue;
+		}
 		for (int32_t error_index = 0; error_index < agent_errors.size(); ++error_index) {
 			const godot::String error = agent_errors[error_index];
 			errors.append("Agent '" + id + "' (" + path + "): " + error);
@@ -163,12 +195,14 @@ godot::PackedStringArray ScholaEnvironment::_get_configuration_warnings() const 
 }
 
 void ScholaEnvironment::_bind_methods() {
+	godot::ClassDB::bind_method(godot::D_METHOD("get_possible_agents"), &ScholaEnvironment::get_possible_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_agents"), &ScholaEnvironment::get_agents);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaEnvironment::get_configuration_errors);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_episode_step"), &ScholaEnvironment::get_episode_step);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_rng"), &ScholaEnvironment::get_rng);
 	ADD_SIGNAL(godot::MethodInfo("episode_started"));
 	ADD_SIGNAL(godot::MethodInfo("episode_ended"));
+	GDVIRTUAL_BIND(_get_possible_agents);
 	GDVIRTUAL_BIND(_reset_episode, "seed", "options");
 	GDVIRTUAL_BIND(_get_step_result, "agent");
 }
