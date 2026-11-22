@@ -33,7 +33,7 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	var agent: ScholaAgent = scene.get_node("RaceTrackEnvironment/Car/Agent")
 	assert_array(Array(environment.get_configuration_errors())).is_empty()
 	assert_array(Array(agent.get_configuration_errors())).is_empty()
-	for component in ["Track", "Velocity", "Rays", "Controls"]:
+	for component in ["Track", "Velocity", "Rays", "RoadAhead", "Controls"]:
 		assert_array(Array(agent.get_node(component).get_configuration_errors())).is_empty()
 	assert_array(environment.get_agents()).contains_exactly([agent])
 	assert_int(environment.maximum_steps).is_equal(3000)
@@ -46,10 +46,11 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	assert_int(environment.car.max_contacts_reported).is_greater(0)
 
 	var observation: ScholaDictSpace = agent.get_effective_observation_space()
-	assert_array(observation.spaces.keys()).contains_exactly(["00000000:Track", "00000001:Velocity", "00000002:Rays"])
+	assert_array(observation.spaces.keys()).contains_exactly(["00000000:Track", "00000001:Velocity", "00000002:Rays", "00000003:RoadAhead"])
 	assert_array(Array(observation.spaces["00000000:Track"].shape)).contains_exactly([6])
 	assert_array(Array(observation.spaces["00000001:Velocity"].shape)).contains_exactly([3])
-	assert_array(Array(observation.spaces["00000002:Rays"].shape)).contains_exactly([27])
+	assert_array(Array(observation.spaces["00000002:Rays"].shape)).contains_exactly([75])
+	assert_array(Array(observation.spaces["00000003:RoadAhead"].shape)).contains_exactly([3])
 
 	var action: ScholaDictSpace = agent.get_effective_action_space()
 	assert_array(action.spaces.keys()).contains_exactly(["00000000:Controls"])

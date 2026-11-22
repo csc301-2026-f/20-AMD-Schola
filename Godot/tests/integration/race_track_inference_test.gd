@@ -32,7 +32,7 @@ func test_inference_scene_drives_the_car_with_a_schola_exported_policy() -> void
 	assert_array(Array(stepper.get_configuration_errors())).is_empty()
 	assert_array(Array(agent.get_configuration_errors())).is_empty()
 
-	for component in ["Track", "Velocity", "Controls"]:
+	for component in ["Track", "Velocity", "Rays", "RoadAhead", "Controls"]:
 		assert_array(Array(agent.get_node(component).get_configuration_errors())).is_empty()
 
 	assert_float(absf(car.engine_force) + absf(car.steering)).is_greater(0.0)
@@ -196,6 +196,31 @@ func test_brake_lights_turn_on_only_while_braking() -> void:
 		await get_tree().physics_frame
 	await get_tree().process_frame
 	assert_bool(lights.lit).is_false()
+
+
+func test_road_ahead_sensor_reports_the_nearest_obstacle_in_each_lane() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var steppers := _use_exported_model(scene)
+	add_child(scene)
+	for stepper in steppers:
+		stepper.enabled = false
+	await get_tree().physics_frame
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var sensor: RaceTrackRoadAheadSensor = agent.get_node("RoadAhead")
+	var track := agent.track
+	var here := track.progress_of(agent.car.global_position)
+	track.set_obstacles(PackedVector2Array([Vector2(here + 30.0, 2.5), Vector2(here + 45.0, 0.0), Vector2(here + 90.0, -2.5)]))
+	var values: PackedFloat32Array = sensor._observe()
+	assert_float(values[0]).is_equal_approx(0.5, 0.02)
+	assert_float(values[1]).is_equal_approx(0.75, 0.02)
+	assert_float(values[2]).is_equal(1.0)
+
+	var dropper: Node = scene.get_node("ObstacleDropper")
+	for child in track.get_children():
+		if child.is_in_group("obstacle") and child.visible and child.global_position.distance_to(track.center_at(here + 30.0)) < 4.0:
+			dropper.remove(child)
+	values = sensor._observe()
+	assert_float(values[0]).is_equal(1.0)
 
 
 func _press(keycode: Key) -> void:

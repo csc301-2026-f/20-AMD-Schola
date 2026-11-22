@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=28 format=3]
 
 [ext_resource type="Script" path="res://examples/race_track/scripts/race_track_agent.gd" id="1_agent"]
 
@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://examples/race_track/scripts/arcade_vehicle.gd" id="5_physics"]
 [ext_resource type="Script" path="res://addons/schola/components/ray_cast_sensor_3d.gd" id="6_rays"]
 [ext_resource type="Script" path="res://examples/race_track/scripts/brake_lights.gd" id="7_brake_lights"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/road_ahead_sensor.gd" id="8_road_ahead"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(1.8, 0.5, 3.2)
@@ -290,11 +291,15 @@ script = ExtResource("6_rays")
 tracked_tags = PackedStringArray("obstacle")
 use_generated_rays = true
 origin_path = NodePath("../../RayOrigin")
-num_rays = 9
+num_rays = 25
 ray_degrees = 120.0
 ray_length = 30.0
 exclude_paths = Array[NodePath]([NodePath("../..")])
 draw_debug = true
+
+[node name="RoadAhead" type="ScholaSensor" parent="Agent"]
+script = ExtResource("8_road_ahead")
+body_path = NodePath("../..")
 
 [node name="Controls" type="ScholaActuator" parent="Agent"]
 script = ExtResource("3_controls")

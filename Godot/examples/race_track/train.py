@@ -17,6 +17,8 @@ from schola.sb3.utils import VecMergeDictActionWrapper
 
 SCENE = "res://examples/race_track/scenes/race_track_train.tscn"
 TEST_DRIVE_STEPS = 25_000
+TEST_DRIVE_LAYOUTS = 5
+GAMMA = 0.99
 
 
 def launch(godot, port, *flags):
@@ -52,15 +54,18 @@ def test_drive(model, godot, port):
         score = 0.0
         metres = 0.0
         drifting = 0
-        done = [False]
-        while not done[0]:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, done, infos = env.step(action)
-            score += float(reward[0])
-            metres += float(infos[0]["progress"])
-            drifting += float(infos[0]["drift"]) > 0.5
+        for _ in range(TEST_DRIVE_LAYOUTS):
+            done = [False]
+            while not done[0]:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, reward, done, infos = env.step(action)
+                score += float(reward[0])
+                metres += float(infos[0]["progress"])
+                drifting += float(infos[0]["drift"]) > 0.5
+        score /= TEST_DRIVE_LAYOUTS
         print(
-            f"Test drive: score {score:.1f}, {metres:.1f} m, drifting {drifting / 60:.1f} s",
+            f"Test drive on {TEST_DRIVE_LAYOUTS} layouts: average score {score:.1f}, "
+            f"{metres / TEST_DRIVE_LAYOUTS:.1f} m, drifting {drifting / 60 / TEST_DRIVE_LAYOUTS:.1f} s",
             flush=True,
         )
         return score
@@ -82,7 +87,16 @@ class KeepBest(BaseCallback):
             self.check()
         return True
 
+    def save(self, name):
+        self.model.save(self.output / name)
+        save_model_as_onnx(
+            self.model,
+            str(self.output / f"{name}.onnx"),
+            action_space=self.action_space,
+        )
+
     def check(self):
+        self.save("race_track_latest")
         score = test_drive(self.model, self.godot, self.port)
         steps = self.model.num_timesteps
         if score <= self.best:
@@ -92,12 +106,7 @@ class KeepBest(BaseCallback):
             )
             return
         self.best = score
-        self.model.save(self.output / "race_track")
-        save_model_as_onnx(
-            self.model,
-            str(self.output / "race_track.onnx"),
-            action_space=self.action_space,
-        )
+        self.save("race_track")
         print(
             f"Test drive after {steps} steps: score {score:.1f}, new best saved",
             flush=True,
@@ -111,7 +120,11 @@ def main():
     parser.add_argument("--godot", default="godot", help="Godot executable path")
     parser.add_argument("--steps", type=int, default=100_000)
     parser.add_argument(
-        "--resume", action="store_true", help="Continue training the saved best model"
+        "--resume",
+        nargs="?",
+        const="best",
+        choices=["best", "latest"],
+        help="Continue training the saved best model, or the latest one with --resume latest",
     )
     parser.add_argument(
         "--port",
@@ -159,7 +172,8 @@ def main():
             assert [value.shape for value in obs.values()] == [
                 (1, 6),
                 (1, 3),
-                (1, 27),
+                (1, 75),
+                (1, 3),
             ], obs
             peak_speed = 0.0
             episodes = 0
@@ -182,7 +196,12 @@ def main():
         monitored_env = VecMonitor(env)
         best = -math.inf
         if args.resume:
-            model = PPO.load(output / "race_track.zip", env=monitored_env, device="cpu")
+            saved = (
+                "race_track_latest.zip" if args.resume == "latest" else "race_track.zip"
+            )
+            model = PPO.load(
+                output / saved, env=monitored_env, device="cpu", gamma=GAMMA
+            )
             best = test_drive(model, godot, args.port + 1)
             print(f"Saved model test drive: score {best:.1f}", flush=True)
         else:
@@ -191,6 +210,7 @@ def main():
                 monitored_env,
                 n_steps=512,
                 batch_size=64,
+                gamma=GAMMA,
                 seed=7,
                 device="cpu",
                 verbose=1,

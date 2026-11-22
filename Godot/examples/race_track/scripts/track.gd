@@ -17,6 +17,7 @@ const CLEAR_AFTER_JUMP := 45.0
 @export var jumps := PackedFloat32Array()
 @export var jump_size := Vector3(10.0, 1.4, 6.0)
 
+var map_obstacles := PackedVector2Array()
 var _obstacle_bodies: Array[StaticBody3D] = []
 
 
@@ -68,6 +69,7 @@ func is_clear(offset: float) -> bool:
 func _ready() -> void:
 	var walls := StaticBody3D.new()
 	walls.name = "TrackWalls"
+	walls.add_to_group("wall")
 	add_child(walls)
 	var length := curve.get_baked_length()
 	var segments := ceili(length / 1.5)
@@ -92,6 +94,7 @@ func _ready() -> void:
 			visual.material_override = material
 			visual.transform = pose
 			walls.add_child(visual)
+	map_obstacles = obstacles
 	_add_obstacles()
 	_add_jumps()
 
@@ -141,15 +144,14 @@ func random_obstacle_layout(rng: RandomNumberGenerator) -> PackedVector2Array:
 	var density := rng.randf()
 	var singles := rng.randi_range(0, 2)
 	var clusters := 0
-	if density >= 0.85:
+	if density >= 0.9:
 		singles = rng.randi_range(8, 12)
-		clusters = rng.randi_range(2, 3)
-	elif density >= 0.5:
-		singles = rng.randi_range(5, 9)
 		clusters = rng.randi_range(1, 2)
-	elif density >= 0.15:
-		singles = rng.randi_range(3, 6)
+	elif density >= 0.65:
+		singles = rng.randi_range(6, 10)
 		clusters = rng.randi_range(0, 1)
+	elif density >= 0.2:
+		singles = rng.randi_range(3, 8)
 	var length := curve.get_baked_length()
 	for cluster in clusters:
 		for attempt in 20:
