@@ -30,6 +30,15 @@ class StepCountAgent extends TestAgent:
 		return get_parent().get_episode_step()
 
 
+class ConfigurationCallbackEnvironment extends TestEnvironment:
+	var on_configuration: Callable
+
+	func _get_possible_agents() -> Array[ScholaAgent]:
+		if on_configuration.is_valid():
+			on_configuration.call()
+		return get_agents()
+
+
 class FreeingEnvironment extends TestEnvironment:
 	var victim: Node
 
@@ -323,6 +332,56 @@ func test_freed_environment_fails_and_closes_session() -> void:
 	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.define())).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+
+
+func test_possible_agents_callback_can_free_another_environment_safely() -> void:
+	for remove_earlier in [false, true]:
+		var root := _test_root()
+		var callback_environment := ConfigurationCallbackEnvironment.new()
+		_add_agent(callback_environment, "callback_agent", "callback_agent")
+		root.add_child(callback_environment)
+		var victim := _add_environment(root, "Victim", "victim")
+		if remove_earlier:
+			root.move_child(victim, 0)
+		callback_environment.on_configuration = victim.free
+		var host := _add_host(root)
+
+		var result := host.initialize_session()
+
+		assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+		assert_str(_status_message(result)).contains("environment %d was freed" % (0 if remove_earlier else 1))
+		assert_bool(host.is_session_active()).is_false()
+
+
+func test_configuration_rejects_environments_outside_the_scene_or_queued_via_parent() -> void:
+	for mutation in ["reparent", "queue_parent"]:
+		for mutate_earlier in [false, true]:
+			var root := _test_root()
+			var callback_environment := ConfigurationCallbackEnvironment.new()
+			_add_agent(callback_environment, "callback_agent", "callback_agent")
+			root.add_child(callback_environment)
+			var container := Node.new()
+			root.add_child(container)
+			var victim := _add_environment(container, "Victim", "victim")
+			if mutate_earlier:
+				root.move_child(container, 0)
+			if mutation == "reparent":
+				callback_environment.on_configuration = func(): victim.reparent(get_tree().root)
+			else:
+				callback_environment.on_configuration = container.queue_free
+			var host := _add_host(root)
+
+			var result := host.initialize_session()
+
+			var expected_index := 0 if mutate_earlier else 1
+			assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+			assert_str(_status_message(result)).contains("environment %d" % expected_index)
+			if mutation == "reparent":
+				assert_str(_status_message(result)).contains("outside the current scene")
+				victim.free()
+			else:
+				assert_str(_status_message(result)).contains("ancestor").contains("queued for deletion")
+			assert_bool(host.is_session_active()).is_false()
 
 
 func test_environment_freed_by_another_environment_closes_session(
@@ -708,6 +767,30 @@ func test_identity_changes_before_action_dispatch_reject_stale_actions() -> void
 		assert_int(_status_code(host.step({"actions": [{"a": 1, "c": 2}]}))).is_equal(STATUS_FAILED_PRECONDITION)
 
 
+func test_published_agent_id_cannot_change_between_requests() -> void:
+	for fallback_id in [false, true]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var agent = environment.get_agents()[0]
+		if fallback_id:
+			agent.agent_id = ""
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		if fallback_id:
+			agent.name = "b"
+		else:
+			agent.agent_id = "b"
+
+		var result := host.step({"actions": [{"a": 1}]})
+
+		assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+		assert_str(_status_message(result)).contains("Agent 'a': agent ID changed after publication")
+		assert_object(agent.last_action).is_null()
+		assert_object(result["value"]).is_null()
+		assert_bool(host.is_session_active()).is_false()
+
+
 func test_skipped_actions_remain_terminal_after_same_step_reattachment() -> void:
 	for phase in ["action", "observe", "result", "before_step", "pause_after_reattach"]:
 		var root := _test_root()
@@ -994,8 +1077,9 @@ func test_training_pause_preserves_identity_and_resumes_without_an_action() -> v
 	var paused := host.step({"actions": [{"a": 1, "b": 2}]})
 	assert_int(_status_code(paused)).is_equal(STATUS_OK)
 	assert_array(paused["value"]["state"][0].keys()).contains_exactly(["a"])
-	assert_array(callbacks).is_empty()
-	assert_object(second.last_action).is_null()
+	assert_array(callbacks).contains_exactly(["act", "observe"])
+	assert_int(second.last_action).is_equal(2)
+	callbacks.clear()
 	first.on_action = Callable()
 	first.training_paused = true
 	var all_paused := host.step({"actions": [{"a": 1}]})
@@ -1008,8 +1092,8 @@ func test_training_pause_preserves_identity_and_resumes_without_an_action() -> v
 	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
 	var state: Dictionary = resumed["value"]["state"][0]["b"]
 	assert_bool(state["terminated"]).is_false()
-	assert_float(state["reward"]).is_equal(0.0)
-	assert_int(state["observation"]).is_equal(0)
+	assert_float(state["reward"]).is_equal(1.0)
+	assert_int(state["observation"]).is_equal(2)
 	assert_array(callbacks).contains_exactly(["observe"])
 	assert_int(_status_code(host.step({"actions": [{"b": 2}]}))).is_equal(STATUS_OK)
 	assert_int(second.last_action).is_equal(2)
@@ -1024,7 +1108,7 @@ func test_paused_agents_prevent_completion_and_removal_still_terminates() -> voi
 		assert_int(_status_code(_start(host, mode))).is_equal(STATUS_OK)
 		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
 		second.training_paused = true
-		environment.episode_length = 1
+		environment.on_step_result = func(agent): return {"reward": 1.0, "terminated": agent.agent_id == "a"}
 		var result := host.step({"actions": [{"a": 1, "b": 2}]})
 		assert_int(_status_code(result)).is_equal(STATUS_OK)
 		assert_bool(result["value"]["state"][0]["a"]["terminated"]).is_true()
@@ -1036,7 +1120,7 @@ func test_paused_agents_prevent_completion_and_removal_still_terminates() -> voi
 		var removed := host.step({"actions": [{}]})
 		assert_int(_status_code(removed)).is_equal(STATUS_OK)
 		assert_bool(removed["value"]["state"][0]["b"]["terminated"]).is_true()
-		assert_float(removed["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+		assert_float(removed["value"]["state"][0]["b"]["reward"]).is_equal(1.0)
 
 
 func test_initially_paused_agents_are_observed_only_after_resuming() -> void:
@@ -1058,7 +1142,7 @@ func test_initially_paused_agents_are_observed_only_after_resuming() -> void:
 	assert_object(second.last_action).is_null()
 
 
-func test_birth_pausing_during_observation_is_announced_before_omission() -> void:
+func test_birth_pausing_during_observation_is_announced_on_resume() -> void:
 	var root := _test_root()
 	var environment := _dynamic_environment(root)
 	var host := _add_host(root)
@@ -1071,9 +1155,8 @@ func test_birth_pausing_during_observation_is_announced_before_omission() -> voi
 		second.training_paused = true
 	var birth := host.step({"actions": [{"a": 1}]})
 	assert_int(_status_code(birth)).is_equal(STATUS_OK)
-	assert_bool(birth["value"]["state"][0].has("b")).is_true()
-	assert_float(birth["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
-	var paused := host.step({"actions": [{"a": 1, "b": 2}]})
+	assert_bool(birth["value"]["state"][0].has("b")).is_false()
+	var paused := host.step({"actions": [{"a": 1}]})
 	assert_int(_status_code(paused)).is_equal(STATUS_OK)
 	assert_bool(paused["value"]["state"][0].has("b")).is_false()
 	assert_array(observations).contains_exactly(["observe"])
@@ -1083,6 +1166,7 @@ func test_birth_pausing_during_observation_is_announced_before_omission() -> voi
 	var resumed := host.step({"actions": [{"a": 1}]})
 	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
 	assert_bool(resumed["value"]["state"][0]["b"]["terminated"]).is_false()
+	assert_float(resumed["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
 	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
 
 
