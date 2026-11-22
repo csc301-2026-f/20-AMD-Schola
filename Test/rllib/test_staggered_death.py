@@ -549,3 +549,63 @@ def test_vec_dead_agents_stripped_from_response(make_vec_env):
     assert "agent_1" not in obs_list[0]
     assert term_list[0]["agent_2"] is True
     assert term_list[0].get("__all__") is True, "All agents dead — episode must be done"
+
+
+class _PauseResumeProtocol(FakeProtocol):
+    """Omission pauses a live ID; its later return continues the same episode."""
+
+    def send_action_msg(self, actions, action_spaces):
+        frames = [
+            {"agent_1": False, "agent_2": False},
+            {"agent_2": True},
+            {},
+            {"agent_0": False},
+            {"agent_0": True, "agent_1": False},
+            {"agent_1": True},
+        ]
+        frame = frames[self.step_count]
+        self.step_count += 1
+        self.received_actions_log.append(set(actions[0]))
+        return (
+            {0: {a: np.zeros(4, dtype=np.float32) for a in frame}},
+            {0: {a: 0.0 for a in frame}},
+            {0: dict(frame)},
+            {0: {a: False for a in frame}},
+            {0: {a: {} for a in frame}},
+            {},
+            {},
+        )
+
+
+@pytest.mark.parametrize("vectorized", [False, True])
+def test_pause_resume_tracks_ready_agents_separately_from_episode_participants(
+    vectorized,
+):
+    protocol = _PauseResumeProtocol()
+    env = (_build_ray_vec_env if vectorized else _build_ray_env)(protocol)
+    try:
+        env.reset()
+        ready = {"agent_0", "agent_1", "agent_2"}
+        expected_rosters = [
+            {"agent_1", "agent_2"},
+            set(),
+            set(),
+            {"agent_0"},
+            {"agent_1"},
+            set(),
+        ]
+        for index, expected in enumerate(expected_rosters):
+            actions = {a: np.zeros(2, dtype=np.float32) for a in ready}
+            result = env.step([actions] if vectorized else actions)
+            terminated = result[2][0] if vectorized else result[2]
+            wrapper = env.envs[0] if vectorized else env
+            assert set(wrapper.agents) == expected
+            assert terminated["__all__"] == (index == 5)
+            assert protocol.received_actions_log[-1] == ready
+            ready = expected
+        # Reset clears episode history and makes the IDs available again.
+        env.reset()
+        wrapper = env.envs[0] if vectorized else env
+        assert set(wrapper.agents) == set(protocol.agent_ids)
+    finally:
+        env.close()

@@ -1,0 +1,40 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://examples/multi_agent/line_environment.gd" id="1"]
+[ext_resource type="Script" path="res://examples/multi_agent/line_agent.gd" id="2"]
+
+[sub_resource type="ScholaBoxSpace" id="RunnerObservation"]
+low = PackedFloat32Array(0, 0)
+high = PackedFloat32Array(1, 1)
+
+[sub_resource type="ScholaDiscreteSpace" id="RunnerAction"]
+n = 3
+
+[sub_resource type="ScholaDiscreteSpace" id="HopperObservation"]
+n = 10
+
+[sub_resource type="ScholaMultiDiscreteSpace" id="HopperAction"]
+nvec = PackedInt32Array(2, 2)
+
+[node name="MultiAgentLine" type="Node"]
+
+[node name="ScholaTrainingConnector" type="ScholaTrainingConnector" parent="."]
+
+[node name="Environment" type="ScholaEnvironment" parent="."]
+script = ExtResource("1")
+
+[node name="Runner" type="ScholaAgent" parent="Environment"]
+script = ExtResource("2")
+agent_id = "runner"
+observation_space = SubResource("RunnerObservation")
+action_space = SubResource("RunnerAction")
+controls = 0
+observes_partner = true
+
+[node name="Hopper" type="ScholaAgent" parent="Environment"]
+script = ExtResource("2")
+agent_id = "hopper"
+observation_space = SubResource("HopperObservation")
+action_space = SubResource("HopperAction")
+controls = 1
+observes_partner = false

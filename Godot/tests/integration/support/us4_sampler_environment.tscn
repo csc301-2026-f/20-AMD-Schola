@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/integration/support/us4_sampler_environment.gd" id="1"]
+
+[node name="SamplerEnvironment" type="ScholaEnvironment"]
+script = ExtResource("1")
+
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]
+start_timeout_sec = 20.0
+step_timeout_sec = 20.0
