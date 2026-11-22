@@ -40,6 +40,7 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	assert_int(environment.maximum_stalled_steps).is_equal(120)
 	assert_float(environment.maximum_track_distance).is_equal(4.5)
 	assert_bool(environment.random_start).is_true()
+	assert_bool(environment.random_obstacles).is_true()
 	assert_bool(environment.terminate_on_obstacle).is_true()
 	assert_bool(environment.car.contact_monitor).is_true()
 	assert_int(environment.car.max_contacts_reported).is_greater(0)
@@ -56,3 +57,44 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	assert_array(Array(controls.shape)).contains_exactly([2])
 	assert_array(Array(controls.low)).contains_exactly([-1.0, -1.0])
 	assert_array(Array(controls.high)).contains_exactly([1.0, 1.0])
+
+
+func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var connector: Node = scene.get_node("TrainingConnector")
+	scene.remove_child(connector)
+	connector.free()
+	add_child(scene)
+	await get_tree().physics_frame
+	var track: RaceTrackPath = scene.get_node("RaceTrackEnvironment").agent.track
+	var length := track.curve.get_baked_length()
+	var sizes: Array[int] = []
+	for seed in 200:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed
+		var layout := track.random_obstacle_layout(rng)
+		sizes.append(layout.size())
+		var lanes := {}
+		for obstacle in layout:
+			assert_float(obstacle.x).is_between(track.CLEAR_AFTER_START, length - track.CLEAR_BEFORE_START)
+			for jump in track.jumps:
+				var ahead := fposmod(jump - obstacle.x, length)
+				assert_bool(ahead >= track.CLEAR_BEFORE_JUMP and ahead <= length - track.CLEAR_AFTER_JUMP).is_true()
+			lanes[obstacle.x] = lanes.get(obstacle.x, 0) + 1
+		for offset in lanes:
+			assert_int(lanes[offset]).is_less_equal(2)
+			for other in lanes:
+				var gap := absf(wrapf(other - offset, -length * 0.5, length * 0.5))
+				if gap > 0.0 and lanes[offset] == 1:
+					assert_float(gap).is_greater_equal(track.GATE_SPACING.x)
+	assert_int(sizes.min()).is_less_equal(2)
+	assert_int(sizes.max()).is_greater_equal(17)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6
+	var crowded := track.random_obstacle_layout(rng)
+	track.set_obstacles(crowded)
+	track.set_obstacles(PackedVector2Array([Vector2(100.0, 0.0)]))
+	var shown := track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.visible)
+	assert_int(shown.size()).is_equal(1)
+	assert_int(track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.collision_layer != 0).size()).is_equal(1)

@@ -4,11 +4,20 @@ extends Path3D
 
 const START_OFFSET_BACK := -4.0
 const START_OFFSET_LEFT := 0.0
+const LANE := 2.5
+const OBSTACLE_SPACING := 25.0
+const GATE_SPACING := Vector2(16.0, 22.0)
+const CLEAR_AFTER_START := 45.0
+const CLEAR_BEFORE_START := 15.0
+const CLEAR_BEFORE_JUMP := 30.0
+const CLEAR_AFTER_JUMP := 45.0
 
 @export var obstacles := PackedVector2Array()
 @export var obstacle_size := Vector3(2.5, 1.0, 1.0)
 @export var jumps := PackedFloat32Array()
 @export var jump_size := Vector3(10.0, 1.4, 6.0)
+
+var _obstacle_bodies: Array[StaticBody3D] = []
 
 
 static func find_in(tree: SceneTree) -> RaceTrackPath:
@@ -112,16 +121,84 @@ func _add_jumps() -> void:
 
 
 func _add_obstacles() -> void:
-	for obstacle in obstacles:
-		add_obstacle(obstacle.x, obstacle.y)
+	set_obstacles(obstacles)
+
+
+func set_obstacles(layout: PackedVector2Array) -> void:
+	obstacles = layout
+	while _obstacle_bodies.size() < layout.size():
+		_obstacle_bodies.append(add_obstacle(0.0, 0.0))
+	for index in _obstacle_bodies.size():
+		var body := _obstacle_bodies[index]
+		body.visible = index < layout.size()
+		body.collision_layer = 1 if body.visible else 0
+		if body.visible:
+			body.global_transform = _obstacle_pose(layout[index].x, layout[index].y)
+
+
+func random_obstacle_layout(rng: RandomNumberGenerator) -> PackedVector2Array:
+	var layout := PackedVector2Array()
+	var density := rng.randf()
+	var singles := rng.randi_range(0, 2)
+	var clusters := 0
+	if density >= 0.85:
+		singles = rng.randi_range(8, 12)
+		clusters = rng.randi_range(2, 3)
+	elif density >= 0.5:
+		singles = rng.randi_range(5, 9)
+		clusters = rng.randi_range(1, 2)
+	elif density >= 0.15:
+		singles = rng.randi_range(3, 6)
+		clusters = rng.randi_range(0, 1)
+	var length := curve.get_baked_length()
+	for cluster in clusters:
+		for attempt in 20:
+			var candidate := PackedVector2Array()
+			var offset := rng.randf() * length
+			var open := LANE if rng.randf() < 0.5 else -LANE
+			for gate in rng.randi_range(2, 4):
+				for side in [LANE, 0.0, -LANE]:
+					if side != open:
+						candidate.append(Vector2(fposmod(offset, length), side))
+				open = -open
+				offset += rng.randf_range(GATE_SPACING.x, GATE_SPACING.y)
+			if _fits(candidate, layout):
+				layout.append_array(candidate)
+				break
+	for single in singles:
+		for attempt in 20:
+			var candidate := PackedVector2Array([Vector2(rng.randf() * length, [LANE, 0.0, -LANE][rng.randi_range(0, 2)])])
+			if _fits(candidate, layout):
+				layout.append_array(candidate)
+				break
+	return layout
+
+
+func _fits(candidate: PackedVector2Array, layout: PackedVector2Array) -> bool:
+	var length := curve.get_baked_length()
+	for obstacle in candidate:
+		if obstacle.x < CLEAR_AFTER_START or obstacle.x > length - CLEAR_BEFORE_START:
+			return false
+		for jump in jumps:
+			var ahead := fposmod(jump - obstacle.x, length)
+			if ahead < CLEAR_BEFORE_JUMP or ahead > length - CLEAR_AFTER_JUMP:
+				return false
+		for other in layout:
+			if absf(wrapf(other.x - obstacle.x, -length * 0.5, length * 0.5)) < OBSTACLE_SPACING:
+				return false
+	return true
+
+
+func _obstacle_pose(offset: float, side: float) -> Transform3D:
+	var forward := direction_at(offset)
+	return Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(offset) + Vector3.UP.cross(forward).normalized() * side + Vector3.UP * obstacle_size.y * 0.5)
 
 
 func add_obstacle(offset: float, side: float) -> StaticBody3D:
-	var forward := direction_at(offset)
 	var body := StaticBody3D.new()
 	body.add_to_group("obstacle")
 	add_child(body)
-	body.global_transform = Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(offset) + Vector3.UP.cross(forward).normalized() * side + Vector3.UP * obstacle_size.y * 0.5)
+	body.global_transform = _obstacle_pose(offset, side)
 	var shape := BoxShape3D.new()
 	shape.size = obstacle_size
 	var collision := CollisionShape3D.new()
