@@ -161,8 +161,9 @@ when an assignment needs an independent copy. The US5 owner has completed the
 manual editor persistence checks.
 
 Agent warning icons identify missing/invalid spaces and missing `_observe` or
-`_act` hooks. The environment also reports missing agents, missing
-`_get_step_result`, and duplicate resolved agent IDs, including the conflicting
+`_act` hooks. The environment shows at most one summary per agent with warnings;
+select that agent node for the specific diagnostics. The environment also reports
+missing agents, missing `_get_step_result`, and duplicate resolved agent IDs, including the conflicting
 node paths. Nested environments are searched independently, so matching agent IDs
 across separate environments are allowed. `_reset_episode` is optional.
 
