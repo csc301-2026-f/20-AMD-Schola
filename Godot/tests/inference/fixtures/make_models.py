@@ -94,6 +94,21 @@ def multi_binary():
     )
 
 
+def int64_action(discrete):
+    nodes = [helper.make_node("Cast", ["obs"], ["integers"], to=TensorProto.INT64)]
+    if discrete:
+        nodes.append(helper.make_node("Squeeze", ["integers", "axis_1"], ["action"]))
+    else:
+        nodes.append(helper.make_node("Identity", ["integers"], ["action"]))
+    return model(
+        "int64_action",
+        nodes,
+        [tensor("obs", TensorProto.FLOAT, [BATCH, 1 if discrete else 2])],
+        [tensor("action", TensorProto.INT64, [BATCH] if discrete else [BATCH, 2])],
+        [constant("axis_1", [1], TensorProto.INT64)] if discrete else [],
+    )
+
+
 def dict_obs():
     return model(
         "dict_obs",
@@ -217,6 +232,8 @@ def bad_state_int():
 
 
 MODELS = {
+    "int64_discrete": lambda: int64_action(True),
+    "int64_multi_discrete": lambda: int64_action(False),
     "camera_components": camera_components,
     "box_scale": box_scale,
     "discrete": discrete,
@@ -252,6 +269,14 @@ def check_outputs():
 
     f32, i64, i8 = np.float32, np.int64, np.int8
     expected = {
+        "int64_discrete": (
+            {"obs": np.array([[4294967296]], f32)},
+            {"action": np.array([4294967296], i64)},
+        ),
+        "int64_multi_discrete": (
+            {"obs": np.array([[4294967296, -4294967296]], f32)},
+            {"action": np.array([[4294967296, -4294967296]], i64)},
+        ),
         "camera_components": (
             {"00000000:camera": np.array([[[[0.25]], [[0.5]], [[0.75]]]], f32)},
             {"00000000:move": np.array([[0.25, 0.5, 0.75]], f32)},

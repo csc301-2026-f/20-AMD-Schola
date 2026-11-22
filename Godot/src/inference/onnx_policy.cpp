@@ -10,6 +10,7 @@
 
 #include <charconv>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -318,8 +319,15 @@ Status write_observation(Binding &r_binding, const Point &p_point) {
 	return Status::ok();
 }
 
-int32_t read_integer(const Binding &p_binding, size_t p_index) {
-	return static_cast<int32_t>(static_cast<int64_t>(load(p_binding.element_type, p_binding.buffer, p_index)));
+Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) {
+	const int64_t value = p_binding.element_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64
+			? get<int64_t>(p_binding.buffer, p_index)
+			: get<int32_t>(p_binding.buffer, p_index);
+	if (value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max()) {
+		return Status::error(StatusCode::INVALID_DATA, p_binding.label("action") + " value " + std::to_string(value) + " does not fit int32");
+	}
+	r_value = static_cast<int32_t>(value);
+	return Status::ok();
 }
 
 Status read_action(const Binding &p_binding, Point &r_point) {
@@ -331,12 +339,14 @@ Status read_action(const Binding &p_binding, Point &r_point) {
 		return Status::ok();
 	}
 	if (DiscretePoint *discrete = r_point.get_if<DiscretePoint>(); discrete && p_binding.kind == SpaceKind::DISCRETE) {
-		discrete->value = read_integer(p_binding, 0);
-		return Status::ok();
+		return read_integer(p_binding, 0, discrete->value);
 	}
 	if (MultiDiscretePoint *multi_discrete = r_point.get_if<MultiDiscretePoint>(); multi_discrete && p_binding.kind == SpaceKind::MULTI_DISCRETE && multi_discrete->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < multi_discrete->values.size(); ++i) {
-			multi_discrete->values[i] = read_integer(p_binding, i);
+			Status status = read_integer(p_binding, i, multi_discrete->values[i]);
+			if (!status.is_ok()) {
+				return status;
+			}
 		}
 		return Status::ok();
 	}
