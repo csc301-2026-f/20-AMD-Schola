@@ -12,7 +12,7 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
-Press 1, 2, 3 or 4 to switch between the untrained, 25,000-step, 350,000-step and final policies while the car drives, and R to put the car back at the start.
+Press 1, 2, 3 or 4 to switch between the untrained, 25,000-step, 350,000-step and final policies while the car drives, and R to put the car back at the start. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car; it disappears once the car has passed it. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
 
 ## Results
 
@@ -160,6 +160,7 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scenes/race_track_inference.tscn` | Track, car, and `ScholaInferenceStepper` | `Maps/RaceTrackInference` |
 | `scenes/component_demo.tscn` | Keyboard controller and live component HUD | Local inspection |
 | `scenes/action_display.tscn`, `scripts/action_display.gd` | On-screen steering wheel, pedals and speed showing the agent's actions | None |
+| `scripts/obstacle_dropper.gd` | Drops an obstacle 50 m ahead of the car when the viewer clicks, and removes obstacles on right-click | None |
 | `scripts/model_switcher.gd` | Switches the inference scene between four policies with keys 1-4 and restarts the car with R | None |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, start positions, walls, and obstacles | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |

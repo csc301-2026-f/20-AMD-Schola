@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="2_car"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="3_display"]
 [ext_resource type="Script" path="res://examples/race_track/scripts/model_switcher.gd" id="4_switcher"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/obstacle_dropper.gd" id="5_dropper"]
 
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_race_track"]
 model_path = "res://examples/race_track/policies/race_track.onnx"
@@ -57,3 +58,7 @@ stepper_paths = Array[NodePath]([NodePath("../UntrainedStepper"), NodePath("../E
 names = PackedStringArray("UNTRAINED", "25,000 TRAINING STEPS", "350,000 TRAINING STEPS", "650,000 TRAINING STEPS")
 agent_path = NodePath("../Car/Agent")
 selected = 3
+
+[node name="ObstacleDropper" type="Node" parent="."]
+script = ExtResource("5_dropper")
+agent_path = NodePath("../Car/Agent")

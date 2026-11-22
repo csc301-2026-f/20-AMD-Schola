@@ -112,25 +112,30 @@ func _add_jumps() -> void:
 
 
 func _add_obstacles() -> void:
+	for obstacle in obstacles:
+		add_obstacle(obstacle.x, obstacle.y)
+
+
+func add_obstacle(offset: float, side: float) -> StaticBody3D:
+	var forward := direction_at(offset)
+	var body := StaticBody3D.new()
+	body.add_to_group("obstacle")
+	add_child(body)
+	body.global_transform = Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(offset) + Vector3.UP.cross(forward).normalized() * side + Vector3.UP * obstacle_size.y * 0.5)
+	var shape := BoxShape3D.new()
+	shape.size = obstacle_size
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	body.add_child(collision)
+	var mesh := BoxMesh.new()
+	mesh.size = obstacle_size
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color(0.95, 0.45, 0.1)
-	for obstacle in obstacles:
-		var forward := direction_at(obstacle.x)
-		var body := StaticBody3D.new()
-		body.add_to_group("obstacle")
-		add_child(body)
-		body.global_transform = Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(obstacle.x) + Vector3.UP.cross(forward).normalized() * obstacle.y + Vector3.UP * obstacle_size.y * 0.5)
-		var shape := BoxShape3D.new()
-		shape.size = obstacle_size
-		var collision := CollisionShape3D.new()
-		collision.shape = shape
-		body.add_child(collision)
-		var mesh := BoxMesh.new()
-		mesh.size = obstacle_size
-		var visual := MeshInstance3D.new()
-		visual.mesh = mesh
-		visual.material_override = material
-		body.add_child(visual)
+	var visual := MeshInstance3D.new()
+	visual.mesh = mesh
+	visual.material_override = material
+	body.add_child(visual)
+	return body
 
 func _edge(offset: float, side: float) -> Vector3:
 	var tangent := direction_at(offset)
