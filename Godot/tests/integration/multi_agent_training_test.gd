@@ -16,6 +16,7 @@ const LineAgent := preload("res://examples/multi_agent/line_agent.gd")
 const LineEnvironment := preload("res://examples/multi_agent/line_environment.gd")
 
 const STATUS_INVALID_ARGUMENT := 1
+const STATUS_FAILED_PRECONDITION := 5
 const AUTORESET_DISABLED := 2
 
 # Hopper actions, as [back pressed, forward pressed].
@@ -273,8 +274,8 @@ func test_an_action_for_a_finished_agent_ends_the_session() -> void:
 	var step := _step({"runner": RUN_FORWARD, "hopper": HOP_FORWARD})
 
 	assert_bool(step.ok).is_false()
-	assert_int(step.code).is_equal(STATUS_INVALID_ARGUMENT)
-	assert_str(step.message).contains("only unfinished declared agents")
+	assert_int(step.code).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_str(step.message).contains("'hopper': already finished this episode")
 	assert_int(_runner.position).is_equal(1)
 	assert_bool(_client.reset({}).ok).is_false()
 	_assert_ok(_client.close())

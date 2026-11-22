@@ -586,7 +586,11 @@ int64_t GodotEnvironmentAdapter::get_episode_step() const {
 }
 
 void GodotEnvironmentAdapter::release() {
-	agents.clear();
+	definitions.clear();
+	last_states.clear();
+	episode_nodes.clear();
+	fixed_nodes.clear();
+	defined_nodes.clear();
 	initialized = false;
 	episode_active = false;
 	episode_step = 0;
