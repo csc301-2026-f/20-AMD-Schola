@@ -249,7 +249,18 @@ godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	return errors;
 }
 
+void ScholaAgent::set_training_paused(bool p_paused) {
+	training_paused = p_paused;
+}
+
+bool ScholaAgent::is_training_paused() const {
+	return training_paused;
+}
+
 void ScholaAgent::_bind_methods() {
+	godot::ClassDB::bind_method(godot::D_METHOD("set_training_paused", "paused"), &ScholaAgent::set_training_paused);
+	godot::ClassDB::bind_method(godot::D_METHOD("is_training_paused"), &ScholaAgent::is_training_paused);
+	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "training_paused"), "set_training_paused", "is_training_paused");
 	godot::ClassDB::bind_method(godot::D_METHOD("get_effective_observation_space"), &ScholaAgent::get_effective_observation_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_effective_action_space"), &ScholaAgent::get_effective_action_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_resolved_agent_id"), &ScholaAgent::get_resolved_agent_id);
