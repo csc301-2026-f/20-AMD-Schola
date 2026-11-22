@@ -117,10 +117,10 @@ Agents can also be added and removed while the game runs, for example when enemi
 .. code-block:: gdscript
 
     $ScholaInferenceStepper.add_agent($Enemy)       # Returns OK or an Error.
-    $ScholaInferenceStepper.remove_agent($Enemy)    # Returns how many entries were removed.
+    $ScholaInferenceStepper.remove_agent($Enemy)    # Returns 1, or 0 if the agent wasn't added.
 
-The same agent can be added more than once; each entry gets its own state, and ``remove_agent()``
-and ``reset_state()`` affect every entry of that agent.
+Each agent can be in a stepper only once. Adding an agent that is already there returns
+``ERR_INVALID_PARAMETER``, emits ``inference_failed`` and leaves its existing entry unchanged.
 
 A few rules keep this safe:
 

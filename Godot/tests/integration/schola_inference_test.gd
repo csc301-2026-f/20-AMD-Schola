@@ -578,3 +578,29 @@ func test_stepper_uses_stacked_space_and_resets_observation_history() -> void:
 	stepper.reset_state(agent)
 	assert_int(stepper.step()).is_equal(OK)
 	assert_array(_values(agent.actions.back())).contains_exactly([4.0, 0.0, 0.0])
+
+
+func test_stepper_rejects_an_agent_it_already_has_and_keeps_its_history() -> void:
+	var messages: Array[String] = []
+	var agent := _agent(1, 3, PackedFloat32Array([1.0]))
+	var stacker := ScholaStacker.new()
+	stacker.stack_size = 3
+	stacker.add_new_dimension = false
+	agent.observation_adapters = [stacker]
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.enabled = false
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	add_child(stepper)
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_equal(OK)
+	agent.observation = PackedFloat32Array([2.0])
+	assert_int(stepper.step()).is_equal(OK)
+
+	assert_int(stepper.add_agent(agent)).is_equal(ERR_INVALID_PARAMETER)
+	assert_str(messages[0]).contains("already in this stepper")
+	agent.actions.clear()
+	agent.observation = PackedFloat32Array([3.0])
+	assert_int(stepper.step()).is_equal(OK)
+	assert_int(agent.actions.size()).is_equal(1)
+	assert_array(_values(agent.actions[0])).contains_exactly([6.0, 4.0, 2.0])

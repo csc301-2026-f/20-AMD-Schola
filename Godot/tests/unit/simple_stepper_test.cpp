@@ -116,7 +116,7 @@ TEST_CASE("each entry keeps its own state", "[stepper]") {
 	REQUIRE(stepper.get_state(0) != stepper.get_state(1));
 }
 
-TEST_CASE("the same agent can be added twice with separate states", "[stepper]") {
+TEST_CASE("adding an agent that is already in the stepper is rejected", "[stepper]") {
 	FakeAgent agent = make_agent(1.0f);
 	FakePolicy policy = make_policy();
 	SimpleStepper stepper;
@@ -124,14 +124,23 @@ TEST_CASE("the same agent can be added twice with separate states", "[stepper]")
 	step_times(stepper, 2);
 
 	int32_t index = -1;
-	REQUIRE(stepper.add_agent(&agent, index).is_ok());
-	REQUIRE(index == 1);
-	REQUIRE(stepper.find_agent(&agent) == 0);
+	Status status = stepper.add_agent(&agent, index);
+	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("already in this stepper"));
+	REQUIRE(stepper.get_agent_count() == 1);
 	step_times(stepper, 1);
 
 	REQUIRE(count_at(stepper, 0) == 3);
-	REQUIRE(count_at(stepper, 1) == 1);
-	REQUIRE(agent.actions.size() == 4);
+	REQUIRE(agent.actions.size() == 3);
+}
+
+TEST_CASE("init rejects an agent listed twice", "[stepper]") {
+	FakeAgent agent = make_agent(1.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+
+	REQUIRE(stepper.init({ &agent, &agent }, &policy).get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE(stepper.get_agent_count() == 0);
 }
 
 TEST_CASE("removing an entry shifts later entries with their states", "[stepper]") {
@@ -152,14 +161,14 @@ TEST_CASE("removing an entry shifts later entries with their states", "[stepper]
 	REQUIRE(count_at(stepper, 0) == 1);
 }
 
-TEST_CASE("remove_agent removes every entry for that agent", "[stepper]") {
+TEST_CASE("remove_agent removes that agent's entry", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);
 	FakePolicy policy = make_policy();
 	SimpleStepper stepper;
-	REQUIRE(stepper.init({ &first, &second, &first }, &policy).is_ok());
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
 
-	REQUIRE(stepper.remove_agent(&first) == 2);
+	REQUIRE(stepper.remove_agent(&first) == 1);
 	REQUIRE(stepper.get_agent_count() == 1);
 	REQUIRE(stepper.get_agent(0) == &second);
 	REQUIRE(stepper.remove_agent(&first) == 0);
