@@ -13,8 +13,8 @@ n = 3
 [sub_resource type="ScholaDiscreteSpace" id="HopperObservation"]
 n = 10
 
-[sub_resource type="ScholaMultiBinarySpace" id="HopperAction"]
-n = 2
+[sub_resource type="ScholaMultiDiscreteSpace" id="HopperAction"]
+nvec = PackedInt32Array(2, 2)
 
 [node name="MultiAgentLine" type="Node"]
 

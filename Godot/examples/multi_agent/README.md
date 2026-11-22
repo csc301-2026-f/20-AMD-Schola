@@ -6,7 +6,7 @@ together through `ScholaTrainingConnector` by Schola's Python trainer.
 | Agent | Action space | Observation space |
 |---|---|---|
 | `runner` | `Discrete(3)`: back, stay, forward | `Box(2)`: own and partner position, 0..1 |
-| `hopper` | `MultiBinary(2)`: back button, forward button | `Discrete(10)`: own position |
+| `hopper` | `MultiDiscrete([2, 2])`: back button, forward button, each 0 or 1 | `Discrete(10)`: own position |
 
 - An agent's episode ends when it reaches 9 (`terminated`) or after
   `max_steps` steps (`truncated`). Agents can finish on different steps; a
@@ -16,6 +16,9 @@ together through `ScholaTrainingConnector` by Schola's Python trainer.
   get the team average).
 - Each result's `info` carries `agent`, `position`, and `episode`, so Python can
   check that every result reached the right agent.
+
+The hopper's buttons use `MultiDiscrete` rather than `MultiBinary` because
+RLlib has no action distribution for `MultiBinary` and stops before training.
 
 Because the agents' spaces differ, train with RLlib, which gives each agent its
 own policy. Schola's SB3 wrapper requires every agent to share one observation

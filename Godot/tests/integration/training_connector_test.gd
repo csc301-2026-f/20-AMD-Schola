@@ -71,7 +71,7 @@ func _add_environment(root: Node) -> ScholaAgent:
 
 
 # The US12 example's environment: "runner" (Box(2) observation, Discrete(3)
-# action) and "hopper" (Discrete(10) observation, MultiBinary(2) action).
+# action) and "hopper" (Discrete(10) observation, MultiDiscrete([2, 2]) action).
 func _add_two_agent_environment(root: Node) -> ScholaEnvironment:
 	var environment := LineEnvironment.new() as ScholaEnvironment
 	environment.name = "Environment"
@@ -95,8 +95,8 @@ func _add_two_agent_environment(root: Node) -> ScholaEnvironment:
 	var hopper_observation := ScholaDiscreteSpace.new()
 	hopper_observation.n = 10
 	hopper.observation_space = hopper_observation
-	var hopper_action := ScholaMultiBinarySpace.new()
-	hopper_action.n = 2
+	var hopper_action := ScholaMultiDiscreteSpace.new()
+	hopper_action.nvec = PackedInt32Array([2, 2])
 	hopper.action_space = hopper_action
 	hopper.controls = LineAgent.Controls.BUTTONS
 	environment.add_child(hopper)
@@ -175,7 +175,7 @@ func test_a_fresh_host_can_train_the_same_agents_after_a_session_closes() -> voi
 	assert_dict(second_definition.value[0]).is_equal(first_definition.value[0])
 
 	_assert_ok(_client.reset({}))
-	var step: Dictionary = _client.step([{"runner": 2, "hopper": PackedByteArray([0, 1])}])
+	var step: Dictionary = _client.step([{"runner": 2, "hopper": PackedInt32Array([0, 1])}])
 	_assert_ok(step)
 	assert_str(step.value.state[0]["runner"].info.agent).is_equal("runner")
 	assert_str(step.value.state[0]["hopper"].info.agent).is_equal("hopper")

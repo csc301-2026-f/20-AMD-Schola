@@ -3,7 +3,8 @@
 # One agent on the number line 0..LAST. The two control styles give the two
 # agents different action spaces, as US12 requires:
 #   STEP:    Discrete(3) action, 0 = back, 1 = stay, 2 = forward.
-#   BUTTONS: MultiBinary(2) action, [back pressed, forward pressed].
+#   BUTTONS: MultiDiscrete([2, 2]) action, [back pressed, forward pressed],
+#            each 0 or 1. Not MultiBinary: RLlib cannot train that space.
 # The observation space is set on the node in main.tscn and must match what
 # _observe() returns: see observes_partner.
 extends ScholaAgent

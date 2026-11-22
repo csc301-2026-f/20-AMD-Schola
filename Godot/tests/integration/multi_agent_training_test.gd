@@ -4,7 +4,7 @@
 #
 # Uses the two-agent example (examples/multi_agent): "runner" observes Box(2)
 # [own, partner position] / 9 and acts with Discrete(3) (0 back, 1 stay,
-# 2 forward); "hopper" observes Discrete(10) and acts with MultiBinary(2)
+# 2 forward); "hopper" observes Discrete(10) and acts with MultiDiscrete([2, 2])
 # [back, forward]. ScholaTrainingTestClient plays Python and drives the real
 # HostTrainingBackend and ScholaTrainingHost, as in training_connector_test.gd.
 #
@@ -88,8 +88,8 @@ func _add_two_agent_environment(root: Node) -> void:
 	var hopper_observation := ScholaDiscreteSpace.new()
 	hopper_observation.n = 10
 	_hopper.observation_space = hopper_observation
-	var hopper_action := ScholaMultiBinarySpace.new()
-	hopper_action.n = 2
+	var hopper_action := ScholaMultiDiscreteSpace.new()
+	hopper_action.nvec = PackedInt32Array([2, 2])
 	_hopper.action_space = hopper_action
 	_hopper.controls = LineAgent.Controls.BUTTONS
 	_environment.add_child(_hopper)
@@ -108,7 +108,7 @@ func _step(actions: Dictionary) -> Dictionary:
 	var converted := {}
 	for id in actions:
 		var action: Variant = actions[id]
-		converted[id] = PackedByteArray(action) if action is Array else action
+		converted[id] = PackedInt32Array(action) if action is Array else action
 	return _client.step([converted])
 
 
