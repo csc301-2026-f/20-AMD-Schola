@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/common/status.h"
+#include "core/environment/environment.h"
 #include "core/lifecycle/environment_coordinator.h"
 
 #include <godot_cpp/classes/node.hpp>
@@ -10,6 +11,7 @@
 #include <godot_cpp/variant/dictionary.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -92,6 +94,7 @@ private:
 	schola::Status shutdown_core();
 
 	std::vector<godot::ObjectID> environment_ids;
+	std::vector<std::unique_ptr<schola::Environment>> checked_environments;
 	schola::EnvironmentCoordinator coordinator;
 	std::optional<schola::TrainingDefinition> training_definition;
 	SessionState session_state = SessionState::CONFIGURING;

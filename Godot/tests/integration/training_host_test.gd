@@ -29,6 +29,22 @@ class StepCountAgent extends TestAgent:
 	func _observe() -> Variant:
 		return get_parent().get_episode_step()
 
+
+class FreeingEnvironment extends TestEnvironment:
+	var victim: Node
+
+	func _reset_episode(seed: Variant, options: Dictionary) -> void:
+		super._reset_episode(seed, options)
+		_free_victim()
+
+	func _get_step_result(agent: ScholaAgent) -> Dictionary:
+		_free_victim()
+		return super._get_step_result(agent)
+
+	func _free_victim() -> void:
+		if is_instance_valid(victim):
+			victim.free()
+
 var _previous_scene: Node
 
 
@@ -213,6 +229,31 @@ func test_freed_environment_fails_and_closes_session() -> void:
 	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.define())).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+
+
+func test_environment_freed_by_another_environment_closes_session(
+	during_reset: bool,
+	_test_parameters := [[true], [false]]
+) -> void:
+	var root := _test_root()
+	var first := FreeingEnvironment.new()
+	first.name = "FirstEnvironment"
+	_add_agent(first, "first_agent", "first_agent")
+	root.add_child(first)
+	var second := _add_environment(root, "SecondEnvironment", "second_agent")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	if not during_reset:
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	first.victim = second
+
+	var actions := {"actions": [{"first_agent": 1}, {"second_agent": 1}]}
+	var result: Dictionary = host.reset({}) if during_reset else host.step(actions)
+
+	assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_str(_status_message(result)).contains("environment 1 was freed")
+	assert_object(result["value"]).is_null()
+	assert_bool(host.is_session_active()).is_false()
 
 
 func test_close_is_idempotent_and_rejects_later_work() -> void:
