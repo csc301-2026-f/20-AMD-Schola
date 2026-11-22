@@ -449,6 +449,14 @@ schola::Status ScholaTrainingHost::shutdown_core() {
 	session_state = SessionState::SHUTTING_DOWN;
 	schola::Status status = coordinator.close();
 	training_definition.reset();
+	// Hand the environments back, so the next session's host can initialize
+	// them again. Nodes freed during the session are simply skipped.
+	for (const godot::ObjectID &id : environment_ids) {
+		ScholaEnvironment *environment = godot::Object::cast_to<ScholaEnvironment>(godot::ObjectDB::get_instance(id));
+		if (environment != nullptr) {
+			environment->release_environment();
+		}
+	}
 	environment_ids.clear();
 	checked_environments.clear();
 	session_state = SessionState::CLOSED;

@@ -115,6 +115,12 @@ const schola::Environment *ScholaEnvironment::get_environment() const {
 	return const_cast<ScholaEnvironment *>(this)->get_environment();
 }
 
+void ScholaEnvironment::release_environment() {
+	if (environment_adapter) {
+		environment_adapter->release();
+	}
+}
+
 godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 	godot::TypedArray<ScholaAgent> agents;
 	collect_agents(this, agents);

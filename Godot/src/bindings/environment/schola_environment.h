@@ -140,6 +140,13 @@ public:
 	const schola::Environment *get_environment() const;
 
 	/**
+	 * Releases the adapter from a closed training session, so a later
+	 * session can initialize it again. Called by ScholaTrainingHost when its
+	 * session closes; does nothing if no adapter was created.
+	 */
+	void release_environment();
+
+	/**
 	 * Checks the Inspector and scene-tree configuration.
 	 *
 	 * Reports missing agents, duplicate resolved IDs, and each agent's resource
