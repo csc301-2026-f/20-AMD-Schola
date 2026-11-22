@@ -234,6 +234,11 @@ private:
 	std::optional<schola::TrainingDefinition> definition;
 };
 
+// In grpc_test_client.cpp.
+void register_schola_grpc_test_client();
+
+// The training extension's one test-only registration hook.
 void register_schola_training_test_client() {
 	GDREGISTER_CLASS(ScholaTrainingTestClient);
+	register_schola_grpc_test_client();
 }

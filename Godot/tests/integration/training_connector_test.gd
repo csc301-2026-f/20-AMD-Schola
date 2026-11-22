@@ -257,3 +257,43 @@ func test_connector_gives_up_and_reports_when_python_never_connects() -> void:
 	assert_int(errors.size()).is_equal(1)
 	assert_str(errors[0]).is_not_empty()
 	assert_bool(connector.is_training()).is_false()
+
+
+func test_connector_waits_for_python_to_come_back_after_a_session_closes() -> void:
+	# `schola rllib train` connects once to read the agents, closes, and
+	# connects again on the same port to train. The connector must keep the
+	# port for that second session, then finish cleanly when Python is gone.
+	var root := _scene_root()
+	_add_two_agent_environment(root)
+	var connector: Node = ClassDB.instantiate("ScholaTrainingConnector")
+	var port := 50000 + randi() % 10000
+	connector.port = port
+	connector.start_timeout_sec = 2.0
+	var closed_sessions: Array[int] = [0]
+	var finished: Array[String] = []
+	connector.session_closed.connect(func() -> void: closed_sessions[0] += 1)
+	connector.training_finished.connect(func(error: String) -> void: finished.append(error))
+
+	# Python runs on its own thread, so it can talk to the connector while the
+	# connector blocks the main thread waiting for it.
+	var python: RefCounted = ClassDB.instantiate("ScholaGrpcTestClient")
+	python.connect_twice(port, 10.0)
+	root.add_child(connector)
+
+	for frame in 300:
+		if not finished.is_empty():
+			break
+		await get_tree().physics_frame
+
+	assert_bool(python.is_done()).is_true()
+	assert_str(python.get_error()).is_empty()
+	# Both sessions saw the same agents, and the second one could reset them.
+	var sessions: Array = python.get_session_agents()
+	assert_int(sessions.size()).is_equal(2)
+	for agents: PackedStringArray in sessions:
+		assert_array(Array(agents)).is_equal(["hopper", "runner"])
+	assert_int(python.get_reset_agent_count()).is_equal(2)
+	# Each session closed normally, and training then ended without an error.
+	assert_int(closed_sessions[0]).is_equal(2)
+	assert_array(finished).is_equal([""])
+	assert_bool(connector.is_training()).is_false()
