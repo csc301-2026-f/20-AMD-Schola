@@ -134,6 +134,9 @@ Status to_proto(const StepResult &p_result, const TrainingDefinition &p_definiti
 	for (size_t i = 0; i < p_result.state.environments.size(); ++i) {
 		auto *message = training->add_environment_states();
 		for (const auto &agent : p_result.state.environments[i].agents) {
+			if (agent.second.paused) {
+				continue;
+			}
 			const Space *space = nullptr;
 			Status status = observation_space(p_definition, static_cast<EnvironmentId>(i), agent.first, space);
 			if (!status.is_ok()) {

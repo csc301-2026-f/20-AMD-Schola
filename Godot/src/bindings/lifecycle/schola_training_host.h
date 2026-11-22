@@ -3,6 +3,7 @@
 #pragma once
 
 #include "core/common/status.h"
+#include "core/environment/environment.h"
 #include "core/lifecycle/environment_coordinator.h"
 
 #include <godot_cpp/classes/node.hpp>
@@ -10,6 +11,7 @@
 #include <godot_cpp/variant/dictionary.hpp>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -67,6 +69,8 @@ public:
 	 * @return A Godot result dictionary containing status and a null value.
 	 */
 	godot::Dictionary close();
+	/** @brief Whether this session still accepts operations. Call on the main thread. */
+	bool is_session_active() const;
 	/** @brief Closes the session when the host leaves the scene tree. */
 	void _exit_tree() override;
 
@@ -90,6 +94,7 @@ private:
 	schola::Status shutdown_core();
 
 	std::vector<godot::ObjectID> environment_ids;
+	std::vector<std::unique_ptr<schola::Environment>> checked_environments;
 	schola::EnvironmentCoordinator coordinator;
 	std::optional<schola::TrainingDefinition> training_definition;
 	SessionState session_state = SessionState::CONFIGURING;

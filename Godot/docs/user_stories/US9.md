@@ -1,9 +1,9 @@
 # US9: Test an environment without Python
 
-- **Owner:** Unassigned
-- **Status:** Approved; standalone workflow pending
+- **Owner:** Shahyar
+- **Status:** Complete
 - **Priority:** Stretch goal
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 18, 2026
 
 ## Story
 
@@ -25,7 +25,25 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 
 ## Progress
 
-The native, test-only `ScholaEnvironmentTestDriver` exercises reset and step, with additional adapter tests open in [PR #53](https://github.com/csc301-2026-f/20-AMD-Schola/pull/53). No production manual connector or standalone debugging workflow appeared in the reviewed PR and branch history.
+The nine focused tests and 14 host tests passed together headlessly
+on Windows after rebuilding the native runtime extension. The original five
+example tests also passed in rendered mode.
+
+The [manual environment example](../../examples/manual_environment/README.md)
+uses the production `ScholaTrainingHost` API to initialize, define, reset, and
+step an environment directly from GDScript. It shows observations, rewards,
+termination, truncation, info, and structured errors, with explicit reset and
+optional seeds and reset options. No new connector or lifecycle is introduced.
+The existing `ScholaMonitor` displays real episode steps, returns, reward
+history, and completion, alongside manual controls and raw structured results.
+
+Nine focused integration tests load the example scene and cover a complete
+episode and reset, terminal-state preservation, truncation, seeded resets,
+invalid actions without state advancement, fatal observation failures during
+step and reset, seed-once reset sequences, termination precedence, and arrow-key movement while GUI controls have focus (preserving
+seed-field editing). The original five tests also passed in a separate project
+containing only the runtime add-on, without the training extension or Python.
+The runtime extension retains its existing ONNX Runtime dependency.
 
 ## Scope limits
 

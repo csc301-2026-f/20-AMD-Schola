@@ -153,6 +153,14 @@ func end_episode(truncated: bool = false) -> void:
 		_status.text = "Truncated · external limit" if truncated else "Terminated · episode ended"
 
 
+## Stop telemetry after a session fault without reporting termination or truncation.
+func stop_episode() -> void:
+	_active = false
+	_refresh()
+	if is_instance_valid(_status):
+		_status.text = "Stopped · session error"
+
+
 func is_episode_active() -> bool:
 	return _active
 

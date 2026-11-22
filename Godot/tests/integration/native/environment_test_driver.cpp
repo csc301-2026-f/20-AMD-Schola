@@ -30,6 +30,15 @@ class ScholaEnvironmentTestDriver : public godot::RefCounted {
 	GDCLASS(ScholaEnvironmentTestDriver, godot::RefCounted)
 
 public:
+	// Read native editor hooks without exposing production scripting APIs.
+	godot::PackedStringArray get_agent_warnings(ScholaAgent *p_agent) {
+		return p_agent->_get_configuration_warnings();
+	}
+
+	godot::PackedStringArray get_environment_warnings(ScholaEnvironment *p_environment) {
+		return p_environment->_get_configuration_warnings();
+	}
+
 	uint64_t interaction_revision(ScholaAgent *agent) const {
 		return agent->get_interaction_revision();
 	}
@@ -176,6 +185,8 @@ public:
 
 protected:
 	static void _bind_methods() {
+		godot::ClassDB::bind_method(godot::D_METHOD("get_agent_warnings", "agent"), &ScholaEnvironmentTestDriver::get_agent_warnings);
+		godot::ClassDB::bind_method(godot::D_METHOD("get_environment_warnings", "environment"), &ScholaEnvironmentTestDriver::get_environment_warnings);
 		godot::ClassDB::bind_method(godot::D_METHOD("interaction_revision", "agent"), &ScholaEnvironmentTestDriver::interaction_revision);
 		godot::ClassDB::bind_method(godot::D_METHOD("space_from_dictionary", "value"), &ScholaEnvironmentTestDriver::space_from_dictionary);
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
