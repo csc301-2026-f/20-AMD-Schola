@@ -13,12 +13,12 @@ class TestEnvironment extends ScholaEnvironment:
 class BoxAgent extends ScholaAgent:
 	var definition_calls := 0
 	var width := 3
-	func _define_spaces() -> Dictionary:
+	func _define_spaces() -> ScholaSpaceDefinition:
 		definition_calls += 1
-		return {
-			"observation": ScholaSpaces.box([width], -10, 10),
-			"action": ScholaSpaces.box([width], -10, 10),
-		}
+		return ScholaSpaceDefinition.create(
+			ScholaSpaces.box([width], -10, 10),
+			ScholaSpaces.box([width], -10, 10),
+		)
 
 	func _observe() -> Variant:
 		return PackedFloat32Array([1, 2, 3])
@@ -28,7 +28,7 @@ class BoxAgent extends ScholaAgent:
 
 
 class BrokenCallbackAgent extends ScholaAgent:
-	func _define_spaces() -> Variant:
+	func _define_spaces() -> ScholaSpaceDefinition:
 		var missing := {}
 		return missing["spaces"]
 
@@ -125,7 +125,7 @@ func test_inspector_scene_round_trip_preserves_nested_resources_and_definitions(
 	agent.name = "InspectorAgent"
 	var factory: ScholaAgent = _agent()
 	factory.nested = true
-	var spaces: Dictionary = factory.make_spaces()
+	var spaces: ScholaSpaceDefinition = factory.make_spaces()
 	agent.observation_space = spaces.observation
 	agent.action_space = spaces.action
 	var original := _define(agent)
@@ -253,7 +253,7 @@ func test_invalid_inspector_spaces_still_fail_before_first_resolution() -> void:
 func test_nested_values_and_snapshots_survive_repeated_episode_resets() -> void:
 	var agent := _agent()
 	agent.nested = true
-	var spaces: Dictionary = agent.make_spaces()
+	var spaces: ScholaSpaceDefinition = agent.make_spaces()
 	agent.observation = spaces.observation.make_default_value()
 	var action: Dictionary = spaces.action.make_default_value()
 	var host := _host(agent)
@@ -273,7 +273,7 @@ func test_nested_values_and_snapshots_survive_repeated_episode_resets() -> void:
 func test_nested_action_failure_names_path_and_never_runs_act() -> void:
 	var agent := _agent()
 	agent.nested = true
-	var spaces: Dictionary = agent.make_spaces()
+	var spaces: ScholaSpaceDefinition = agent.make_spaces()
 	agent.observation = spaces.observation.make_default_value()
 	var action: Dictionary = spaces.action.make_default_value()
 	action.controls.mode = 99
@@ -289,7 +289,7 @@ func test_nested_action_failure_names_path_and_never_runs_act() -> void:
 func test_nested_observation_failure_names_path() -> void:
 	var agent := _agent()
 	agent.nested = true
-	var spaces: Dictionary = agent.make_spaces()
+	var spaces: ScholaSpaceDefinition = agent.make_spaces()
 	agent.observation = spaces.observation.make_default_value()
 	agent.observation.joints.joint_1.contact = PackedByteArray([2, 0])
 	var host := _host(agent)

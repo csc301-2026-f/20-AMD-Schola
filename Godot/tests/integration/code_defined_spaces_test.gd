@@ -27,9 +27,9 @@ func after_test() -> void:
 class CodeSpacesAgent extends ScholaAgent:
 	var definition_calls := 0
 
-	func _define_spaces() -> Dictionary:
+	func _define_spaces() -> ScholaSpaceDefinition:
 		definition_calls += 1
-		return {}
+		return ScholaSpaceDefinition.new()
 
 
 class InheritedSpacesAgent extends CodeSpacesAgent:
@@ -42,7 +42,69 @@ func test_space_definition_hook_is_registered_as_virtual() -> void:
 		if method.name == "_define_spaces":
 			found = true
 			assert_int(int(method.flags) & METHOD_FLAG_VIRTUAL).is_not_equal(0)
+			assert_int(method["return"]["type"]).is_equal(TYPE_OBJECT)
+			assert_str(method["return"]["class_name"]).is_equal("ScholaSpaceDefinition")
 	assert_bool(found).is_true()
+
+
+func test_definition_factory_requires_two_typed_spaces() -> void:
+	var found := false
+	for method in ClassDB.class_get_method_list("ScholaSpaceDefinition", true):
+		if method.name != "create":
+			continue
+		found = true
+		assert_int(int(method.flags) & METHOD_FLAG_STATIC).is_not_equal(0)
+		assert_array(method.default_args).is_empty()
+		assert_int(method.args.size()).is_equal(2)
+		assert_str(method.args[0].name).is_equal("observation")
+		assert_str(method.args[1].name).is_equal("action")
+		for argument in method.args:
+			assert_int(argument.type).is_equal(TYPE_OBJECT)
+			assert_str(argument.class_name).is_equal("ScholaSpace")
+		assert_str(method["return"]["class_name"]).is_equal("ScholaSpaceDefinition")
+	assert_bool(found).is_true()
+
+
+func test_definition_retains_resources_and_exposes_typed_writable_properties() -> void:
+	var observation := ScholaSpaces.discrete(3)
+	var action := ScholaSpaces.box([2], -1, 1)
+	var definition := ScholaSpaceDefinition.create(observation, action)
+	assert_object(definition.observation).is_same(observation)
+	assert_object(definition.action).is_same(action)
+	definition.observation = action
+	definition.action = observation
+	assert_object(definition.observation).is_same(action)
+	assert_object(definition.action).is_same(observation)
+	var fields := []
+	for property in ClassDB.class_get_property_list("ScholaSpaceDefinition", true):
+		if property.name in ["observation", "action"]:
+			fields.append(property.name)
+			assert_int(property.type).is_equal(TYPE_OBJECT)
+			assert_str(property.class_name).is_equal("ScholaSpace")
+	assert_array(fields).contains_exactly(["observation", "action"])
+
+
+func test_invalid_callback_and_factory_signatures_fail_before_initialization() -> void:
+	var cases := [
+		[
+			"func _define_spaces() -> Dictionary:\n\treturn {}\n",
+			'Parse Error: The function signature doesn\'t match the parent. Parent signature is "_define_spaces() -> ScholaSpaceDefinition".',
+		],
+		[
+			"func _define_spaces() -> ScholaSpaceDefinition:\n\treturn ScholaSpaceDefinition.create(ScholaSpaces.discrete(2))\n",
+			'Parse Error: Too few arguments for "create()" call. Expected at least 2 but received 1.',
+		],
+		[
+			"func _define_spaces() -> ScholaSpaceDefinition:\n\treturn ScholaSpaceDefinition.create(42, ScholaSpaces.discrete(2))\n",
+			'Parse Error: Invalid argument for "create()" function: argument 1 should be "ScholaSpace" but is "int".',
+		],
+	]
+	for entry in cases:
+		var script := GDScript.new()
+		script.source_code = "extends ScholaAgent\n" + entry[0]
+		var results: Array[int] = []
+		await assert_error(func() -> void: results.append(script.reload())).is_runtime_error(entry[1])
+		assert_array(results).contains_exactly([ERR_PARSE_ERROR])
 
 
 func test_inspector_only_agent_has_no_code_definition() -> void:

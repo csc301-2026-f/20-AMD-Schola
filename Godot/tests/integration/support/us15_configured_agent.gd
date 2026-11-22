@@ -6,40 +6,40 @@ extends ScholaAgent
 @export var joint_count := 3
 
 var definition_calls := 0
-var last_spaces: Dictionary
+var last_spaces: ScholaSpaceDefinition
 var observation: Variant = 0
 var last_action: Variant
 
 
-func make_spaces() -> Dictionary:
+func make_spaces() -> ScholaSpaceDefinition:
 	if not nested:
-		return {
-			"observation": ScholaSpaces.discrete(choice_count),
-			"action": ScholaSpaces.discrete(choice_count),
-		}
+		return ScholaSpaceDefinition.create(
+			ScholaSpaces.discrete(choice_count),
+			ScholaSpaces.discrete(choice_count),
+		)
 	var joints := {}
 	for index in range(joint_count):
 		joints["joint_%d" % index] = ScholaSpaces.dict({
 			"angle": ScholaSpaces.box_bounds([2], [-PI, -1], [PI, 1]),
 			"contact": ScholaSpaces.multi_binary(2),
 		})
-	return {
-		"observation": ScholaSpaces.dict({
+	return ScholaSpaceDefinition.create(
+		ScholaSpaces.dict({
 			"camera": ScholaSpaces.box([24, 32, 3], 0, 255, ScholaSpaces.UINT8),
 			"joints": ScholaSpaces.dict(joints),
 			"mode": ScholaSpaces.multi_discrete([2, 3]),
 		}),
-		"action": ScholaSpaces.dict({
+		ScholaSpaces.dict({
 			"motors": ScholaSpaces.box([joint_count], -1, 1),
 			"controls": ScholaSpaces.dict({
 				"grip": ScholaSpaces.multi_binary(2),
 				"mode": ScholaSpaces.discrete(choice_count),
 			}),
 		}),
-	}
+	)
 
 
-func _define_spaces() -> Dictionary:
+func _define_spaces() -> ScholaSpaceDefinition:
 	definition_calls += 1
 	last_spaces = make_spaces()
 	return last_spaces

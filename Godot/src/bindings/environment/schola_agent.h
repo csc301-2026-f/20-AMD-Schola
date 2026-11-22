@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "bindings/environment/schola_space_definition.h"
 #include "core/environment/agent.h"
 
 #include <godot_cpp/classes/node.hpp>
@@ -66,10 +67,10 @@ public:
 	/**
 	 * Optional GDScript space-definition hook for US15.
 	 *
-	 * Contract: return a Dictionary with "observation" and "action" entries,
+	 * Contract: return a ScholaSpaceDefinition with observation and action fields,
 	 * each a non-null ScholaSpace. An override supplies both spaces and takes
 	 * precedence over Inspector assignments; invalid results must not fall back.
-	 * Variant preserves malformed return values for agent-specific validation.
+	 * The typed hook exposes this contract to GDScript and editor tooling.
 	 *
 	 * The first successful define() calls this hook once and saves a copy of
 	 * both spaces until the scene is recreated (see GodotAgentAdapter). Use
@@ -77,7 +78,7 @@ public:
 	 * effects. Inspector warnings must never execute this hook. Inspector getters
 	 * continue to return authored resources rather than resolved definitions.
 	 */
-	GDVIRTUAL0R(godot::Variant, _define_spaces)
+	GDVIRTUAL0R(godot::Ref<ScholaSpaceDefinition>, _define_spaces)
 
 	// === US1 Additions Below ===
 

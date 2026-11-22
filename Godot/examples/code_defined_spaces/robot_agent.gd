@@ -36,7 +36,7 @@ func _limb_action_space() -> ScholaDictSpace:
 	})
 
 
-func _define_spaces() -> Dictionary:
+func _define_spaces() -> ScholaSpaceDefinition:
 	definition_calls += 1
 	var observations := {}
 	var actions := {}
@@ -44,18 +44,18 @@ func _define_spaces() -> Dictionary:
 		var key := "limb_%d" % limb
 		observations[key] = _limb_observation_space()
 		actions[key] = _limb_action_space()
-	return {
-		"observation": ScholaSpaces.dict({
+	return ScholaSpaceDefinition.create(
+		ScholaSpaces.dict({
 			"camera": ScholaSpaces.box(
 				[camera_height, camera_width, 3], 0, 255, ScholaSpaces.UINT8
 			),
 			"limbs": ScholaSpaces.dict(observations),
 		}),
-		"action": ScholaSpaces.dict({
+		ScholaSpaces.dict({
 			"movement": ScholaSpaces.box([3], -1, 1),
 			"limbs": ScholaSpaces.dict(actions),
 		}),
-	}
+	)
 
 
 func _observe() -> Variant:

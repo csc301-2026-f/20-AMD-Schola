@@ -126,8 +126,9 @@ scons -C Godot schola platform=windows target=template_debug
 ```
 
 Open `Godot/examples/code_defined_spaces/main.tscn` in the editor and press F6.
-Both Inspector space fields on Robot stay empty because `_define_spaces()` supplies
-them. Adjust its exported dimensions and joint counts before starting the scene.
+Both Inspector space fields on Robot stay empty because `_define_spaces()` returns
+a typed `ScholaSpaceDefinition` built with `ScholaSpaceDefinition.create(observation,
+action)`. Adjust its exported dimensions and joint counts before starting the scene.
 The example does not change the project's configured main scene.
 
 For a headless check that exits with code 0 on success and 1 on failure:

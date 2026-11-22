@@ -12,11 +12,11 @@ const FAILED_PRECONDITION := 5
 # An agent that builds its spaces in code. Each test sets `returned` to
 # whatever _define_spaces() should hand back; `calls` counts how often it ran.
 class CodeAgent extends ScholaAgent:
-	var returned: Variant = {}
+	var returned: ScholaSpaceDefinition
 	var calls := 0
 	var on_define := Callable()
 
-	func _define_spaces() -> Variant:
+	func _define_spaces() -> ScholaSpaceDefinition:
 		calls += 1
 		if on_define.is_valid():
 			on_define.call()
@@ -49,15 +49,15 @@ func _define(agent: ScholaAgent) -> Dictionary:
 	return _driver.call("define_agent", agent)
 
 
-func _code_agent(returned: Variant) -> CodeAgent:
+func _code_agent(returned: ScholaSpaceDefinition) -> CodeAgent:
 	var agent: CodeAgent = auto_free(CodeAgent.new())
 	agent.name = "Coder"
 	agent.returned = returned
 	return agent
 
 
-func _spaces(observation: ScholaSpace, action: ScholaSpace) -> Dictionary:
-	return {"observation": observation, "action": action}
+func _spaces(observation: ScholaSpace, action: ScholaSpace) -> ScholaSpaceDefinition:
+	return ScholaSpaceDefinition.create(observation, action)
 
 
 func _assert_fails(result: Dictionary, code: int, reason: String) -> void:
@@ -150,11 +150,11 @@ func test_callback_wins_over_inspector_and_leaves_inspector_fields_alone() -> vo
 
 
 func test_broken_callback_never_falls_back_to_valid_inspector_spaces() -> void:
-	var agent := _code_agent({})
+	var agent := _code_agent(ScholaSpaceDefinition.new())
 	agent.observation_space = ScholaSpaces.discrete(2)
 	agent.action_space = ScholaSpaces.discrete(2)
 
-	_assert_fails(_define(agent), INVALID_ARGUMENT, "_define_spaces()[\"observation\"] is missing")
+	_assert_fails(_define(agent), INVALID_ARGUMENT, "_define_spaces().observation is null")
 
 
 func test_callback_wins_even_when_inspector_spaces_are_invalid() -> void:
@@ -173,20 +173,13 @@ func test_malformed_results_name_the_agent_and_the_problem() -> void:
 	cycle.spaces = {"self": cycle}
 	# Each case: [what _define_spaces() returns, part of the expected error].
 	var cases := [
-		[7, "must return a Dictionary, not int"],
-		[null, "must return a Dictionary, not Nil"],
-		[ok, "must return a Dictionary, not ScholaDiscreteSpace"],
-		[{"action": ok}, "_define_spaces()[\"observation\"] is missing"],
-		[{"observation": ok}, "_define_spaces()[\"action\"] is missing"],
-		[{"observations": ok, "action": ok}, "unknown key \"observations\""],
-		[{"observation": ok, "action": ok, "reward": ok}, "unknown key \"reward\""],
-		[_spaces(null, ok), "_define_spaces()[\"observation\"] is null"],
-		[_spaces(ok, null), "_define_spaces()[\"action\"] is null"],
-		[{"observation": 3, "action": ok}, "must be a ScholaSpace, not int"],
-		[{"observation": RefCounted.new(), "action": ok}, "must be a ScholaSpace, not RefCounted"],
-		[_spaces(ok, ScholaSpaces.box([2], 1, 0)), "_define_spaces()[\"action\"]: "],
-		[_spaces(ok, ScholaSpaces.box([0], 0, 1)), "_define_spaces()[\"action\"]: "],
-		[_spaces(ScholaSpaces.box_bounds([3], [0, 0], [1]), ok), "_define_spaces()[\"observation\"]: "],
+		[null, "_define_spaces() returned null"],
+		[ScholaSpaceDefinition.new(), "_define_spaces().observation is null"],
+		[_spaces(null, ok), "_define_spaces().observation is null"],
+		[_spaces(ok, null), "_define_spaces().action is null"],
+		[_spaces(ok, ScholaSpaces.box([2], 1, 0)), "_define_spaces().action: "],
+		[_spaces(ok, ScholaSpaces.box([0], 0, 1)), "_define_spaces().action: "],
+		[_spaces(ScholaSpaces.box_bounds([3], [0, 0], [1]), ok), "_define_spaces().observation: "],
 		[_spaces(ScholaSpaces.dict({"arm": ScholaSpaces.discrete(0)}), ok), "must be positive"],
 		[_spaces(cycle, ok), "Dict contains itself"],
 	]
@@ -209,7 +202,7 @@ func test_spaces_are_resolved_once_and_reused() -> void:
 
 
 func test_failed_resolution_saves_nothing_and_can_be_retried() -> void:
-	var agent := _code_agent({})
+	var agent := _code_agent(ScholaSpaceDefinition.new())
 	assert_bool(_define(agent).ok).is_false()
 
 	agent.returned = _spaces(ScholaSpaces.discrete(2), ScholaSpaces.discrete(3))
@@ -243,6 +236,20 @@ func test_changing_inspector_fields_after_resolution_does_not_change_saved_space
 	agent.observation_space = ScholaSpaces.discrete(9)
 
 	assert_int(_define(agent).observation.n).is_equal(3)
+
+
+func test_editing_and_releasing_return_object_preserves_saved_snapshot() -> void:
+	var definition := _spaces(ScholaSpaces.discrete(3), ScholaSpaces.discrete(2))
+	var agent := _code_agent(definition)
+	assert_bool(_define(agent).ok).is_true()
+	definition.observation = ScholaSpaces.discrete(9)
+	definition.action = null
+	assert_int(_define(agent).observation.n).is_equal(3)
+	assert_int(_define(agent).action.n).is_equal(2)
+	agent.returned = null
+	definition = null
+	assert_int(_define(agent).action.n).is_equal(2)
+	assert_int(agent.calls).is_equal(1)
 
 
 func test_callback_that_calls_define_again_is_refused_without_breaking_the_outer_call() -> void:

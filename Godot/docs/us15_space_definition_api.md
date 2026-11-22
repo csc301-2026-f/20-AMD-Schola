@@ -55,15 +55,18 @@ in the [Godot guide](../README.md#code-defined-spaces-example).
 
 A script attached to `ScholaAgent` may implement `_define_spaces()`. An inherited
 implementation also counts as an override. The callback takes no arguments and
-must return a Dictionary with these required String keys:
+must return a non-null `ScholaSpaceDefinition` with these typed properties:
 
-| Key | Required value |
+| Property | Required value |
 | --- | --- |
 | `observation` | A non-null `ScholaSpace` resource |
 | `action` | A non-null `ScholaSpace` resource |
 
-Any other key is rejected and named in the error, so a misspelling such as
-`observations` is reported as itself. Resources use existing space types,
+`ScholaSpaceDefinition` is a registered `RefCounted` class, not a plain C++
+struct or a serialized Resource. Its static `create(observation, action)` factory
+requires both arguments, each typed as `ScholaSpace`, and returns a new definition.
+The writable properties retain references to their resources; they do not copy them.
+Resources use existing space types,
 validation, bounds broadcasting, nested Dict ordering, and serialization semantics.
 
 For example:
@@ -71,18 +74,34 @@ For example:
 ```gdscript
 extends ScholaAgent
 
-func _define_spaces() -> Dictionary:
-    return {
-        "observation": ScholaSpaces.box([1, 30, 32], 0.0, 1.0),
-        "action": ScholaSpaces.discrete(5),
-    }
+func _define_spaces() -> ScholaSpaceDefinition:
+    return ScholaSpaceDefinition.create(
+        ScholaSpaces.box([1, 30, 32], 0.0, 1.0),
+        ScholaSpaces.discrete(5)
+    )
 ```
 
-The native hook returns `Variant` so malformed results can reach the resolver and
-receive an agent-specific diagnostic. A Dictionary return annotation is recommended
-in user scripts. The resolver checks the return type, keys, resource types,
-and both resource definitions before saving either space. Errors start with
-`Agent '<id>':` and name the entry, for example `_define_spaces()["action"] is null`.
+The native virtual hook also declares `ScholaSpaceDefinition` as its return type.
+Godot exposes the factory argument types, property types, and callback return type
+to GDScript tooling, allowing incompatible return declarations, missing factory
+arguments, and statically known wrong argument types to be caught before startup.
+Dynamic values can still require runtime type checks. Null definitions, null fields,
+and invalid resource definitions remain runtime errors. The resolver validates both
+resources before saving either space. Errors start with `Agent '<id>':` and name
+the property, for example `_define_spaces().action is null`.
+
+This replaces the previous Dictionary callback contract; there is no Dictionary
+fallback. To migrate, change the return annotation and replace the outer
+`{"observation": obs, "action": act}` with `ScholaSpaceDefinition.create(obs, act)`.
+Nested `ScholaSpaces.dict(...)` definitions and observation/action values keep
+their existing representations. Rebuild the runtime extension before loading
+scripts that use the new class.
+
+`ScholaSpaceDefinition.new()` is also available for explicit property assignment.
+Its fields start null, so both must be assigned before initialization. The factory
+does not validate bounds or reject null arguments; initialization supplies the
+agent-specific diagnostics. After successful resolution, edits to either property
+or its referenced resources do not change the agent's saved core snapshot.
 
 When the hook is absent, Inspector assignments supply both spaces. When present,
 the hook supplies both spaces and takes precedence over both assignments. An

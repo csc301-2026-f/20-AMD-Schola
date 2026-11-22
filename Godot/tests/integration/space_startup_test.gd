@@ -17,12 +17,12 @@ const AUTORESET_DISABLED := 2
 # A playable agent whose spaces come only from _define_spaces(). `calls`
 # shows how many times startup actually ran the callback.
 class CodeAgent extends ScholaAgent:
-	var returned: Variant = {}
+	var returned: ScholaSpaceDefinition
 	var calls := 0
 	var observation: Variant = 0
 	var last_action: Variant
 
-	func _define_spaces() -> Variant:
+	func _define_spaces() -> ScholaSpaceDefinition:
 		calls += 1
 		return returned
 
@@ -51,7 +51,7 @@ func after_test() -> void:
 # --- Helpers ---------------------------------------------------------------
 
 
-func _code_agent(returned: Variant) -> CodeAgent:
+func _code_agent(returned: ScholaSpaceDefinition) -> CodeAgent:
 	var agent := CodeAgent.new()
 	agent.name = "Coder"
 	agent.agent_id = "coder"
@@ -59,12 +59,12 @@ func _code_agent(returned: Variant) -> CodeAgent:
 	return agent
 
 
-func _discrete_spaces() -> Dictionary:
-	return {"observation": ScholaSpaces.discrete(3), "action": ScholaSpaces.discrete(3)}
+func _discrete_spaces() -> ScholaSpaceDefinition:
+	return ScholaSpaceDefinition.create(ScholaSpaces.discrete(3), ScholaSpaces.discrete(3))
 
 
-func _box_spaces() -> Dictionary:
-	return {"observation": ScholaSpaces.box([3], -10, 10), "action": ScholaSpaces.box([3], -10, 10)}
+func _box_spaces() -> ScholaSpaceDefinition:
+	return ScholaSpaceDefinition.create(ScholaSpaces.box([3], -10, 10), ScholaSpaces.box([3], -10, 10))
 
 
 # An environment holding one code agent, already inside the scene tree.
@@ -180,14 +180,14 @@ func test_environment_adapter_checks_values_against_the_callback_spaces() -> voi
 func test_environment_adapter_reports_a_broken_callback_by_agent() -> void:
 	if not _require_driver():
 		return
-	var agent := _code_agent({"observation": ScholaSpaces.discrete(3)})
+	var agent := _code_agent(ScholaSpaceDefinition.create(ScholaSpaces.discrete(3), null))
 	var environment: ScholaEnvironment = auto_free(_environment_with(agent))
 
 	var result: Dictionary = _driver.call("initialize", environment)
 
 	assert_bool(result.ok).is_false()
 	assert_str(result.message).contains("Agent 'coder'")
-	assert_str(result.message).contains("_define_spaces()[\"action\"] is missing")
+	assert_str(result.message).contains("_define_spaces().action is null")
 
 
 # --- The training host ------------------------------------------------------
@@ -205,7 +205,7 @@ func test_training_host_starts_a_session_from_code_defined_spaces() -> void:
 
 	# Edits after session start don't reach training: it keeps the first answer.
 	spaces.observation.n = 9
-	agent.returned = {"observation": ScholaSpaces.discrete(4), "action": ScholaSpaces.discrete(4)}
+	agent.returned = ScholaSpaceDefinition.create(ScholaSpaces.discrete(4), ScholaSpaces.discrete(4))
 
 	assert_int(host.set_autoreset_mode(AUTORESET_DISABLED)["status"]["code"]).is_equal(STATUS_OK)
 	var definition := host.define()
@@ -223,7 +223,7 @@ func test_training_host_starts_a_session_from_code_defined_spaces() -> void:
 
 func test_training_host_rejects_a_broken_callback_at_session_start_and_allows_retry() -> void:
 	var root := _scene_root()
-	var agent := _code_agent({"observation": ScholaSpaces.discrete(3)})
+	var agent := _code_agent(ScholaSpaceDefinition.create(ScholaSpaces.discrete(3), null))
 	_environment_with(agent, root)
 	var host := _add_host(root)
 
@@ -232,7 +232,7 @@ func test_training_host_rejects_a_broken_callback_at_session_start_and_allows_re
 	assert_int(failed["status"]["code"]).is_equal(STATUS_INVALID_DATA)
 	assert_str(failed["status"]["message"]).contains("CodeEnvironment")
 	assert_str(failed["status"]["message"]).contains("Agent 'coder'")
-	assert_str(failed["status"]["message"]).contains("_define_spaces()[\"action\"] is missing")
+	assert_str(failed["status"]["message"]).contains("_define_spaces().action is null")
 	assert_int(host.define()["status"]["code"]).is_equal(STATUS_FAILED_PRECONDITION)
 
 	agent.returned = _discrete_spaces()

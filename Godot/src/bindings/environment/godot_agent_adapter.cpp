@@ -7,8 +7,6 @@
 #include "interop/variant_conversion.h"
 
 #include <godot_cpp/classes/ref.hpp>
-#include <godot_cpp/variant/array.hpp>
-#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
@@ -27,7 +25,7 @@ schola::Status agent_error(const ScholaAgent *p_node, schola::StatusCode p_code,
 	return schola::Status::error(p_code, "Agent '" + to_std_string(p_node->get_resolved_agent_id()) + "': " + p_message);
 }
 
-// The only two keys _define_spaces() may return. Each one also names the
+// The two fields _define_spaces() returns. Each one also names the
 // matching Inspector property: "observation" -> observation_space.
 constexpr const char *OBSERVATION = "observation";
 constexpr const char *ACTION = "action";
@@ -40,24 +38,12 @@ enum class SpaceSource {
 };
 
 // Names a space the way the developer wrote it, so an error points at the
-// right place: the Inspector property, or the key in the callback's result.
+// right place: the Inspector property, or the field in the callback's result.
 std::string describe_space(SpaceSource p_source, const char *p_key) {
 	if (p_source == SpaceSource::CODE) {
-		return std::string("_define_spaces()[\"") + p_key + "\"]";
+		return std::string("_define_spaces().") + p_key;
 	}
 	return std::string(p_key) + "_space";
-}
-
-// Names a value's type for error messages: the class for objects
-// ("Node"), otherwise the Variant type ("int", "Array").
-std::string describe_type(const godot::Variant &p_value) {
-	if (p_value.get_type() == godot::Variant::OBJECT) {
-		const godot::Object *object = p_value;
-		if (object != nullptr) {
-			return to_std_string(object->get_class());
-		}
-	}
-	return to_std_string(godot::Variant::get_type_name(p_value.get_type()));
 }
 
 // The agent's two space resources, as found and before they are checked.
@@ -78,56 +64,25 @@ schola::Status read_inspector_spaces(const ScholaAgent *p_node, SpaceResources &
 	return schola::Status::ok();
 }
 
-// Takes one entry out of the callback's Dictionary and checks that it holds
-// a space resource. Whether that space is well formed is checked later, the
-// same way for both sources.
-schola::Status read_returned_space(const ScholaAgent *p_node, const godot::Dictionary &p_returned, const char *p_key, godot::Ref<ScholaSpace> &r_space) {
-	const std::string name = describe_space(SpaceSource::CODE, p_key);
-	if (!p_returned.has(p_key)) {
-		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, name + " is missing");
-	}
-
-	// Three ways an entry can fail to be a space: it's null, it's a plain
-	// value (a number, an Array, ...), or it's some other kind of object.
-	const godot::Variant value = p_returned[p_key];
-	godot::Object *object = value.get_type() == godot::Variant::OBJECT ? static_cast<godot::Object *>(value) : nullptr;
-	if (value.get_type() == godot::Variant::NIL || (value.get_type() == godot::Variant::OBJECT && object == nullptr)) {
-		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, name + " is null");
-	}
-	ScholaSpace *space = godot::Object::cast_to<ScholaSpace>(object);
-	if (space == nullptr) {
-		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, name + " must be a ScholaSpace, not " + describe_type(value));
-	}
-	r_space = godot::Ref<ScholaSpace>(space);
-	return schola::Status::ok();
-}
-
-// Runs the developer's _define_spaces() and unpacks its Dictionary.
+// Runs the typed callback. Godot checks object types; null fields still need
+// agent-specific diagnostics before resource validation and snapshot capture.
 schola::Status read_code_spaces(ScholaAgent *p_node, SpaceResources &r_resources) {
-	godot::Variant returned;
+	godot::Ref<ScholaSpaceDefinition> returned;
 	if (!GDVIRTUAL_CALL_PTR(p_node, _define_spaces, returned)) {
 		return agent_error(p_node, schola::StatusCode::FAILED_PRECONDITION, "_define_spaces() could not be called");
 	}
-	if (returned.get_type() != godot::Variant::DICTIONARY) {
-		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces() must return a Dictionary, not " + describe_type(returned));
+	if (returned.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces() returned null; return a ScholaSpaceDefinition");
 	}
-
-	// Reject keys we don't know first. A typo such as "observations" is then
-	// reported as itself, instead of as a confusing missing "observation".
-	const godot::Dictionary spaces = returned;
-	const godot::Array keys = spaces.keys();
-	for (int64_t i = 0; i < keys.size(); ++i) {
-		const godot::String key = keys[i].stringify();
-		if (key != OBSERVATION && key != ACTION) {
-			return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces() returned unknown key \"" + to_std_string(key) + "\"; only \"observation\" and \"action\" are allowed");
-		}
+	r_resources.observation = returned->get_observation();
+	r_resources.action = returned->get_action();
+	if (r_resources.observation.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().observation is null");
 	}
-
-	const schola::Status status = read_returned_space(p_node, spaces, OBSERVATION, r_resources.observation);
-	if (!status.is_ok()) {
-		return status;
+	if (r_resources.action.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().action is null");
 	}
-	return read_returned_space(p_node, spaces, ACTION, r_resources.action);
+	return schola::Status::ok();
 }
 
 // Checks that a space resource is well formed (bounds, shapes, Dict

@@ -18,7 +18,8 @@ CodeDefinedSpaces (Node)              main.gd: runs the local session
 └── Status (Label)
 ```
 
-The agent leaves both Inspector space fields empty. Its `_define_spaces()` builds:
+The agent leaves both Inspector space fields empty. Its `_define_spaces()` returns
+`ScholaSpaceDefinition.create(observation, action)` with typed space properties and builds:
 
 ```text
 observation: Dict
