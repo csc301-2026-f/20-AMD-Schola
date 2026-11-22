@@ -136,7 +136,7 @@ public:
 	 * Out:  r_states includes every acting agent and newly active declared IDs.
 	 *       A birth has an initial observation and zero reward; it acts next step.
 	 *       Paused snapshots retain identity but require no actions and are omitted at
-	 *       serialization. Resume snapshots have zero reward and act next step.
+	 *       serialization. A resume may carry the held reward of the last action.
 	 *       Previously finished IDs must not reappear before reset.
 	 */
 	virtual Status step(const std::map<AgentId, Point> &p_actions, std::map<AgentId, AgentState> &r_states) = 0;

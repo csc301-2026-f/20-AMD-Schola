@@ -55,14 +55,14 @@ void collect_environments(godot::Node *p_node, std::vector<ScholaEnvironment *> 
 	}
 }
 
-schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index) {
+schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index, ScholaEnvironment **r_node = nullptr) {
 	godot::Object *object = godot::ObjectDB::get_instance(p_id);
 	if (object == nullptr) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"ScholaEnvironment for environment " + std::to_string(p_index) +
 						" was freed during the active training session");
 	}
-	const auto *environment = godot::Object::cast_to<ScholaEnvironment>(object);
+	auto *environment = godot::Object::cast_to<ScholaEnvironment>(object);
 	if (environment == nullptr) {
 		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
 				"object for environment " + std::to_string(p_index) +
@@ -71,6 +71,13 @@ schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index) {
 	if (environment->get_ancestor_environment() != nullptr) {
 		return schola::Status::error(schola::StatusCode::INVALID_DATA,
 				"ScholaEnvironment " + describe_node(environment) + ": Nested ScholaEnvironment nodes are unsupported");
+	}
+	if (!environment->is_inside_tree() || environment->is_queued_for_deletion()) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"ScholaEnvironment for environment " + std::to_string(p_index) + " was removed or queued for deletion");
+	}
+	if (r_node != nullptr) {
+		*r_node = environment;
 	}
 	return schola::Status::ok();
 }
@@ -329,24 +336,39 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 				"scene tree has no current scene");
 	}
 
-	std::vector<ScholaEnvironment *> discovered_environments;
-	collect_environments(scene_root, discovered_environments);
-	if (discovered_environments.empty()) {
+	std::vector<godot::ObjectID> discovered_ids;
+	{
+		std::vector<ScholaEnvironment *> discovered_environments;
+		collect_environments(scene_root, discovered_environments);
+		discovered_ids.reserve(discovered_environments.size());
+		for (const auto *environment_node : discovered_environments) {
+			discovered_ids.emplace_back(environment_node->get_instance_id());
+		}
+	}
+	if (discovered_ids.empty()) {
 		return schola::Status::error(schola::StatusCode::NOT_FOUND,
 				"current scene " + describe_node(scene_root) +
 						" contains no ScholaEnvironment nodes; add at least one trainable environment to the scene");
 	}
 
-	std::vector<godot::ObjectID> discovered_ids;
 	std::vector<std::unique_ptr<schola::Environment>> checked;
 	std::vector<std::unique_ptr<schola::EnvironmentLifecycle>> lifecycles;
-	discovered_ids.reserve(discovered_environments.size());
-	checked.reserve(discovered_environments.size());
-	lifecycles.reserve(discovered_environments.size());
+	checked.reserve(discovered_ids.size());
+	lifecycles.reserve(discovered_ids.size());
 
-	for (size_t i = 0; i < discovered_environments.size(); ++i) {
-		ScholaEnvironment *environment_node = discovered_environments[i];
+	// Configuration may call the scene's _get_possible_agents() scripts.
+	for (size_t i = 0; i < discovered_ids.size(); ++i) {
+		ScholaEnvironment *environment_node = nullptr;
+		const auto id = discovered_ids[i];
+		auto status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
+		}
 		const godot::PackedStringArray configuration_errors = environment_node->get_configuration_errors();
+		status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
+		}
 		if (!configuration_errors.is_empty()) {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
 					"ScholaEnvironment " + describe_node(environment_node) +
@@ -360,13 +382,19 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 							" has no core environment adapter; ensure it is inside the active scene tree");
 		}
 
-		discovered_ids.emplace_back(environment_node->get_instance_id());
-		checked.push_back(std::make_unique<CheckedEnvironment>(discovered_ids.back(), i, *environment));
+		checked.push_back(std::make_unique<CheckedEnvironment>(id, i, *environment));
 		lifecycles.push_back(std::make_unique<schola::EnvironmentLifecycle>(
 				static_cast<schola::EnvironmentId>(i),
 				*checked.back()));
 	}
 
+	// The last callback may have removed an environment already checked above.
+	for (size_t i = 0; i < discovered_ids.size(); ++i) {
+		const auto status = check_environment_node(discovered_ids[i], i);
+		if (!status.is_ok()) {
+			return status;
+		}
+	}
 	schola::Status result = coordinator.set_lifecycles(std::move(lifecycles));
 	if (!result.is_ok()) {
 		return result;

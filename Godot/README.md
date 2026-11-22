@@ -363,8 +363,8 @@ An agent whose action was skipped due to detachment still finishes if reattached
 later in the same step. Fixed-population environments report a freed or removed
 agent as a training error.
 
-Changing a pending agent's resolved ID before its action is dispatched closes
-the session without applying the stale action. An ID that terminates or truncates
+Keep a published agent's resolved ID stable until reset. Renaming it between
+requests or during dispatch closes the session before the stale action runs. An ID that terminates or truncates
 is retired until reset. A node spawned with a retired ID is ignored for the rest
 of that episode. Replacing a still-active node with another using the same ID
 closes the session. To train a respawn in the same episode, use a new declared ID
@@ -395,21 +395,21 @@ waiting_unit.training_paused = false
 ```
 
 Actions always match the last published roster. If a pause is requested after
-that roster was sent, supply its already-requested action once; Schola skips it
-if the agent is paused at dispatch. Once the next response omits the agent, omit
-its actions too. While paused, `_act`, `_observe`, and `_get_step_result` do not
-run. A transition whose action or observation was already collected is published
-once before the pause takes effect. An action that ran finishes its normal result
-hook. This also announces a birth that pauses during its first observation. Resuming publishes a fresh observation with zero
-reward and requests the first new action on the following step.
+an observation was published, Schola still runs the action requested for that
+observation and collects its result. The pause takes effect at the step
+boundary: the response omits the agent, and the client stops sending actions
+for it. On resumption, a fresh observation and the held reward and info
+complete that action. The next action is requested for the fresh observation.
+Agents paused before their first published observation have no pending action
+and join with zero reward when ready.
 
 Observed paused agents keep the episode open, including when all agents are
 paused. Continue stepping with empty action maps while Godot gameplay schedules
 resumption. Initially paused agents are omitted from reset and participate only
 after their first observation; unused IDs do not hold an episode open. Reset
 preserves the property unless your `_reset_episode` changes it. Removing a paused
-node still produces a terminal transition, and pausing a finished ID cannot
-resurrect it. Pause state does not permit same-episode node replacement.
+node still produces a terminal transition with any held reward. An ID that has
+finished stays retired until reset. Pause state does not permit same-episode node replacement.
 
 Use the updated Schola RLlib adapters for this scheduling behavior; they track
 agents ready for actions separately from all episode participants. SB3 still

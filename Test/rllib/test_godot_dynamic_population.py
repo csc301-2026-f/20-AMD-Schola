@@ -74,9 +74,10 @@ def test_sampler_resumes_all_paused_agents_and_samples_changed_reset_roster(tmp_
                 for episode in episodes:
                     assert episode.is_terminated
                     for agent in episode.agent_episodes.values():
-                        # Only the first action and the action after resumption
-                        # earn rewards, across five environment steps.
-                        assert agent.get_return() == pytest.approx(2.0)
+                        # The resumed observation completes the pre-pause action.
+                        # Sampling must contain no extra transition for the pause.
+                        assert len(agent) == 2
+                        assert agent.get_rewards() == pytest.approx([1.0, 1.0])
             finally:
                 runner.stop()
         finally:
