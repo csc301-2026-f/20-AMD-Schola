@@ -56,6 +56,21 @@ public:
 		return result;
 	}
 	// "agents" maps each agent ID to its resolved agent_type.
+	// Calls define() on one agent, the same way training and inference do.
+	godot::Dictionary define_agent(ScholaAgent *p_agent) {
+		if (p_agent == nullptr) {
+			return response(schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "Pass a valid ScholaAgent node."));
+		}
+		schola::InteractionDefinition definition;
+		const schola::Status status = p_agent->get_agent()->define(definition);
+		godot::Dictionary result = response(status);
+		if (status.is_ok()) {
+			result["observation"] = schola::space_to_dictionary(definition.observation_space);
+			result["action"] = schola::space_to_dictionary(definition.action_space);
+		}
+		return result;
+	}
+
 	godot::Dictionary initialize(ScholaEnvironment *p_node) {
 		if (p_node == nullptr || p_node->get_environment() == nullptr) {
 			return missing_environment();
@@ -189,6 +204,7 @@ protected:
 		godot::ClassDB::bind_method(godot::D_METHOD("get_environment_warnings", "environment"), &ScholaEnvironmentTestDriver::get_environment_warnings);
 		godot::ClassDB::bind_method(godot::D_METHOD("interaction_revision", "agent"), &ScholaEnvironmentTestDriver::interaction_revision);
 		godot::ClassDB::bind_method(godot::D_METHOD("space_from_dictionary", "value"), &ScholaEnvironmentTestDriver::space_from_dictionary);
+		godot::ClassDB::bind_method(godot::D_METHOD("define_agent", "agent"), &ScholaEnvironmentTestDriver::define_agent);
 		godot::ClassDB::bind_method(godot::D_METHOD("initialize", "environment"), &ScholaEnvironmentTestDriver::initialize);
 		godot::ClassDB::bind_method(godot::D_METHOD("reset", "environment", "settings"), &ScholaEnvironmentTestDriver::reset, DEFVAL(godot::Dictionary()));
 		godot::ClassDB::bind_method(godot::D_METHOD("step", "environment", "actions"), &ScholaEnvironmentTestDriver::step);

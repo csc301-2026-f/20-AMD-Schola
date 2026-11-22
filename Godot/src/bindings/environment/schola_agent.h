@@ -3,10 +3,9 @@
 #pragma once
 
 #include "bindings/adapters/schola_observation_adapter.h"
-
-#include <godot_cpp/variant/typed_array.hpp>
-
+#include "bindings/environment/schola_space_definition.h"
 #include "core/environment/agent.h"
+#include <godot_cpp/variant/typed_array.hpp>
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref.hpp>
@@ -80,6 +79,25 @@ public:
 	uint64_t get_interaction_revision() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
+	/** Returns whether this script or a base script defines _define_spaces(), without executing it. */
+	bool has_code_defined_spaces() const;
+
+	/**
+	 * Optional GDScript space-definition hook for US15.
+	 *
+	 * Contract: return a ScholaSpaceDefinition with observation and action fields,
+	 * each a non-null ScholaSpace. An override supplies both spaces and takes
+	 * precedence over Inspector assignments; invalid results must not fall back.
+	 * The typed hook exposes this contract to GDScript and editor tooling.
+	 *
+	 * The first successful define() calls this hook once and saves a copy of
+	 * both spaces until the scene is recreated (see GodotAgentAdapter). Use
+	 * deterministic, pre-initialization configuration without gameplay side
+	 * effects. Inspector warnings must never execute this hook. Inspector getters
+	 * continue to return authored resources rather than resolved definitions.
+	 */
+	GDVIRTUAL0R(godot::Ref<ScholaSpaceDefinition>, _define_spaces)
+
 	// === US1 Additions Below ===
 
 	/**
@@ -119,6 +137,8 @@ public:
 	// Returns every invalid Inspector configuration; empty when the configuration is valid
 	// Reports missing observation or action spaces and invalid US2 space definitions
 	// Space errors name the observation or action property and include the US2 validation reason
+	// Agents with _define_spaces() skip the space checks: their fields are unused, and the
+	// callback is only run (and checked) by define() at startup, never by this method.
 	godot::PackedStringArray get_configuration_errors() const;
 	// Adds missing behavior hooks to resource errors for Godot's warning icons.
 	godot::PackedStringArray _get_configuration_warnings() const override; // godot hook

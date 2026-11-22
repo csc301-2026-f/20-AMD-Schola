@@ -148,7 +148,11 @@ godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	return collect_configuration_diagnostics(false);
 }
 
-godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks) const {
+godot::PackedStringArray ScholaEnvironment::get_scene_configuration_errors() const {
+	return collect_configuration_diagnostics(false, false);
+}
+
+godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks, bool p_include_spaces) const {
 	godot::PackedStringArray errors;
 	if (const auto *ancestor = get_ancestor_environment()) {
 		errors.append("Nested ScholaEnvironment nodes are unsupported: environment ancestor '" + godot::String(ancestor->get_name()) + "'. Move this environment outside that environment's subtree.");
@@ -174,6 +178,9 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			errors.append("Duplicate agent ID '" + id + "' on '" + existing->second + "' and '" + path + "'. Set unique agent IDs or rename nodes that use the name fallback.");
 		} else {
 			agent_paths.emplace(id, path);
+		}
+		if (!p_include_spaces) {
+			continue;
 		}
 		const godot::PackedStringArray agent_errors = p_include_hooks ? agent->_get_configuration_warnings() : agent->get_configuration_errors();
 		if (p_include_hooks) {

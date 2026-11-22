@@ -116,6 +116,37 @@ Use `scons -C Godot schola platform=linux target=template_debug` for a runtime-o
 
 The extension entry points are stable composition roots. Runtime bindings and inference register through their own `register_types` files, and training-only bindings register through `src/training/bindings/register_types`. Feature branches add registrations only to the hook owned by their module; they do not add production classes directly to the runtime or training composition roots.
 
+## Code-defined spaces example
+
+The current [US15 example](examples/code_defined_spaces/README.md) demonstrates a
+640×480 RGB observation and repeated nested limb/joint observations and actions.
+It runs two short episodes locally through `ScholaTrainingHost`, using synthetic
+pixels and joint values. It requires the runtime extension, without gRPC, Python
+training, an ONNX model, or test-only bindings.
+
+Build the runtime (Windows shown; use your platform as appropriate):
+
+```powershell
+scons -C Godot schola platform=windows target=template_debug
+```
+
+Open `Godot/examples/code_defined_spaces/main.tscn` in the editor and press F6.
+Both Inspector space fields on Robot stay empty because `_define_spaces()` returns
+a typed `ScholaSpaceDefinition` built with `ScholaSpaceDefinition.create(observation,
+action)`. Adjust its exported dimensions and joint counts before starting the scene.
+The example does not change the project's configured main scene.
+
+For a headless check that exits with code 0 on success and 1 on failure:
+
+```sh
+godot --headless --path Godot res://examples/code_defined_spaces/main.tscn -- --us15-smoke-test
+```
+
+Expected output ends with `Passed: two episodes, 6 actions, one space-definition
+callback.` for the default settings. The scene also shows a status summary when
+run in a window. See the [space-definition API](docs/us15_space_definition_api.md)
+for constructors, validation, and snapshot lifetime.
+
 ## Inspect the Schola UI
 
 ### Agent identity
@@ -145,15 +176,24 @@ saved properties. The integrated US1 adapter uses the resolved type when populat
 ### Space resources and configuration warnings
 
 For direct agent hooks, assign `ScholaSpace` resources to `observation_space`
-and `action_space`. Both start unassigned. When descendant sensors or actuators
+and `action_space`. Both start unassigned. When `_define_spaces()` is implemented,
+it supplies both spaces and overrides
+Inspector assignments. Otherwise, when descendant sensors or actuators
 supply a side instead, its explicit property may remain unassigned. The saved
 properties return only explicit configuration; `get_effective_observation_space()`
-and `get_effective_action_space()` return the spaces used for native dispatch,
-including component composition. The Inspector
+and `get_effective_action_space()` report explicit or component-composed resources
+without executing `_define_spaces()` or exposing its saved result. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
 at zero and require a positive value; their Inspector fields provide positive-size
 range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
+
+Inherited `_define_spaces()` callbacks also take precedence. Invalid callback
+results fail at startup without falling back to Inspector assignments. Inspector
+warnings inspect metadata without executing the callback, including for `@tool`
+scripts. Unused Inspector fields may remain empty or invalid; callback results do
+not overwrite saved resources. Behavior hooks are still required unless components
+provide that side. See the [space-definition API](docs/us15_space_definition_api.md).
 
 Resources can be embedded in a scene or saved separately as `.tres` files. Shared
 resources intentionally share configuration; use Godot's Make Unique operation
@@ -173,9 +213,15 @@ See [the nesting decision](docs/decisions/environment-nesting.md).
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
 inspect inherited script metadata; gameplay scripts do not need `@tool`.
-`get_configuration_errors()` checks resources and scene configuration; the editor
+`get_configuration_errors()` checks Inspector resources for agents without
+`_define_spaces()` and checks scene configuration; the editor
 adds missing-hook warnings. Runtime adapter calls still validate required hooks
 before invoking them.
+
+Runtime startup checks scene structure separately and obtains spaces through
+the agent's validated snapshot. Editing or clearing Inspector resources after
+resolution does not invalidate the running definition; editor diagnostics still
+report problems in those authored fields. Recreate the scene to apply new spaces.
 
 ### Episode endings
 

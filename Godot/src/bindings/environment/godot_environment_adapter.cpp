@@ -155,9 +155,10 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, "initialize() was already called");
 	}
 
-	// The node already knows how to spot a broken scene (no agents, missing
-	// spaces, and so on), so reuse its checks instead of repeating them.
-	const godot::PackedStringArray errors = node->get_configuration_errors();
+	// Validate scene structure here. Spaces are checked by define() below,
+	// which reuses any existing snapshot for both authoring paths. Reading
+	// authored resources here could reject valid cached Inspector spaces.
+	const godot::PackedStringArray errors = node->get_scene_configuration_errors();
 	if (!errors.is_empty()) {
 		return environment_error(node, schola::StatusCode::FAILED_PRECONDITION, to_std_string(godot::String("; ").join(errors)));
 	}
@@ -185,8 +186,9 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "agent_id is used by more than one agent");
 		}
 
-		// Each agent reads its own Inspector spaces. Its error already names
-		// the agent, so pass it straight through.
+		// Each agent works out its own spaces, from _define_spaces() or the
+		// Inspector. If the training host already did this, define() just
+		// returns the saved copy. Its error names the agent, so pass it on.
 		schola::InteractionDefinition definition;
 		const schola::Status status = agent_node->get_agent()->define(definition);
 		if (!status.is_ok()) {

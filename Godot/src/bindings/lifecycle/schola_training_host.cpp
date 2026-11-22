@@ -2,7 +2,9 @@
 
 #include "bindings/lifecycle/schola_training_host.h"
 
+#include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
+#include "core/environment/interaction_definition.h"
 
 #include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
@@ -88,6 +90,46 @@ schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index, Scho
 	}
 	if (r_node != nullptr) {
 		*r_node = environment;
+	}
+	return schola::Status::ok();
+}
+
+// Works out every agent's spaces now, at session start. The scene configuration
+// check never runs _define_spaces(), so without this a broken callback
+// would only show up later, when Python asks for the definition. Each agent
+// keeps what it resolved, so training's later define() calls get the same
+// spaces back without running the callback again.
+schola::Status resolve_agent_spaces(godot::ObjectID p_id, size_t p_index) {
+	ScholaEnvironment *p_environment = nullptr;
+	auto check = check_environment_node(p_id, p_index, &p_environment);
+	if (!check.is_ok()) {
+		return check;
+	}
+	const std::string description = describe_node(p_environment);
+	const godot::TypedArray<ScholaAgent> agents = p_environment->get_possible_agents();
+	check = check_environment_node(p_id, p_index);
+	if (!check.is_ok()) {
+		return check;
+	}
+	for (int64_t i = 0; i < agents.size(); ++i) {
+		godot::Object *agent_object = agents[i];
+		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(agent_object);
+		if (agent == nullptr) {
+			continue;
+		}
+
+		// Only the error matters here; the agent saves the spaces itself.
+		schola::InteractionDefinition unused;
+		const schola::Status status = agent->get_agent()->define(unused);
+		check = check_environment_node(p_id, p_index);
+		if (!check.is_ok()) {
+			return check;
+		}
+		if (!status.is_ok()) {
+			return schola::Status::error(schola::StatusCode::INVALID_DATA,
+					"ScholaEnvironment " + description +
+							" has invalid configuration: " + status.get_message());
+		}
 	}
 	return schola::Status::ok();
 }
@@ -374,7 +416,7 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 		if (!status.is_ok()) {
 			return status;
 		}
-		const godot::PackedStringArray configuration_errors = environment_node->get_configuration_errors();
+		const godot::PackedStringArray configuration_errors = environment_node->get_scene_configuration_errors();
 		status = check_environment_node(id, i, &environment_node);
 		if (!status.is_ok()) {
 			return status;
@@ -383,6 +425,15 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 			return schola::Status::error(schola::StatusCode::INVALID_DATA,
 					"ScholaEnvironment " + describe_node(environment_node) +
 							" has invalid configuration: " + join_configuration_errors(configuration_errors));
+		}
+
+		status = resolve_agent_spaces(id, i);
+		if (!status.is_ok()) {
+			return status;
+		}
+		status = check_environment_node(id, i, &environment_node);
+		if (!status.is_ok()) {
+			return status;
 		}
 
 		schola::Environment *environment = environment_node->get_environment();

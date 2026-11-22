@@ -19,10 +19,89 @@
 
 namespace {
 
-// Prefixes every message with the agent's ID so failures say which agent broke.
+std::string to_std_string(const godot::String &p_value) {
+	return p_value.utf8().get_data();
+}
+
+// Starts every message with the agent's ID, so a scene with many agents
+// still tells the developer exactly which one is misconfigured.
 schola::Status agent_error(const ScholaAgent *p_node, schola::StatusCode p_code, const std::string &p_message) {
-	const std::string id = p_node->get_resolved_agent_id().utf8().get_data();
-	return schola::Status::error(p_code, "Agent '" + id + "': " + p_message);
+	return schola::Status::error(p_code, "Agent '" + to_std_string(p_node->get_resolved_agent_id()) + "': " + p_message);
+}
+
+// The two fields _define_spaces() returns. Each one also names the
+// matching Inspector property: "observation" -> observation_space.
+constexpr const char *OBSERVATION = "observation";
+constexpr const char *ACTION = "action";
+
+// Where an agent's spaces come from. A script with _define_spaces() always
+// uses it; every other agent uses its Inspector fields.
+enum class SpaceSource {
+	INSPECTOR,
+	CODE,
+};
+
+// Names a space the way the developer wrote it, so an error points at the
+// right place: the Inspector property, or the field in the callback's result.
+std::string describe_space(SpaceSource p_source, const char *p_key) {
+	if (p_source == SpaceSource::CODE) {
+		return std::string("_define_spaces().") + p_key;
+	}
+	return std::string(p_key) + "_space";
+}
+
+// The agent's two space resources, as found and before they are checked.
+struct SpaceResources {
+	godot::Ref<ScholaSpace> observation;
+	godot::Ref<ScholaSpace> action;
+};
+
+schola::Status read_inspector_spaces(const ScholaAgent *p_node, SpaceResources &r_resources) {
+	r_resources.observation = p_node->get_effective_observation_space();
+	r_resources.action = p_node->get_effective_action_space();
+	if (r_resources.observation.is_null()) {
+		return agent_error(p_node, schola::StatusCode::FAILED_PRECONDITION, "observation_space is not set; assign it in the Inspector or implement _define_spaces()");
+	}
+	if (r_resources.action.is_null()) {
+		return agent_error(p_node, schola::StatusCode::FAILED_PRECONDITION, "action_space is not set; assign it in the Inspector or implement _define_spaces()");
+	}
+	return schola::Status::ok();
+}
+
+// Runs the typed callback. Godot checks object types; null fields still need
+// agent-specific diagnostics before resource validation and snapshot capture.
+schola::Status read_code_spaces(ScholaAgent *p_node, SpaceResources &r_resources) {
+	godot::Ref<ScholaSpaceDefinition> returned;
+	if (!GDVIRTUAL_CALL_PTR(p_node, _define_spaces, returned)) {
+		return agent_error(p_node, schola::StatusCode::FAILED_PRECONDITION, "_define_spaces() could not be called");
+	}
+	if (returned.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces() returned null; return a ScholaSpaceDefinition");
+	}
+	r_resources.observation = returned->get_observation();
+	r_resources.action = returned->get_action();
+	if (r_resources.observation.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().observation is null");
+	}
+	if (r_resources.action.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().action is null");
+	}
+	return schola::Status::ok();
+}
+
+// Checks that a space resource is well formed (bounds, shapes, Dict
+// entries, ...), then copies it into a plain core Space. Nothing links the
+// copy back to the resource, so editing the resource later can't change it.
+schola::Status to_core_space(const ScholaAgent *p_node, const godot::Ref<ScholaSpace> &p_resource, const std::string &p_name, schola::Space &r_space) {
+	if (p_resource.is_null()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, p_name + " is null");
+	}
+	const godot::String error = p_resource->get_definition_error();
+	if (!error.is_empty()) {
+		return agent_error(p_node, schola::StatusCode::INVALID_ARGUMENT, p_name + ": " + to_std_string(error));
+	}
+	r_space = p_resource->to_space();
+	return schola::Status::ok();
 }
 
 } // namespace
@@ -31,32 +110,79 @@ GodotAgentAdapter::GodotAgentAdapter(ScholaAgent *p_node) :
 		node(p_node) {}
 
 schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_definition) {
-	defined = false;
-	// Read the two space resources the developer set in the Inspector.
-	// godot::Ref is Godot's smart pointer for resources; it is null when the
-	// Inspector field was left empty.
-	const godot::Ref<ScholaSpace> observation_resource = node->get_effective_observation_space();
-	const godot::Ref<ScholaSpace> action_resource = node->get_effective_action_space();
-	if (observation_resource.is_null() || action_resource.is_null()) {
-		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "observation_space and action_space must both be set");
-	}
-
-	// Turn each Inspector resource into a core Space. Keep them in local
-	// variables for now, so nothing changes if a check below fails.
-	const schola::Space new_observation_space = observation_resource->to_space();
-	const schola::Space new_action_space = action_resource->to_space();
-
-	// Make sure each space is well formed, for example a Box whose low is not
-	// above its high. The message says which space was wrong.
-	schola::Status status = new_observation_space.check_definition();
+	const schola::Status status = resolve_spaces();
 	if (!status.is_ok()) {
-		return agent_error(node, status.get_code(), "observation_space: " + status.get_message());
-	}
-	status = new_action_space.check_definition();
-	if (!status.is_ok()) {
-		return agent_error(node, status.get_code(), "action_space: " + status.get_message());
+		return status;
 	}
 
+	// Hand out copies of the saved spaces. agent_type is still read live: it
+	// only names the policy this agent shares, and doesn't shape any data.
+	r_definition.observation_space = adapted_observation_space;
+	r_definition.action_space = action_space;
+	r_definition.agent_type = to_std_string(node->get_resolved_agent_type());
+	return schola::Status::ok();
+}
+
+schola::Status GodotAgentAdapter::resolve_spaces() {
+	// Python and ONNX models lock in their input and output shapes at
+	// startup. So once one caller has seen this agent's spaces, every later
+	// caller must see exactly the same ones.
+	// Component-authored sides retain US8's explicit redefinition boundary when
+	// a new environment initializes the same agent. Authored Inspector sides and
+	// callback results remain snapshots; only component composition is rebuilt.
+	const bool refresh_components = defined && !node->has_code_defined_spaces() && (!sensors.empty() || !actuators.empty());
+	if (defined && !refresh_components) {
+		return schola::Status::ok();
+	}
+
+	// If _define_spaces() itself leads back to define() (for example by
+	// initializing a policy for this agent), we'd recurse forever. Refuse
+	// the inner call; the outer one carries on normally.
+	if (resolving) {
+		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "_define_spaces() must not cause define() to run again");
+	}
+
+	// 1. Find the two space resources. The callback wins whenever the
+	//    script has one, even if Inspector fields are set too, and a broken
+	//    callback result never quietly falls back to those fields.
+	const SpaceSource source = node->has_code_defined_spaces() ? SpaceSource::CODE : SpaceSource::INSPECTOR;
+	SpaceResources resources;
+	resolving = true;
+	schola::Status status = schola::Status::ok();
+	if (refresh_components) {
+		resources.observation = node->get_effective_observation_space();
+		resources.action = node->get_effective_action_space();
+	} else {
+		status = source == SpaceSource::CODE ? read_code_spaces(node, resources) : read_inspector_spaces(node, resources);
+	}
+	resolving = false;
+	if (!status.is_ok()) {
+		return status;
+	}
+
+	// 2. Check and convert both into local variables. If either one fails,
+	//    nothing has been saved yet, so the developer can fix the problem
+	//    and the next define() simply tries again.
+	schola::Space new_observation_space;
+	if (refresh_components && sensors.empty()) {
+		new_observation_space = observation_space;
+	} else {
+		status = to_core_space(node, resources.observation, describe_space(source, OBSERVATION), new_observation_space);
+	}
+	if (!status.is_ok()) {
+		return status;
+	}
+	schola::Space new_action_space;
+	if (refresh_components && actuators.empty()) {
+		new_action_space = action_space;
+	} else {
+		status = to_core_space(node, resources.action, describe_space(source, ACTION), new_action_space);
+	}
+	if (!status.is_ok()) {
+		return status;
+	}
+
+	// 3. Configure observation adapters and component dispatch before publishing.
 	// Reject component errors before publishing an interaction definition.
 	if (!schola::configuration::has_hook(node, "_observe")) {
 		for (auto *component : node->get_sensors()) {
@@ -76,9 +202,9 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 	}
 	schola::Space adapted_space = new_observation_space;
 	decltype(observation_adapters) adapters;
-	const auto resources = node->get_observation_adapters();
-	for (int64_t i = 0; i < resources.size(); ++i) {
-		const godot::Ref<ScholaObservationAdapter> resource = resources[i];
+	const auto adapter_resources = node->get_observation_adapters();
+	for (int64_t i = 0; i < adapter_resources.size(); ++i) {
+		const godot::Ref<ScholaObservationAdapter> resource = adapter_resources[i];
 		const std::string property = "observation_adapters[" + std::to_string(i) + "]: ";
 		if (resource.is_null()) {
 			return agent_error(node, schola::StatusCode::INVALID_ARGUMENT, property + "resource is unset");
@@ -98,12 +224,21 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 		adapted_space = std::move(output_space);
 		adapters.push_back(std::move(adapter));
 	}
-	observation_adapters = std::move(adapters);
+	// Component dispatch indexes the declared Dict entries; refuse incompatible
+	// callback declarations before any sensor or actuator can consume them.
+	if (source == SpaceSource::CODE) {
+		if (!schola::configuration::has_hook(node, "_observe") && !node->get_sensors().empty() &&
+				node->get_effective_observation_space()->to_space() != new_observation_space) {
+			return agent_error(node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().observation must match the sensor composition when _observe() is absent");
+		}
+		if (!schola::configuration::has_hook(node, "_act") && !node->get_actuators().empty() &&
+				node->get_effective_action_space()->to_space() != new_action_space) {
+			return agent_error(node, schola::StatusCode::INVALID_ARGUMENT, "_define_spaces().action must match the actuator composition when _act() is absent");
+		}
+	}
 
-	// Everything passed. Remember the spaces so observe() and act() can use
-	// them, and mark this agent as defined.
-	observation_space = new_observation_space;
-	action_space = new_action_space;
+	observation_adapters = std::move(adapters);
+	adapted_observation_space = std::move(adapted_space);
 	sensors.clear();
 	actuators.clear();
 	if (!schola::configuration::has_hook(node, "_observe")) {
@@ -118,8 +253,7 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 	}
 	// Only user-owned Dict resources need polling: their exposed Dictionaries can
 	// change without a Resource.changed signal. Generated composition is private.
-	mutable_dictionary_spaces = node->get_observation_space().is_valid() && godot::Object::cast_to<ScholaDictSpace>(node->get_observation_space().ptr());
-	mutable_dictionary_spaces = mutable_dictionary_spaces || (node->get_action_space().is_valid() && godot::Object::cast_to<ScholaDictSpace>(node->get_action_space().ptr()));
+	mutable_dictionary_spaces = false;
 	for (auto id : sensors) {
 		auto *component = godot::Object::cast_to<ScholaSensor>(godot::ObjectDB::get_instance(id));
 		mutable_dictionary_spaces = mutable_dictionary_spaces || godot::Object::cast_to<ScholaDictSpace>(component->get_space().ptr());
@@ -129,13 +263,10 @@ schola::Status GodotAgentAdapter::define(schola::InteractionDefinition &r_defini
 		mutable_dictionary_spaces = mutable_dictionary_spaces || godot::Object::cast_to<ScholaDictSpace>(component->get_space().ptr());
 	}
 	validated_revision = node->get_interaction_revision();
-	defined = true;
 
-	// Fill in the caller's definition. agent_type is a godot::String, so it is
-	// converted to a std::string the same way as the agent ID.
-	r_definition.observation_space = std::move(adapted_space);
-	r_definition.action_space = new_action_space;
-	r_definition.agent_type = node->get_resolved_agent_type().utf8().get_data();
+	observation_space = std::move(new_observation_space);
+	action_space = std::move(new_action_space);
+	defined = true;
 	return schola::Status::ok();
 }
 
@@ -268,6 +399,9 @@ schola::Status GodotAgentAdapter::check_runtime_components() const {
 }
 
 schola::Status GodotAgentAdapter::check_components() {
+	if (sensors.empty() && actuators.empty()) {
+		return schola::Status::ok();
+	}
 	const uint64_t revision = node->get_interaction_revision();
 	if (!mutable_dictionary_spaces && revision == validated_revision) {
 		return schola::Status::ok();
@@ -303,11 +437,15 @@ schola::Status GodotAgentAdapter::check_components() {
 			}
 		}
 	}
-	auto observation = node->get_effective_observation_space();
-	auto action = node->get_effective_action_space();
-	changed = changed || observation.is_null() || action.is_null();
-	if (!changed) {
-		changed = observation->to_space() != observation_space || action->to_space() != action_space;
+	// Only composed sides follow live component layouts. Explicit Inspector and
+	// callback resources are snapshots and may be edited without invalidating them.
+	if (!sensors.empty()) {
+		auto observation = node->get_effective_observation_space();
+		changed = changed || observation.is_null() || observation->to_space() != observation_space;
+	}
+	if (!actuators.empty()) {
+		auto action = node->get_effective_action_space();
+		changed = changed || action.is_null() || action->to_space() != action_space;
 	}
 	if (changed) {
 		return agent_error(node, schola::StatusCode::FAILED_PRECONDITION, "component layout or spaces changed; define the agent again");
