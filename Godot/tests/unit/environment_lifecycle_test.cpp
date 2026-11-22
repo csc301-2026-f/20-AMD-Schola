@@ -726,6 +726,7 @@ TEST_CASE("invalid action membership preserves lifecycle and output before calli
 		{ "agent_0", make_point(0) },
 		{ "agent_1", make_point(0) },
 	};
+	StatusCode expected = StatusCode::INVALID_ARGUMENT;
 	SECTION("empty actions cannot complete the episode") {
 		actions.clear();
 	}
@@ -734,10 +735,11 @@ TEST_CASE("invalid action membership preserves lifecycle and output before calli
 	}
 	SECTION("unknown agent") {
 		actions.emplace("unknown", make_point(0));
+		expected = StatusCode::NOT_FOUND;
 	}
 	EnvironmentState output;
 	output.agents.emplace("sentinel", make_agent_state(3, -1.0f));
-	CHECK(lifecycle.step(actions, output).get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(lifecycle.step(actions, output).get_code() == expected);
 	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
 	CHECK(environment.step_calls == 0);
 	REQUIRE(output.agents.size() == 1);
@@ -791,7 +793,7 @@ TEST_CASE("finished agents cannot be acted on or overwrite their final snapshot"
 	};
 	EnvironmentState output;
 	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).is_ok());
-	CHECK(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(lifecycle.step({ { "agent_0", make_point(0) }, { "agent_1", make_point(0) } }, output).get_code() == StatusCode::FAILED_PRECONDITION);
 	CHECK(environment.step_calls == 1);
 	environment.step_states.erase("agent_0");
 	environment.step_states.at("agent_1") = make_agent_state(3, 1.0f, true);
@@ -827,7 +829,7 @@ TEST_CASE("active population can shrink at reset and grow during a step", "[life
 	EnvironmentState output;
 	REQUIRE(lifecycle.step({ { "agent_0", make_point(0) } }, output).is_ok());
 	CHECK(lifecycle.get_state() == LifecycleState::ACTIVE);
-	CHECK(lifecycle.step({ { "agent_0", make_point(0) } }, output).get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(lifecycle.step({ { "agent_0", make_point(0) } }, output).get_code() == StatusCode::FAILED_PRECONDITION);
 	environment.step_states = { { "agent_1", make_agent_state(2, 1.0f, true) } };
 	REQUIRE(lifecycle.step({ { "agent_1", make_point(0) } }, output).is_ok());
 	CHECK(lifecycle.get_state() == LifecycleState::COMPLETE);

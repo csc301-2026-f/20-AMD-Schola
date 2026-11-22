@@ -88,7 +88,8 @@ public:
 
 	/**
 	 * @return Steps completed since the last reset. During a step's hooks,
-	 *         the current step is not counted yet. 0 before the first reset.
+	 *         the current step is not counted yet. 0 before the first reset and
+	 *         during reset callbacks and initial observation collection.
 	 */
 	int64_t get_episode_step() const;
 
@@ -151,7 +152,8 @@ public:
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
 	 *
-	 * @return Configuration errors and missing required behavior hooks.
+	 * @return Environment configuration errors and missing required behavior hooks,
+	 *         plus one summary per agent with warnings. Details stay on the agent.
 	 */
 	godot::PackedStringArray _get_configuration_warnings() const override;
 

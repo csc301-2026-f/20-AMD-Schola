@@ -12,6 +12,7 @@
 #include <vector>
 
 class ScholaEnvironment;
+class ScholaAgent;
 
 /**
  * Lets the training lifecycle (US4) use a ScholaEnvironment node as a
@@ -45,7 +46,7 @@ public:
 			std::map<schola::AgentId, schola::InitialAgentState> &r_states) override;
 
 	/** Applies actions to the prior active roster, then discovers births and departures.
-	 * Departures receive a terminal transition using their last observation and zero reward.
+	 * Departures retain any result already collected; otherwise they terminate with zero reward.
 	 * Births and resumes receive an observation and zero reward, and act on the next call.
 	 * Paused agents retain snapshots without callbacks; serializers omit them.
 	 * Definitions must match the initialized possible roster. Finished IDs retire until reset.
@@ -90,7 +91,12 @@ private:
 	std::map<schola::AgentId, schola::AgentState> last_states;
 	// An ID keeps its node identity until reset, including after departure.
 	std::map<schola::AgentId, godot::ObjectID> episode_nodes;
+	// Fixed environments must keep the original nodes for the entire session.
+	std::map<schola::AgentId, godot::ObjectID> fixed_nodes;
+	// Each live node is defined once per episode so scans preserve adapter history.
+	mutable std::map<schola::AgentId, godot::ObjectID> defined_nodes;
 	schola::Status collect_current_agents(std::vector<AgentEntry> &r_agents) const;
+	schola::Status find_live_agent(const AgentEntry &p_entry, ScholaAgent *&r_agent) const;
 	bool initialized = false;
 	bool episode_active = false;
 	int64_t episode_step = 0;

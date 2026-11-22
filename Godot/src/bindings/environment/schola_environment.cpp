@@ -170,6 +170,12 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			agent_paths.emplace(id, path);
 		}
 		const godot::PackedStringArray agent_errors = p_include_hooks ? agent->_get_configuration_warnings() : agent->get_configuration_errors();
+		if (p_include_hooks) {
+			if (!agent_errors.is_empty()) {
+				errors.append("Agent '" + id + "' (" + path + ") has configuration warnings. Select the agent node for details.");
+			}
+			continue;
+		}
 		for (int32_t error_index = 0; error_index < agent_errors.size(); ++error_index) {
 			const godot::String error = agent_errors[error_index];
 			errors.append("Agent '" + id + "' (" + path + "): " + error);

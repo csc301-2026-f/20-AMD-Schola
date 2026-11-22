@@ -101,18 +101,22 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 		return Status::error(StatusCode::FAILED_PRECONDITION,
 				"environment is not in an active state");
 	}
-	size_t unfinished_count = 0;
-	for (const auto &[agent_id, previous] : last_state.agents) {
-		if (previous.terminated || previous.truncated || previous.paused) {
-			continue;
+	for (const auto &[agent_id, action] : p_actions) {
+		if (definition.agents.count(agent_id) == 0) {
+			return Status::error(StatusCode::NOT_FOUND, "Agent '" + agent_id + "': not part of this environment");
 		}
-		++unfinished_count;
-		if (p_actions.find(agent_id) == p_actions.end()) {
-			return Status::error(StatusCode::INVALID_ARGUMENT, "missing action for unfinished agent " + agent_id);
+		const auto previous = last_state.agents.find(agent_id);
+		if (previous != last_state.agents.end() && (previous->second.terminated || previous->second.truncated)) {
+			return Status::error(StatusCode::FAILED_PRECONDITION, "Agent '" + agent_id + "': already finished this episode");
+		}
+		if (previous == last_state.agents.end() || previous->second.paused) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, "Agent '" + agent_id + "': not part of the active roster");
 		}
 	}
-	if (p_actions.size() != unfinished_count) {
-		return Status::error(StatusCode::INVALID_ARGUMENT, "actions must contain only currently active agents");
+	for (const auto &[agent_id, previous] : last_state.agents) {
+		if (!previous.terminated && !previous.truncated && !previous.paused && p_actions.count(agent_id) == 0) {
+			return Status::error(StatusCode::INVALID_ARGUMENT, "missing action for unfinished agent " + agent_id);
+		}
 	}
 
 	std::map<AgentId, AgentState> step_states;

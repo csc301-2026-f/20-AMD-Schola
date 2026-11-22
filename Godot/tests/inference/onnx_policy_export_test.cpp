@@ -146,6 +146,29 @@ TEST_CASE("an exported RLlib LSTM policy matches Python across steps", "[inferen
 	require_action(steps[0]);
 }
 
+TEST_CASE("an exported policy with a state sequence uses the length from its metadata", "[inference]") {
+	const std::vector<Expected> steps = read_expected_steps("schola_memory_seq");
+	REQUIRE(steps.size() == 6);
+	OnnxPolicy policy;
+	const Space action_space = box(2);
+	load_and_init(policy, "schola_memory_seq", box(4), action_space);
+
+	std::unique_ptr<PolicyState> state;
+	REQUIRE(policy.create_initial_state(state).is_ok());
+	REQUIRE(state->to_string() == "OnnxPolicyState(state_in_memory: 4x3)");
+	Point action = action_space.make_point();
+	for (const Expected &step : steps) {
+		Status status = policy.think(Point(BoxPoint{ step.observation }), *state, action);
+		INFO(status.get_message());
+		REQUIRE(status.is_ok());
+		const std::vector<float> &values = action.get_if<BoxPoint>()->values;
+		REQUIRE(values.size() == step.action.size());
+		for (size_t i = 0; i < values.size(); ++i) {
+			REQUIRE(values[i] == Catch::Approx(step.action[i]).margin(1e-5));
+		}
+	}
+}
+
 TEST_CASE("an exported PPO policy with a Dict observation matches Python", "[inference]") {
 	const Expected expected = read_expected("schola_ppo_dict");
 	OnnxPolicy policy;

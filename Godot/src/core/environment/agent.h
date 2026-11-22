@@ -39,6 +39,9 @@ public:
 	// Required so deleting through an Agent* cleans up the real derived object
 	virtual ~Agent() = default;
 
+	/** @brief Clears observation history before an episode starts. */
+	virtual void reset_observation_history() {}
+
 	/**
 	 * Declares this agent's observation and action spaces.
 	 *

@@ -6,6 +6,7 @@
 
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/variant/packed_int64_array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/variant.hpp>
@@ -30,8 +31,7 @@ public:
 
 	void set_model_path(const godot::String &p_path);
 	godot::String get_model_path() const;
-	void set_max_state_sequence_length(int32_t p_length);
-	int32_t get_max_state_sequence_length() const;
+	godot::PackedInt64Array get_state_sequence_lengths() const;
 
 	godot::Error load();
 	bool is_loaded() const;
@@ -53,7 +53,7 @@ protected:
 private:
 	godot::String model_path;
 	godot::String loaded_path;
-	int32_t max_state_sequence_length = 1;
+	bool sequence_warned = false;
 	godot::String last_error;
 	std::unique_ptr<schola::OnnxPolicy> policy;
 	std::unique_ptr<schola::InteractionDefinition> definition;

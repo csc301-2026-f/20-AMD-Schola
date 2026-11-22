@@ -22,7 +22,9 @@ func _reset_episode(seed: Variant, options: Dictionary) -> void:
 
 func _get_step_result(_agent: ScholaAgent) -> Dictionary:
 	if on_step_result.is_valid():
-		on_step_result.call(_agent)
+		var result: Variant = on_step_result.call(_agent)
+		if result is Dictionary:
+			return result
 	return {
 		"reward": 1.0,
 		"terminated": get_episode_step() + 1 >= episode_length,

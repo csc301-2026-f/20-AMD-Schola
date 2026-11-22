@@ -24,7 +24,7 @@ Every runner job has a timeout. Native compilation, especially cold debug/releas
 | Primary CI | Ubuntu 22.04, x86-64, GCC |
 | Local development | Linux/GCC, Windows/MSVC, and macOS/Apple Clang |
 
-Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Microsoft's prebuilt package is downloaded and checksum-verified into the git-ignored `thirdparty/onnxruntime/` by `python Godot/tools/setup_onnxruntime.py`; it is not committed. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`.
+Dependency decisions are centralized in [`dependencies.lock.json`](dependencies.lock.json). `godot-cpp` and Catch2 are pinned Git submodules, and CI verifies that their checked-out commits match the lock. ONNX Runtime 1.30.0 (CPU, C API) is pinned for Windows x86_64, Linux x86_64, and macOS arm64. Prebuilt packages repacked from the signature-verified Microsoft NuGet distribution are committed with Git LFS under [`vendor/onnxruntime/`](vendor/onnxruntime/README.md). Fetch them with `git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz" --exclude=""`, then run `python Godot/tools/setup_onnxruntime.py` to checksum-verify and install the host package into the git-ignored `thirdparty/onnxruntime/`. Installation requires no upstream download. Run the script before building. Only the runtime extension links ONNX Runtime, and the build installs its library next to `schola` so exported games include it. ONNX Runtime has no universal macOS package, so macOS builds use `arch=arm64`.
 
 gRPC 1.80.0 and the Protocol Buffers 31.1 release it bundles are pinned to the same versions as Unreal Schola, pending AMD confirmation. Godot-specific Windows/Linux x86_64 prebuilt packages are committed under [`vendor/grpc/`](vendor/grpc/), including headers, static libraries, matching generators, licenses, and build provenance. Run `uv run --no-project --python 3.12 python Godot/tools/setup_grpc.py` locally to verify and unpack the host package into the git-ignored `thirdparty/grpc/`; normal installation never compiles or downloads gRPC. CI uses the same installer with its existing Python setup. Missing or incompatible packages fail clearly. See the [package and rebuild guide](vendor/grpc/README.md) for explicit source builds and other platforms. SCons generates GymService bindings from the shared `Proto/` directory into `generated/proto/`. Only the training extension links gRPC and protobuf; Unreal's binaries are not reused.
 
@@ -86,6 +86,11 @@ running the suite.
 
 CI runs the same suite headlessly against the supported Godot version.
 
+For manual environment debugging without Python or a transport connection,
+run the [US9 example](examples/manual_environment/README.md). It uses the
+runtime extension's existing `ScholaTrainingHost` API and supports explicit
+reset, seeded starts, individual actions, and inspection of episode results.
+
 Godot has an [upstream race](https://github.com/godotengine/godot/issues/98062) that can abort a completed headless import while editor add-ons are shutting down. If the import reaches completion and exits with status 134, rerun the import command. CI retries this step at most 3 times and still fails persistent import errors.
 
 ## Build and run
@@ -139,8 +144,12 @@ saved properties. The integrated US1 adapter uses the resolved type when populat
 
 ### Space resources and configuration warnings
 
-Assign `ScholaSpace` resources to the agent's `observation_space` and
-`action_space` fields. Both start unassigned and must be configured. The Inspector
+For direct agent hooks, assign `ScholaSpace` resources to `observation_space`
+and `action_space`. Both start unassigned. When descendant sensors or actuators
+supply a side instead, its explicit property may remain unassigned. The saved
+properties return only explicit configuration; `get_effective_observation_space()`
+and `get_effective_action_space()` return the spaces used for native dispatch,
+including component composition. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
 at zero and require a positive value; their Inspector fields provide positive-size
@@ -152,8 +161,9 @@ when an assignment needs an independent copy. The US5 owner has completed the
 manual editor persistence checks.
 
 Agent warning icons identify missing/invalid spaces and missing `_observe` or
-`_act` hooks. The environment also reports missing agents, missing
-`_get_step_result`, and duplicate resolved agent IDs, including the conflicting
+`_act` hooks. The environment shows at most one summary per agent with warnings;
+select that agent node for the specific diagnostics. The environment also reports
+missing agents, missing `_get_step_result`, and duplicate resolved agent IDs, including the conflicting
 node paths. Nested `ScholaEnvironment` nodes are unsupported: the Inspector warns
 and training rejects environments with an environment ancestor, including through
 grouping nodes. Separate non-nested environments may reuse agent IDs.
@@ -220,11 +230,17 @@ To exercise the C++ adapter through GdUnit4, build with the test-only driver ena
 scons -C Godot platform=windows target=template_debug integration_tests=yes
 godot --headless --path Godot --import
 godot --headless --path Godot -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
-  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd
+  --ignoreHeadlessMode -a res://tests/integration/environment_step_result_test.gd \
+  -a res://tests/integration/environment_adapter_test.gd
 ```
 
+`environment_step_result_test.gd` covers result parsing and callback order.
+`environment_adapter_test.gd` covers the rest of the adapter contract:
+initialization, seeded resets, action checks before any agent moves, staggered
+episode endings, freed agents, and `get_agents()` order.
+
 Use the platform appropriate to your machine. Normal builds omit the driver;
-the adapter suite is skipped when it is unavailable.
+the adapter suites are skipped when it is unavailable.
 
 The driver is a test-only bridge, not a production training host. Running an
 ordinary scene does not automatically initialize, reset, or step its environments.
@@ -268,9 +284,44 @@ godot --headless --path Godot \
   --ignoreHeadlessMode -a res://tests/integration/ui_test.gd
 ```
 
+## Reusable sensors and actuators
+
+See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
+nodes, ordered agent composition, ray sensing, movement, rotation, teleportation,
+and real/fake camera components, including rendered color/depth capture tests.
+Open [the interactive US8 example](examples/us8_components/README.md) to try
+keyboard movement, automatic control, and live ray observations with F6.
+
+## Train with Python
+
+Add one `ScholaTrainingConnector` node to the scene you want to train, as with Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the current scene and creates its own `ScholaTrainingHost` as an internal child, so nothing else is needed. The connector comes from the training extension, which needs the committed gRPC package:
+
+```sh
+python Godot/tools/setup_grpc.py
+scons -C Godot platform=linux target=template_debug -j"$(nproc)"
+```
+
+Use the platform options from [Build and run](#build-and-run) on other systems. The default build includes the training extension; `schola_training` builds only that one. The runtime-only `schola` target does not include the connector.
+
+Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. The command below is the one documented for Unreal Schola and has not yet been verified against Godot. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
+
+```sh
+schola sb3 train ppo editor --port 8000 --timesteps 100000
+```
+
+Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training. One node runs one session.
+
+- `port` defaults to 8000. `-ScholaPort=<n>` on the command line overrides it, as in Unreal Schola, and is also accepted after `--` as a user argument.
+- `start_timeout_sec` (default 45 s) matches the Python client's `environment_start_timeout`. `step_timeout_sec` defaults to 60 s. Set either to 0 to wait forever.
+- `is_training()` is true from Python's connection until the session ends. `training_finished(error: String)` is emitted once: with an empty string when Python closed normally, otherwise with the reason, which is also pushed as an error.
+
+The connector does nothing in the editor. Keep it in a training-only scene: exported games normally exclude `addons/schola_training/`.
+
 ## Running a trained policy
 
-A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)`.
+A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPolicy` resource whose `model_path` points to the `.onnx` file, and a `ScholaInferenceStepper` node whose `policy` is that resource and whose `agents` lists the `ScholaAgent` nodes to drive. The stepper loads the model, checks it against the agents' spaces, and runs observe, infer, and act every physics frame. For a custom loop, call `ScholaOnnxPolicy.initialize(agent)` and then `infer(observation, state)` with an observation in the agent's final, adapted space.
+
+Add a `ScholaStacker` Resource to the agent's `observation_adapters` array to give the policy recent observations. Keep the agent's `observation_space` and `_observe()` output in the original format. The agent applies Resources in array order and reports the final space to the trainer or policy. Set the output kind to Box for axis-based stacking or Dict for slot-suffixed keys. Slot zero is newest. An unset `default_point` uses the input space's default. Agents can share a stacker Resource and each agent keeps its own history. Training resets history automatically at episode start. With local inference, call the stepper's `reset_state(agent)` or `reset_states()` when starting an episode.
 
 Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
 
@@ -298,31 +349,32 @@ The array must include every possible ID, including agents present initially.
 Each spawned copy gets a unique unused ID from this declared roster.
 
 Spawn a descendant with a declared ID, matching spaces, and matching `agent_type`.
-Schola discovers it at the next step boundary and returns its first observation
-with zero reward; Python supplies its first action on the following step.
-Removing or freeing an active agent produces a terminal transition with its
-last observation and zero reward. If its action is skipped because the node is
-absent, reattaching it later in the same step still produces that terminal
-transition; observation and result hooks are skipped for that agent.
-For a custom death reward or final observation,
-report termination through the environment hooks before removing the node.
-Use `queue_free()` from gameplay callbacks, as usual in Godot.
+Set `agent_id` explicitly so a node name collision cannot silently change its
+identity. Schola returns a new agent's first observation with zero reward, and
+Python supplies its first action on the following step.
+
+In environments that override `_get_possible_agents()`, removing a live agent
+finishes its trajectory. If `_get_step_result()` already ran, the departure keeps
+the collected observation, reward, and info. Return `truncated: true` from that
+hook for an external cutoff such as despawning at a level boundary. If the node
+leaves before the hook runs, Schola sends the last observation with zero reward
+and marks it terminated. Use `queue_free()` for removal from a gameplay callback.
+An agent whose action was skipped due to detachment still finishes if reattached
+later in the same step. Fixed-population environments report a freed or removed
+agent as a training error.
+
 Changing a pending agent's resolved ID before its action is dispatched closes
-the session without applying that stale action. This includes renaming a node
-that uses its name as the fallback ID.
+the session without applying the stale action. An ID that terminates or truncates
+is retired until reset. A node spawned with a retired ID is ignored for the rest
+of that episode. Replacing a still-active node with another using the same ID
+closes the session. To train a respawn in the same episode, use a new declared ID
+such as `player_spawn_2` after `player_spawn_1` dies.
 
-An ID that terminates or truncates is retired for the rest of that episode.
-A replacement in the same episode needs another declared ID; after reset,
-IDs may be reused and bound to entirely new nodes. Reset returns only the live
-population after `_reset_episode()`. Unused possible IDs never need actions and
-do not delay completion. An episode completes when all observed agents finish;
-spawn the next wave before that boundary to continue the same episode. A
-currently empty reset can be followed by an empty action map to discover births.
-
-For example, respawn a player as `player_spawn_2` after `player_spawn_1` dies,
-with both IDs declared by `_get_possible_agents()`. Reusing an ID for a different
-node before reset is an error and closes the entire training session. The next
-episode may reuse those IDs.
+At reset, IDs may be reused with entirely new nodes. The initial roster reflects
+the live population after reset and observation callbacks. Unused possible IDs
+never need actions or delay completion. An episode completes when all observed
+agents finish. An empty initial roster accepts an empty action map to discover
+births.
 
 This preserves the existing Python/protobuf possible-agent contract. It supports
 a varying population within a declared capacity, rather than adding new space
@@ -362,6 +414,14 @@ resurrect it. Pause state does not permit same-episode node replacement.
 Use the updated Schola RLlib adapters for this scheduling behavior; they track
 agents ready for actions separately from all episode participants. SB3 still
 requires fixed populations and does not support pausing training agents.
+
+To run the end-to-end RLlib sampler regression, build and import the Godot
+project as above, install the Python test dependencies and the `rllib` extra,
+then run from the repository root:
+
+```sh
+SCHOLA_TEST_GODOT=/path/to/godot python -m pytest Test/rllib/test_godot_dynamic_population.py -n 0
+```
 
 ## Directory structure
 
@@ -404,13 +464,15 @@ Contains shared status and identifier values, engine-independent environment int
 
 `src/core/spaces/` defines `schola::Space` (Box, Discrete, MultiDiscrete, MultiBinary, and Dict definitions) and `schola::Point` (values in those spaces). Spaces report malformed definitions (`INVALID_DATA`) and invalid points (`INVALID_ARGUMENT`) through the shared `schola::Status` in `src/core/common/`. Dict entries are ordered, and that order fixes the flattened layout exchanged with Python.
 
+`src/core/adapters/` defines `schola::ObservationAdapter`, which transforms an agent's observations and reports the resulting space before training or inference. The Godot agent binding owns and applies the adapters in configuration order. `schola::BoxStacker` and `schola::DictStacker` keep a fixed-size observation history with the ordering and stacked-space rules of Unreal Schola's stackers. Index 0 is the newest observation. Adapter instances hold per-agent episode state and reset at the beginning of each episode.
+
 ### `src/bindings`
 
 Adapts the core abstractions to user-facing Godot nodes, resources, the Inspector, and the engine lifecycle. User-facing Godot APIs belong here. The `src/runtime` and `src/training` composition roots may use the minimal Godot registration APIs needed to assemble and initialize their extensions; they must not define user-story APIs.
 
 ### `src/transport/grpc`
 
-Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. The public adapter API, dependency build, and generated bindings are in place; the connector's runtime behavior remains implementation work. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
+Contains the gRPC adapter boundary for Schola's existing Protocol Buffer contract. `GrpcConnector` is the server Python's trainer connects to. It receives calls on gRPC threads and hands each one to the Godot main thread. Keeping the adapter separate prevents networking dependencies from leaking into the core or inference-only builds.
 
 ### `src/inference`
 
@@ -426,6 +488,8 @@ Converts between Godot `Variant` values and engine-independent core values. This
 
 These directories are the composition roots for the runtime and training extensions. User-story APIs live in their owned modules; the composition roots register and assemble those modules.
 
+`src/training/bindings/` holds US3's `ScholaTrainingConnector` node and `HostTrainingBackend`. The backend calls the runtime's `ScholaTrainingHost` by method name, so the training extension never links runtime-extension C++ classes. Spaces cross as Dictionaries and points as Variants, converted with `src/interop`.
+
 ### Godot add-ons
 
 - `addons/schola/` contains runtime functionality required by both development projects and exported games.
@@ -437,9 +501,11 @@ These directories are the composition roots for the runtime and training extensi
 bindings ──→ core ←── inference
                ↑
         training transport
+
+training ──→ interop ──→ core
 ```
 
-Dependencies must point toward `core`. The core must never depend on Godot bindings, gRPC, Protocol Buffers, or ONNX Runtime. The training add-on may depend on the runtime add-on, but the runtime add-on must not depend on training code.
+Dependencies must point toward `core`. Both extensions compile `src/interop`, which depends only on core and `godot-cpp`. The core must never depend on Godot bindings, gRPC, Protocol Buffers, or ONNX Runtime. The training add-on may depend on the runtime add-on, but the runtime add-on must not depend on training code.
 
 ## User-story mapping
 
@@ -451,6 +517,7 @@ Dependencies must point toward `core`. The core must never depend on Godot bindi
 | US4: Execute the episode lifecycle | `src/core/lifecycle/` and the Godot-facing training host |
 | US5: Configure through Godot | `src/bindings/` and `examples/basic_environment/` |
 | US7: Run and ship an ONNX policy | `src/core/policy/`, `src/core/stepper/`, `src/inference/`, `src/bindings/inference/`, and `addons/schola/` |
+| US10: Stack recent observations | `src/core/adapters/` |
 
 The detailed acceptance criteria and D1 planning scope are in [`deliverables/D1/planning.md`](../deliverables/D1/planning.md). Engineering tasks, dependencies, assignees, and progress are tracked on the team's [Trello board](https://trello.com/b/Ry0Qkx2R).
 

@@ -54,23 +54,25 @@ so episodes may start with different subsets and replacement node instances.
 Reset also discovers births from initial observation callbacks and removes agents
 that leave during those callbacks before publishing the initial population.
 
-New descendants receive an initial observation and zero reward on discovery and
-act on the next step. Departures receive a final terminated transition using the
-last observation and zero reward. Report custom terminal rewards through the
-normal hooks before removing a node. An agent whose action was skipped because
-its node was absent still receives that terminal transition if reattached later
-in the same step; its observation and result hooks do not run.
-If a pending agent's resolved ID changes before action dispatch, training closes
-the session without applying that stale action. This includes node renames when
-the agent uses its name as the fallback ID.
-Finished IDs retire until reset; same-episode
-replacements require fresh declared IDs. Unused possible IDs do not hold an
-episode open. Completion still occurs when every observed agent finishes.
+Set an explicit ``agent_id`` for each possible agent so Godot node name collisions
+cannot change its identity. New descendants receive an initial observation and
+zero reward and act on the next step.
 
-For a player respawn, use a fresh declared ID such as ``player_spawn_2`` after
-``player_spawn_1`` dies. Declare both IDs before training begins. Replacing a node
-with another using the same ID before reset is an error and closes the entire
-training session. IDs may be reused after reset.
+In dynamic environments, departing agents keep any observation, reward, and info
+already collected that step. For an external cutoff, return ``truncated: true``
+from ``_get_step_result()`` before the node leaves. Departures without a collected
+result use the previous observation and zero reward and are marked terminated.
+An agent whose action was skipped because it was absent still finishes if it is
+reattached later in the step. In a fixed-population environment, freeing or
+removing an agent causes a training error.
+
+Changing a pending agent's resolved ID before action dispatch closes the session
+without applying the stale action. Retired IDs are ignored until reset. Replacing
+a still-active node with another using the same ID closes the session. Use a
+fresh declared ID for each respawn that should act within the same episode, such
+as ``player_spawn_2`` after ``player_spawn_1``. IDs can be reused after reset.
+Unused possible IDs do not hold an episode open. Completion occurs when every
+observed agent finishes.
 
 Use a Python client supporting dynamic rosters, such as RLlib. Fixed-size SB3
 vector interfaces still require a fixed population. Definitions are exchanged

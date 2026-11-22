@@ -16,6 +16,35 @@ const AUTORESET_SAME_STEP := 0
 const AUTORESET_NEXT_STEP := 1
 const AUTORESET_DISABLED := 2
 
+
+class StepCountEnvironment extends TestEnvironment:
+	var reset_steps: Array[int] = []
+
+	func _reset_episode(seed: Variant, options: Dictionary) -> void:
+		reset_steps.append(get_episode_step())
+		super._reset_episode(seed, options)
+
+
+class StepCountAgent extends TestAgent:
+	func _observe() -> Variant:
+		return get_parent().get_episode_step()
+
+
+class FreeingEnvironment extends TestEnvironment:
+	var victim: Node
+
+	func _reset_episode(seed: Variant, options: Dictionary) -> void:
+		super._reset_episode(seed, options)
+		_free_victim()
+
+	func _get_step_result(agent: ScholaAgent) -> Dictionary:
+		_free_victim()
+		return super._get_step_result(agent)
+
+	func _free_victim() -> void:
+		if is_instance_valid(victim):
+			victim.free()
+
 var _previous_scene: Node
 
 
@@ -78,6 +107,43 @@ func _start(host: ScholaTrainingHost, autoreset_mode := AUTORESET_DISABLED) -> D
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.set_autoreset_mode(autoreset_mode))).is_equal(STATUS_OK)
 	return host.define()
+
+
+func test_reset_callbacks_and_initial_observations_see_zero_completed_steps(
+	autoreset_mode: int,
+	_test_parameters := [[AUTORESET_DISABLED], [AUTORESET_SAME_STEP], [AUTORESET_NEXT_STEP]]
+) -> void:
+	var root := _test_root()
+	var environment := StepCountEnvironment.new()
+	var agent := StepCountAgent.new()
+	agent.agent_id = "clock"
+	agent.observation_space = _space()
+	agent.action_space = _space()
+	environment.add_child(agent)
+	root.add_child(environment)
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host, autoreset_mode))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var action := {"actions": [{"clock": 0}]}
+	assert_int(_status_code(host.step(action))).is_equal(STATUS_OK)
+	var terminal := host.step(action)
+	assert_int(_status_code(terminal)).is_equal(STATUS_OK)
+
+	var observation: Variant
+	if autoreset_mode == AUTORESET_DISABLED:
+		var reset := host.reset({})
+		assert_int(_status_code(reset)).is_equal(STATUS_OK)
+		observation = reset.value[0]["clock"].observation
+	elif autoreset_mode == AUTORESET_SAME_STEP:
+		observation = terminal.value.initial_state[0]["clock"].observation
+	else:
+		var reset_step := host.step(action)
+		assert_int(_status_code(reset_step)).is_equal(STATUS_OK)
+		observation = reset_step.value.state[0]["clock"].observation
+
+	assert_array(environment.reset_steps).contains_exactly([0, 0])
+	assert_int(observation).is_equal(0)
+	assert_int(environment.get_episode_step()).is_equal(0)
 
 
 func test_empty_scene_returns_actionable_status() -> void:
@@ -199,6 +265,19 @@ func test_callbacks_cannot_introduce_unregistered_nested_environments() -> void:
 		assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
 
 
+func test_status_message_keeps_non_ascii_node_names() -> void:
+	var root := _test_root()
+	var environment := TestEnvironment.new() as ScholaEnvironment
+	environment.name = "环境Ünïcode"
+	root.add_child(environment)
+	var host := _add_host(root)
+
+	var result := host.initialize_session()
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_str(_status_message(result)).contains("环境Ünïcode")
+
+
 func test_discovery_order_becomes_stable_environment_ids() -> void:
 	var root := _test_root()
 	_add_environment(root, "FirstEnvironment", "first_agent")
@@ -234,14 +313,41 @@ func test_freed_environment_fails_and_closes_session() -> void:
 	var environment := _add_environment(root, "FreedEnvironment", "agent")
 	var host := _add_host(root)
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_true()
 	environment.free()
 
 	var result := host.set_autoreset_mode(AUTORESET_DISABLED)
 
 	assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_str(_status_message(result)).contains("was freed")
+	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.define())).is_equal(STATUS_FAILED_PRECONDITION)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+
+
+func test_environment_freed_by_another_environment_closes_session(
+	during_reset: bool,
+	_test_parameters := [[true], [false]]
+) -> void:
+	var root := _test_root()
+	var first := FreeingEnvironment.new()
+	first.name = "FirstEnvironment"
+	_add_agent(first, "first_agent", "first_agent")
+	root.add_child(first)
+	var second := _add_environment(root, "SecondEnvironment", "second_agent")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	if not during_reset:
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	first.victim = second
+
+	var actions := {"actions": [{"first_agent": 1}, {"second_agent": 1}]}
+	var result: Dictionary = host.reset({}) if during_reset else host.step(actions)
+
+	assert_int(_status_code(result)).is_equal(STATUS_FAILED_PRECONDITION)
+	assert_str(_status_message(result)).contains("environment 1 was freed")
+	assert_object(result["value"]).is_null()
+	assert_bool(host.is_session_active()).is_false()
 
 
 func test_close_is_idempotent_and_rejects_later_work() -> void:
@@ -679,8 +785,8 @@ func test_queued_ancestor_removes_agents_in_every_step_callback() -> void:
 		assert_int(_status_code(result)).is_equal(STATUS_OK)
 		var state: Dictionary = result["value"]["state"][0]["a"]
 		assert_bool(state["terminated"]).is_true()
-		assert_float(state["reward"]).is_equal(0.0)
-		assert_int(state["observation"]).is_equal(0)
+		assert_float(state["reward"]).is_equal(1.0 if phase == "result" else 0.0)
+		assert_int(state["observation"]).is_equal(2 if phase == "result" else 0)
 
 
 func test_reset_can_replace_queued_containers_with_the_same_agent_ids() -> void:
@@ -727,18 +833,26 @@ func test_later_callbacks_reconcile_already_observed_departures() -> void:
 			environment.on_step_result = func(agent):
 				if agent == first:
 					first.queue_free()
+					return {"reward": 1.0, "truncated": true}
+				return null
 		else:
 			second.on_observe = func(): first.queue_free()
 		var result := host.step({"actions": [{"a": 2, "b": 1}]})
 		assert_int(_status_code(result)).is_equal(STATUS_OK)
 		var agents: Dictionary = result["value"]["state"][0]
-		assert_bool(agents["a"]["terminated"]).is_true()
-		assert_float(agents["a"]["reward"]).is_equal(0.0)
-		assert_int(agents["a"]["observation"]).is_equal(0)
+		assert_bool(agents["a"]["terminated"]).is_equal(not from_result)
+		assert_bool(agents["a"]["truncated"]).is_equal(from_result)
+		assert_float(agents["a"]["reward"]).is_equal(1.0)
+		assert_int(agents["a"]["observation"]).is_equal(2)
 		assert_bool(agents["b"]["terminated"]).is_false()
 		environment.on_step_result = Callable()
 		second.on_observe = Callable()
+		var replacement = _add_agent(environment, "Replacement", "a")
 		assert_int(_status_code(host.step({"actions": [{"b": 1}]}))).is_equal(STATUS_OK)
+		assert_object(replacement.last_action).is_null()
+		var stale_action := host.step({"actions": [{"a": 1, "b": 1}]})
+		assert_int(_status_code(stale_action)).is_equal(STATUS_FAILED_PRECONDITION)
+		assert_str(_status_message(stale_action)).contains("Agent 'a': already finished this episode")
 
 
 func test_callback_births_participate_before_episode_completion() -> void:
@@ -970,3 +1084,20 @@ func test_birth_pausing_during_observation_is_announced_before_omission() -> voi
 	assert_int(_status_code(resumed)).is_equal(STATUS_OK)
 	assert_bool(resumed["value"]["state"][0]["b"]["terminated"]).is_false()
 	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+
+
+func test_session_activity_tracks_initialization_recoverable_errors_and_close() -> void:
+	var root := _test_root()
+	_add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_bool(host.is_session_active()).is_false()
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_true()
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var invalid := host.step({"actions": [{"agent": "invalid"}]})
+	assert_int(_status_code(invalid)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_bool(host.is_session_active()).is_true()
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_false()
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+	assert_bool(host.is_session_active()).is_false()

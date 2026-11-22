@@ -170,6 +170,7 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 	// Build everything in local variables first, so a failure part way
 	// through leaves this adapter and the caller's map untouched.
 	std::map<schola::AgentId, schola::InteractionDefinition> definitions;
+	std::map<schola::AgentId, godot::ObjectID> initial_nodes;
 	for (int32_t index = 0; index < agent_nodes.size(); ++index) {
 		godot::Object *agent_object = agent_nodes[index];
 		ScholaAgent *agent_node = godot::Object::cast_to<ScholaAgent>(agent_object);
@@ -193,18 +194,40 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 		}
 
 		definitions.emplace(id, std::move(definition));
+		initial_nodes.emplace(id, godot::ObjectID(agent_node->get_instance_id()));
 	}
 
 	// Everything passed. Commit, then hand the definitions to the caller.
+	if (!GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_possible_agents)) {
+		fixed_nodes = std::move(initial_nodes);
+	}
 	this->definitions = definitions;
 	initialized = true;
 	r_agents = std::move(definitions);
 	return schola::Status::ok();
 }
 
+schola::Status GodotEnvironmentAdapter::find_live_agent(const AgentEntry &p_entry, ScholaAgent *&r_agent) const {
+	auto status = find_agent_node(p_entry.id, p_entry.node_id, r_agent);
+	if (status.is_ok() && !is_live_member(node, r_agent)) {
+		status = agent_error(p_entry.id, schola::StatusCode::FAILED_PRECONDITION, "the agent node was removed or queued for deletion");
+	}
+	return status;
+}
+
 schola::Status GodotEnvironmentAdapter::collect_current_agents(std::vector<AgentEntry> &r_agents) const {
 	if (node->get_ancestor_environment() != nullptr) {
 		return environment_error(node, schola::StatusCode::INVALID_DATA, "Nested ScholaEnvironment nodes are unsupported");
+	}
+	for (const auto &[id, node_id] : fixed_nodes) {
+		ScholaAgent *agent = nullptr;
+		const auto status = find_live_agent({ id, node_id }, agent);
+		if (!status.is_ok()) {
+			return status;
+		}
+		if (to_std_string(agent->get_resolved_agent_id()) != id) {
+			return agent_error(id, schola::StatusCode::INVALID_DATA, "agent ID changed after initialize()");
+		}
 	}
 	std::set<schola::AgentId> seen;
 	const auto nodes = node->get_agents();
@@ -215,24 +238,35 @@ schola::Status GodotEnvironmentAdapter::collect_current_agents(std::vector<Agent
 			continue;
 		}
 		const auto id = to_std_string(agent->get_resolved_agent_id());
+		const auto previous = last_states.find(id);
+		if (previous != last_states.end() && (previous->second.terminated || previous->second.truncated)) {
+			continue; // Retired IDs are ignored until reset, even if a new node uses one.
+		}
+		const godot::ObjectID node_id(agent->get_instance_id());
 		const auto previous_node = episode_nodes.find(id);
-		if (previous_node != episode_nodes.end() && previous_node->second != godot::ObjectID(agent->get_instance_id())) {
+		if (previous_node != episode_nodes.end() && previous_node->second != node_id) {
 			return agent_error(id, schola::StatusCode::INVALID_DATA, "agent node was replaced before reset; use a new declared ID");
 		}
 		const auto declared = definitions.find(id);
 		if (declared == definitions.end() || !seen.insert(id).second) {
 			return agent_error(id, schola::StatusCode::INVALID_DATA, "agent ID must be declared and unique");
 		}
-		schola::InteractionDefinition definition;
-		auto status = agent->get_agent()->define(definition);
-		if (!status.is_ok()) {
-			return status;
+		const auto defined = defined_nodes.find(id);
+		if (defined == defined_nodes.end() || defined->second != node_id) {
+			schola::InteractionDefinition definition;
+			const auto status = agent->get_agent()->define(definition);
+			if (!status.is_ok()) {
+				return status;
+			}
+			if (definition.observation_space != declared->second.observation_space ||
+					definition.action_space != declared->second.action_space || definition.agent_type != declared->second.agent_type) {
+				return agent_error(id, schola::StatusCode::INCOMPATIBLE, "spawned agent differs from its declared definition");
+			}
+			defined_nodes[id] = node_id;
+		} else if (to_std_string(agent->get_resolved_agent_type()) != declared->second.agent_type) {
+			return agent_error(id, schola::StatusCode::INCOMPATIBLE, "agent type changed after initialize()");
 		}
-		if (definition.observation_space != declared->second.observation_space ||
-				definition.action_space != declared->second.action_space || definition.agent_type != declared->second.agent_type) {
-			return agent_error(id, schola::StatusCode::INCOMPATIBLE, "spawned agent differs from its declared definition");
-		}
-		r_agents.push_back({ id, godot::ObjectID(agent->get_instance_id()) });
+		r_agents.push_back({ id, node_id });
 	}
 	return schola::Status::ok();
 }
@@ -261,9 +295,12 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 	// so the script can tell the two apart. Overriding it is optional: a
 	// scene with nothing to put back can leave it out.
 	const godot::Variant seed = p_settings.seed.has_value() ? godot::Variant(static_cast<int64_t>(*p_settings.seed)) : godot::Variant();
+	episode_step = 0;
 	GDVIRTUAL_CALL_PTR(node, _reset_episode, seed, to_dictionary(p_settings.options));
 
 	episode_nodes.clear();
+	defined_nodes.clear();
+	last_states.clear();
 	// Observation callbacks can change the population. Discover births until
 	// every live ID has been observed, then publish only the final live roster.
 	std::map<schola::AgentId, schola::InitialAgentState> states;
@@ -280,14 +317,19 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 				continue;
 			}
 			ScholaAgent *agent_node = nullptr;
-			status = find_agent_node(entry.id, entry.node_id, agent_node);
-			if (!status.is_ok() || !is_live_member(node, agent_node) || agent_node->is_training_paused()) {
+			status = find_live_agent(entry, agent_node);
+			if (!status.is_ok() && !fixed_nodes.empty()) {
+				return status;
+			}
+			if (!status.is_ok() || agent_node->is_training_paused() ||
+					to_std_string(agent_node->get_resolved_agent_id()) != entry.id) {
 				continue;
 			}
 
 			observed_new_agent = true;
 			episode_nodes.emplace(entry.id, entry.node_id);
 			schola::InitialAgentState state;
+			agent_node->get_agent()->reset_observation_history();
 			status = agent_node->get_agent()->observe(state.observation);
 			if (!status.is_ok()) {
 				return status;
@@ -315,13 +357,11 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 			++it;
 		}
 	}
-	last_states.clear();
 	for (const auto &[id, state] : states) {
 		last_states.emplace(id, schola::AgentState{ state.observation, 0.0f, false, false, state.info });
 	}
 
 	episode_active = true;
-	episode_step = 0;
 	r_states = std::move(states);
 	node->emit_signal("episode_started");
 	return schola::Status::ok();
@@ -338,11 +378,21 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 	if (!status.is_ok()) {
 		return status;
 	}
-	// Validate the full request before invoking any gameplay hooks.
-	size_t active_count = 0;
+	// Validate extra actions first so the diagnostic identifies the submitted ID.
+	for (const auto &[id, action] : p_actions) {
+		if (definitions.count(id) == 0) {
+			return agent_error(id, schola::StatusCode::NOT_FOUND, "not part of this environment");
+		}
+		const auto previous = last_states.find(id);
+		if (previous != last_states.end() && (previous->second.terminated || previous->second.truncated)) {
+			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "already finished this episode");
+		}
+		if (previous == last_states.end() || previous->second.paused) {
+			return agent_error(id, schola::StatusCode::INVALID_ARGUMENT, "not part of the active roster");
+		}
+	}
 	for (const auto &[id, previous] : last_states) {
 		if (!previous.terminated && !previous.truncated && !previous.paused) {
-			++active_count;
 			const auto action = p_actions.find(id);
 			if (action == p_actions.end()) {
 				return agent_error(id, schola::StatusCode::INVALID_ARGUMENT, "missing action");
@@ -353,10 +403,6 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			}
 		}
 	}
-	if (p_actions.size() != active_count) {
-		return environment_error(node, schola::StatusCode::INVALID_ARGUMENT, "actions must name exactly the active agents");
-	}
-
 	// A missing _get_step_result() would otherwise only show up after every agent
 	// had already acted, so catch it here while the world is still untouched.
 	if (!p_actions.empty() && !GDVIRTUAL_IS_OVERRIDDEN_PTR(node, _get_step_result)) {
@@ -370,9 +416,12 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			continue;
 		}
 		ScholaAgent *agent = nullptr;
-		status = find_agent_node(entry.id, entry.node_id, agent);
+		status = find_live_agent(entry, agent);
 		// Another agent may have removed this one during its action.
-		if (!status.is_ok() || !is_live_member(node, agent)) {
+		if (!status.is_ok() && !fixed_nodes.empty()) {
+			return status;
+		}
+		if (!status.is_ok()) {
 			continue;
 		}
 		if (to_std_string(agent->get_resolved_agent_id()) != entry.id) {
@@ -399,12 +448,12 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 		bool ran_callback = false;
 		for (const auto &entry : current) {
 			const auto previous = last_states.find(entry.id);
-			if (previous != last_states.end() && (previous->second.terminated || previous->second.truncated)) {
-				continue; // An ID is retired until the next environment reset.
-			}
 			ScholaAgent *agent = nullptr;
-			status = find_agent_node(entry.id, entry.node_id, agent);
-			if (!status.is_ok() || !is_live_member(node, agent)) {
+			status = find_live_agent(entry, agent);
+			if (!status.is_ok() && !fixed_nodes.empty()) {
+				return status;
+			}
+			if (!status.is_ok() || to_std_string(agent->get_resolved_agent_id()) != entry.id) {
 				continue;
 			}
 			if (previous != last_states.end() && !previous->second.paused &&
@@ -439,8 +488,11 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 				ran_callback = true;
 			}
 			if (acted_ids.count(entry.id) != 0 && result_ids.count(entry.id) == 0) {
-				status = find_agent_node(entry.id, entry.node_id, agent);
-				if (!status.is_ok() || !is_live_member(node, agent)) {
+				status = find_live_agent(entry, agent);
+				if (!status.is_ok() && !fixed_nodes.empty()) {
+					return status;
+				}
+				if (!status.is_ok() || to_std_string(agent->get_resolved_agent_id()) != entry.id) {
 					continue; // Defer the result hook until this node is live again.
 				}
 				godot::Variant result;
@@ -472,10 +524,10 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			continue;
 		}
 		const auto previous = last_states.find(id);
-		if (previous != last_states.end()) {
+		if (result_ids.count(id) == 0 && previous != last_states.end()) {
 			state = previous->second;
+			state.reward = 0.0f;
 		}
-		state.reward = 0.0f;
 		state.terminated = true;
 		state.paused = false;
 	}

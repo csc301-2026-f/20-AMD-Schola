@@ -71,7 +71,7 @@ existing macOS support; no macOS prebuilt package is committed.
 | --- | --- |
 | gRPC/protobuf headers, libraries, generators | ZIPs and checksum manifests in this directory |
 | godot-cpp, Catch2, Schola compiled objects | SCons content cache, keyed by platform/compiler |
-| ONNX Runtime | Pinned upstream prebuilt download, installed tree cached by Actions |
+| ONNX Runtime | Git LFS packages and checksum manifests in `../onnxruntime/`; installed offline |
 | Godot executable | Download cached by Actions; checksum verified on every run |
 | GdUnit4 | Pinned upstream add-on, installed tree cached by Actions |
 | Python build packages | Existing pip download cache |

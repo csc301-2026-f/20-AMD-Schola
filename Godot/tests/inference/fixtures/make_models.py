@@ -58,6 +58,15 @@ def box_scale():
     )
 
 
+def camera_components():
+    return model(
+        "camera_components",
+        [helper.make_node("Flatten", ["00000000:camera"], ["00000000:move"], axis=1)],
+        [tensor("00000000:camera", TensorProto.FLOAT, [BATCH, 3, 1, 1])],
+        [tensor("00000000:move", TensorProto.FLOAT, [BATCH, 3])],
+    )
+
+
 def discrete():
     return model(
         "discrete",
@@ -136,9 +145,9 @@ def counter():
     )
 
 
-def counter_seq():
+def counter_seq(name="counter_seq", model_metadata=None, sequence=SEQUENCE):
     result = model(
-        "counter_seq",
+        name,
         [
             helper.make_node("Gather", ["state_in_h", "last"], ["newest"], axis=1),
             helper.make_node("Identity", ["newest"], ["action"]),
@@ -146,7 +155,7 @@ def counter_seq():
         ],
         [
             tensor("obs", TensorProto.FLOAT, [BATCH, 1]),
-            tensor("state_in_h", TensorProto.FLOAT, [BATCH, SEQUENCE, 2]),
+            tensor("state_in_h", TensorProto.FLOAT, [BATCH, sequence, 2]),
         ],
         [
             tensor("action", TensorProto.FLOAT, [BATCH, 2]),
@@ -159,7 +168,22 @@ def counter_seq():
             helper.set_metadata_props(
                 value_info, {"has_seq_dim": "True", "max_seq_len": "3", "seq_dim": "1"}
             )
+    if model_metadata is not None:
+        helper.set_model_props(
+            result, {f"state_in_h.{k}": v for k, v in model_metadata.items()}
+        )
     return result
+
+
+def declared_seq(
+    name, max_seq_len="3", seq_dim="1", has_seq_dim="True", sequence=SEQUENCE
+):
+    metadata = {
+        "has_seq_dim": has_seq_dim,
+        "max_seq_len": max_seq_len,
+        "seq_dim": seq_dim,
+    }
+    return lambda: counter_seq(name, metadata, sequence)
 
 
 def bad_unpaired_state():
@@ -193,6 +217,7 @@ def bad_state_int():
 
 
 MODELS = {
+    "camera_components": camera_components,
     "box_scale": box_scale,
     "discrete": discrete,
     "multi_discrete": multi_discrete,
@@ -201,6 +226,16 @@ MODELS = {
     "dict_action": dict_action,
     "counter": counter,
     "counter_seq": counter_seq,
+    "counter_seq_declared": declared_seq("counter_seq_declared"),
+    "counter_seq_lowercase": declared_seq("counter_seq_lowercase", has_seq_dim="true"),
+    "counter_seq_fixed": declared_seq("counter_seq_fixed", sequence=3),
+    "bad_has_seq_dim": declared_seq("bad_has_seq_dim", has_seq_dim="maybe"),
+    "bad_seq_undeclared": declared_seq("bad_seq_undeclared", has_seq_dim="False"),
+    "bad_seq_len_fixed": declared_seq("bad_seq_len_fixed", max_seq_len="4", sequence=3),
+    "bad_seq_len_huge": declared_seq("bad_seq_len_huge", max_seq_len="70000"),
+    "bad_seq_len_text": declared_seq("bad_seq_len_text", max_seq_len="2.5"),
+    "bad_seq_len_zero": declared_seq("bad_seq_len_zero", max_seq_len="0"),
+    "bad_seq_dim": declared_seq("bad_seq_dim", seq_dim="2"),
     "bad_unpaired_state": bad_unpaired_state,
     "bad_state_int": bad_state_int,
 }
@@ -217,6 +252,10 @@ def check_outputs():
 
     f32, i64, i8 = np.float32, np.int64, np.int8
     expected = {
+        "camera_components": (
+            {"00000000:camera": np.array([[[[0.25]], [[0.5]], [[0.75]]]], f32)},
+            {"00000000:move": np.array([[0.25, 0.5, 0.75]], f32)},
+        ),
         "box_scale": (
             {"obs": np.array([[1, 2, 3]], f32)},
             {"action": np.array([[2, 4, 6]], f32)},
