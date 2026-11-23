@@ -39,6 +39,13 @@ class ConfigurationCallbackEnvironment extends TestEnvironment:
 		return get_agents()
 
 
+class TemplateEnvironment extends TestEnvironment:
+	var templates: Array[ScholaAgent] = []
+
+	func _get_possible_agents() -> Array[ScholaAgent]:
+		return templates
+
+
 class FreeingEnvironment extends TestEnvironment:
 	var victim: Node
 
@@ -418,6 +425,24 @@ func test_close_is_idempotent_and_rejects_later_work() -> void:
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
+
+
+func test_an_empty_possible_agent_slot_fails_session_initialization() -> void:
+	var root := _test_root()
+	var environment := TemplateEnvironment.new()
+	environment.name = "Environment"
+	var agent := _add_agent(environment, "agent", "agent")
+	# The second slot was meant for another agent but never assigned
+	environment.templates = [agent, null]
+	root.add_child(environment)
+	var host := _add_host(root)
+
+	var result := host.initialize_session()
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_str(_status_message(result)).contains("Possible agent 1 is empty")
+	environment.templates = [agent]
+	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
 
 
 func test_duplicate_ids_fail_during_session_initialization() -> void:
