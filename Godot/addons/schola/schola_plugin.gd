@@ -42,6 +42,9 @@ func _enter_tree() -> void:
 	_nodes = ItemList.new()
 	_nodes.custom_minimum_size.y = 180
 	_nodes.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Clicking the same entry again should re-select its node after the user
+	# picked something else in the Scene dock.
+	_nodes.allow_reselect = true
 	_nodes.item_selected.connect(_inspect_node)
 	_dock_content.add_child(_nodes)
 	_button("Refresh scene & capabilities", _refresh)
@@ -98,7 +101,9 @@ func _collect_nodes(node: Node, root: Node) -> void:
 
 
 func _inspect_node(index: int) -> void:
-	if index >= _scene_nodes.size() or not is_instance_valid(_scene_nodes[index]):
+	# Nodes deleted in the editor stay alive for undo, so a valid instance may
+	# already be gone from the scene.
+	if index >= _scene_nodes.size() or not is_instance_valid(_scene_nodes[index]) or not _scene_nodes[index].is_inside_tree():
 		_refresh()
 		return
 	var selection := get_editor_interface().get_selection()
