@@ -7,7 +7,7 @@ var track: RaceTrackPath
 @onready var controls: ScholaVehicleActuator3D = $Controls
 
 func _ready() -> void:
-	track = RaceTrackPath.find_in(get_tree())
+	track = RaceTrackPath.find_for(self)
 	$Track.path_path = $Track.get_path_to(track)
 	place_at_start()
 

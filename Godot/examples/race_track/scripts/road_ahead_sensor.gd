@@ -20,7 +20,7 @@ func _init() -> void:
 
 func _observe() -> Variant:
 	var car := get_node_or_null(body_path) as Node3D
-	var track := RaceTrackPath.find_in(get_tree())
+	var track := RaceTrackPath.find_for(self)
 	if car == null or track == null:
 		return null
 	var length := track.curve.get_baked_length()
@@ -28,14 +28,13 @@ func _observe() -> Variant:
 	var values := PackedFloat32Array([1.0, 1.0, 1.0])
 	for node in get_tree().get_nodes_in_group("obstacle"):
 		var body := node as CollisionObject3D
-		if body == null or body == car or not body.visible or body.collision_layer == 0:
+		if body == null or body == car or not track.is_ancestor_of(body) or not body.visible or body.collision_layer == 0:
 			continue
-		var offset := track.progress_of(body.global_position)
+		var offset: float = body.get_meta("track_offset", 0.0)
 		var ahead := fposmod(offset - here, length)
 		if ahead > view_distance:
 			continue
-		var left := Vector3.UP.cross(track.direction_at(offset)).normalized()
-		var side := (body.global_position - track.center_at(offset)).dot(left)
+		var side: float = body.get_meta("track_side", 0.0)
 		for lane in LANES.size():
 			if absf(side - LANES[lane]) < LANE_HALF_WIDTH:
 				values[lane] = minf(values[lane], ahead / view_distance)

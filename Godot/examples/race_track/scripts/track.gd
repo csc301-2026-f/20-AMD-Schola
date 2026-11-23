@@ -6,7 +6,7 @@ const START_OFFSET_BACK := -4.0
 const START_OFFSET_LEFT := 0.0
 const LANE := 2.5
 const OBSTACLE_SPACING := 25.0
-const GATE_SPACING := Vector2(16.0, 22.0)
+const GATE_SPACING := Vector2(20.0, 26.0)
 const CLEAR_AFTER_START := 45.0
 const CLEAR_BEFORE_START := 15.0
 const CLEAR_BEFORE_JUMP := 30.0
@@ -21,8 +21,15 @@ var map_obstacles := PackedVector2Array()
 var _obstacle_bodies: Array[StaticBody3D] = []
 
 
-static func find_in(tree: SceneTree) -> RaceTrackPath:
-	return tree.get_first_node_in_group("race_track") as RaceTrackPath
+static func find_for(node: Node) -> RaceTrackPath:
+	var tracks := node.get_tree().get_nodes_in_group("race_track")
+	var ancestor := node.get_parent()
+	while ancestor != null:
+		for track in tracks:
+			if ancestor.is_ancestor_of(track):
+				return track
+		ancestor = ancestor.get_parent()
+	return null
 
 
 func progress_of(global_point: Vector3) -> float:
@@ -133,10 +140,17 @@ func set_obstacles(layout: PackedVector2Array) -> void:
 		_obstacle_bodies.append(add_obstacle(0.0, 0.0))
 	for index in _obstacle_bodies.size():
 		var body := _obstacle_bodies[index]
-		body.visible = index < layout.size()
-		body.collision_layer = 1 if body.visible else 0
+		set_solid(body, index < layout.size())
 		if body.visible:
 			body.global_transform = _obstacle_pose(layout[index].x, layout[index].y)
+			body.set_meta("track_offset", layout[index].x)
+			body.set_meta("track_side", layout[index].y)
+
+
+static func set_solid(body: CollisionObject3D, solid: bool) -> void:
+	body.visible = solid
+	body.collision_layer = 1 if solid else 0
+	body.collision_mask = 1 if solid else 0
 
 
 func random_obstacle_layout(rng: RandomNumberGenerator) -> PackedVector2Array:
@@ -201,6 +215,8 @@ func add_obstacle(offset: float, side: float) -> StaticBody3D:
 	body.add_to_group("obstacle")
 	add_child(body)
 	body.global_transform = _obstacle_pose(offset, side)
+	body.set_meta("track_offset", offset)
+	body.set_meta("track_side", side)
 	var shape := BoxShape3D.new()
 	shape.size = obstacle_size
 	var collision := CollisionShape3D.new()

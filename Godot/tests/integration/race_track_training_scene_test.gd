@@ -99,3 +99,4 @@ func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
 	var shown := track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.visible)
 	assert_int(shown.size()).is_equal(1)
 	assert_int(track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.collision_layer != 0).size()).is_equal(1)
+	assert_int(track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.collision_mask != 0).size()).is_equal(1)
