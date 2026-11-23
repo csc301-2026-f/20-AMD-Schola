@@ -96,7 +96,7 @@ Status EnvironmentLifecycle::reset(const ResetSettings &p_settings, InitialEnvir
 	return Status::ok();
 }
 
-Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, EnvironmentState &r_state) {
+Status EnvironmentLifecycle::validate_step_actions(const std::map<AgentId, Point> &p_actions) const {
 	if (state != LifecycleState::ACTIVE) {
 		return Status::error(StatusCode::FAILED_PRECONDITION,
 				"environment is not in an active state");
@@ -118,9 +118,17 @@ Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, Env
 			return Status::error(StatusCode::INVALID_ARGUMENT, "missing action for unfinished agent " + agent_id);
 		}
 	}
+	return Status::ok();
+}
+
+Status EnvironmentLifecycle::step(const std::map<AgentId, Point> &p_actions, EnvironmentState &r_state) {
+	Status result = validate_step_actions(p_actions);
+	if (!result.is_ok()) {
+		return result;
+	}
 
 	std::map<AgentId, AgentState> step_states;
-	Status result = environment.step(p_actions, step_states);
+	result = environment.step(p_actions, step_states);
 	if (!result.is_ok()) {
 		state = LifecycleState::FAULTED;
 		return result;

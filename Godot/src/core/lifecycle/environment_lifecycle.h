@@ -73,6 +73,9 @@ public:
 	 */
 	Status reset(const ResetSettings &p_settings, InitialEnvironmentState &r_initial_state);
 
+	/** Checks the lifecycle state and action roster without invoking the environment. */
+	Status validate_step_actions(const std::map<AgentId, Point> &p_actions) const;
+
 	/**
 	 * @brief Steps every unfinished agent and captures an owned state snapshot.
 	 *

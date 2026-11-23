@@ -103,6 +103,18 @@ Status EnvironmentCoordinator::step(const StepRequest &p_request, StepResult &r_
 	if (p_request.actions.size() != environments.size()) {
 		return Status::error(StatusCode::INVALID_ARGUMENT, "step requires one action map per environment");
 	}
+	for (size_t index = 0; index < environments.size(); ++index) {
+		const auto &environment = environments[index];
+		if (environment->get_state() == LifecycleState::COMPLETE) {
+			continue;
+		}
+		const Status result = environment->validate_step_actions(p_request.actions[index]);
+		if (!result.is_ok()) {
+			state = CoordinatorState::FAULTED;
+			return environment_error(environment->get_id(), result);
+		}
+	}
+
 	StepResult batch;
 	batch.state = last_state;
 	for (size_t index = 0; index < environments.size(); ++index) {

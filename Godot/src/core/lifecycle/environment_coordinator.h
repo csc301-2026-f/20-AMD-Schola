@@ -68,6 +68,9 @@ public:
 	/**
 	 * @brief Routes one action map per environment and applies the configured autoreset.
 	 *
+	 * An invalid action roster faults the coordinator before any step or autoreset.
+	 * Only environments that consume actions have their rosters checked.
+	 *
 	 * Requires RUNNING. DISABLED retains completed states. SAME_STEP returns the
 	 * terminal state and separate reset observations in the same result. NEXT_STEP
 	 * resets a completed environment on the following call instead of consuming
