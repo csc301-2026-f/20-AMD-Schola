@@ -53,6 +53,10 @@ Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
 	if (p_agent == nullptr) {
 		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is null");
 	}
+	// A second entry would act on the agent again each step.
+	if (find_agent(p_agent) >= 0) {
+		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is already in this stepper");
+	}
 
 	InteractionDefinition definition;
 	Status status = p_agent->define(definition);
