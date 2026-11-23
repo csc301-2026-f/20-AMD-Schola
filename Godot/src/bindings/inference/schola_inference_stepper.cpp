@@ -3,6 +3,7 @@
 #include "bindings/inference/schola_inference_stepper.h"
 
 #include "bindings/environment/schola_agent.h"
+#include "core/environment/interaction_definition.h"
 #include "core/stepper/simple_stepper.h"
 #include "inference/onnx_policy.h"
 #include "interop/godot_status.h"
@@ -10,6 +11,22 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
+
+namespace {
+
+// The stepper only compares a new agent with the agents it already has. Once
+// those are gone, the policy still holds the old agent's spaces (and maybe
+// another stepper's), so an agent joining an empty stepper is checked here.
+bool fits_policy(ScholaAgent *p_agent, const ScholaOnnxPolicy &p_policy) {
+	schola::InteractionDefinition definition;
+	if (!p_agent->get_agent()->define(definition).is_ok()) {
+		return true; // add_agent() reports the define() failure itself
+	}
+	const schola::InteractionDefinition *expected = p_policy.get_definition();
+	return definition.observation_space == expected->observation_space && definition.action_space == expected->action_space;
+}
+
+} // namespace
 
 ScholaInferenceStepper::ScholaInferenceStepper() = default;
 
@@ -53,6 +70,9 @@ bool ScholaInferenceStepper::is_enabled() const {
 }
 
 godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
+	if (stepping) {
+		return report("ScholaInferenceStepper.add_agent: cannot add agents during a step; use call_deferred(\"add_agent\", agent)", godot::ERR_BUSY);
+	}
 	godot::Error error = prepare(p_agent);
 	if (error != godot::OK) {
 		return error;
@@ -171,10 +191,14 @@ godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 	if (policy.is_null()) {
 		return report("ScholaInferenceStepper.add_agent: set a ScholaOnnxPolicy in the policy property", godot::ERR_UNCONFIGURED);
 	}
-	const godot::Error error = policy->is_initialized() ? godot::OK : policy->initialize(p_agent);
-	if (error != godot::OK) {
-		emit_signal("inference_failed", policy->get_last_error());
-		return error;
+	if (!policy->is_initialized()) {
+		const godot::Error error = policy->initialize(p_agent);
+		if (error != godot::OK) {
+			emit_signal("inference_failed", policy->get_last_error());
+			return error;
+		}
+	} else if ((stepper == nullptr || stepper->get_agent_count() == 0) && !fits_policy(p_agent, *policy.ptr())) {
+		return report("ScholaInferenceStepper.add_agent: the agent's spaces differ from the ones the policy was initialized with; call policy.initialize(agent) to switch it", godot::ERR_INVALID_DATA);
 	}
 	if (stepper == nullptr) {
 		stepper = std::make_unique<schola::SimpleStepper>();

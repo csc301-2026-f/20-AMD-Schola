@@ -4,7 +4,23 @@
 
 #include <catch_amalgamated.hpp>
 
+#include <limits>
+
 using namespace schola;
+
+TEST_CASE("Box stackers reject oversized output before allocating bounds", "[adapters][regression]") {
+	const Space input(BoxSpace{ { 0, 0 }, { 1, 1 }, { 2, 1 } });
+	BoxStackerSettings settings;
+	settings.stacker.stack_size = std::numeric_limits<int32_t>::max();
+	settings.stack_dimension = 1;
+	settings.add_new_dimension = GENERATE(true, false);
+	BoxStacker stacker(settings);
+	Space output(DiscreteSpace{ 3 });
+	REQUIRE(stacker.configure(input, output).get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(output == Space(DiscreteSpace{ 3 }));
+	Point result;
+	CHECK(stacker.adapt(BoxPoint{ { 0, 0 } }, result).get_code() == StatusCode::FAILED_PRECONDITION);
+}
 
 TEST_CASE("Box history interleaves blocks along an inner axis", "[adapters]") {
 	const Space input(BoxSpace{ { 0, 10 }, { 9, 19 }, { 2, 1 } });
