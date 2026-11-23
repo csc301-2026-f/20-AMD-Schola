@@ -5,24 +5,22 @@ Open `res://examples/us8_components/main.tscn` in the main Godot project and pre
 separate project or a frozen milestone demo. The native runtime extension must
 be built; no Python trainer, model, or integration-test build is needed.
 
-On this Linux workspace, launch it directly from the repository root:
+Or launch it from the repository root:
 
 ```sh
-/home/guneev/Desktop/University/CSC301/Godot_v4.7.2-stable_linux.x86_64 \
-  --path Godot res://examples/us8_components/main.tscn
+godot --path Godot res://examples/us8_components/main.tscn
 ```
 
 Or open the editor:
 
 ```sh
-/home/guneev/Desktop/University/CSC301/Godot_v4.7.2-stable_linux.x86_64 \
-  --editor --path Godot res://examples/us8_components/main.tscn
+godot --editor --path Godot res://examples/us8_components/main.tscn
 ```
 
 If rebuilding is needed, close Godot first (native extension reload is disabled):
 
 ```sh
-.venv/bin/scons -C Godot schola platform=linux target=template_debug -j4
+scons -C Godot schola platform=linux target=template_debug
 ```
 
 ## Try it
@@ -77,8 +75,7 @@ initialization. See [the API guide](../../docs/us8_components.md).
 From the repository root:
 
 ```sh
-/home/guneev/Desktop/University/CSC301/Godot_v4.7.2-stable_linux.x86_64 \
-  --headless --path Godot res://examples/us8_components/main.tscn \
+godot --headless --path Godot res://examples/us8_components/main.tscn \
   --fixed-fps 60 --quit-after 240 -- --us8-smoke
 ```
 
