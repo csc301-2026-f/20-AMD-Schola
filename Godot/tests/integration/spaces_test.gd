@@ -38,6 +38,14 @@ func test_space_resources_are_registered() -> void:
 		assert_bool(ClassDB.class_exists(name)).is_true()
 
 
+func test_size_fields_can_show_their_unset_zero() -> void:
+	# The Inspector clamps a value to the hint's range, so the range must include the default
+	for space in [ScholaDiscreteSpace.new(), ScholaMultiBinarySpace.new()]:
+		var n: Dictionary = space.get_property_list().filter(func(property: Dictionary) -> bool: return property["name"] == "n")[0]
+		assert_int(space.n).is_equal(0)
+		assert_str(n["hint_string"]).starts_with("0,")
+
+
 func test_default_values_round_trip_for_every_kind() -> void:
 	var spaces: Array[ScholaSpace] = [
 		_box(PackedFloat32Array([1.0]), PackedFloat32Array([2.0]), PackedInt32Array([2, 2])),
