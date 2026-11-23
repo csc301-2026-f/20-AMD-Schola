@@ -95,12 +95,16 @@ func _observe() -> Variant:
 			exclusions.append((get_node(path) as CollisionObject3D).get_rid())
 		if origin is CollisionObject3D and not exclusions.has(origin.get_rid()):
 			exclusions.append(origin.get_rid())
+		# Every ray starts at the origin and shares the same settings, so build the
+		# query once and only move its end point per ray.
+		var start := origin.global_position
+		var space_state := origin.get_world_3d().direct_space_state
+		var query := PhysicsRayQueryParameters3D.create(start, start, collision_mask, exclusions)
+		query.collide_with_areas = collide_with_areas
 		for endpoint in get_generated_endpoints():
-			var start := origin.global_position
-			var end := (origin.to_global(endpoint) + end_offset)
-			var query := PhysicsRayQueryParameters3D.create(start, end, collision_mask, exclusions)
-			query.collide_with_areas = collide_with_areas
-			var hit := origin.get_world_3d().direct_space_state.intersect_ray(query)
+			var end := origin.to_global(endpoint) + end_offset
+			query.to = end
+			var hit := space_state.intersect_ray(query)
 			_append_ray(values, segments, start, end, hit.get("collider"), hit.get("position", end))
 	else:
 		for path in rays:
@@ -116,7 +120,9 @@ func _append_ray(values: PackedFloat32Array, segments: Array, start: Vector3, en
 		values.append(float(collider is Node and collider.is_in_group(tag)))
 	values.append(float(collider != null))
 	values.append(clampf(start.distance_to(point) / start.distance_to(end), 0, 1) if collider != null else 0.0)
-	segments.append([start, point, collider != null])
+	# Segments only feed the debug lines, so skip them when nothing is drawn
+	if draw_debug:
+		segments.append([start, point, collider != null])
 
 func _update_debug(segments: Array) -> void:
 	if not draw_debug:
