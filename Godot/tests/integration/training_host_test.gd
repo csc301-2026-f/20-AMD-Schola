@@ -11,6 +11,7 @@ const STATUS_INVALID_ARGUMENT := 1
 const STATUS_NOT_FOUND := 2
 const STATUS_INVALID_DATA := 3
 const STATUS_FAILED_PRECONDITION := 5
+const STATUS_CLOSED := 7
 
 const AUTORESET_SAME_STEP := 0
 const AUTORESET_NEXT_STEP := 1
@@ -39,6 +40,13 @@ class ConfigurationCallbackEnvironment extends TestEnvironment:
 		return get_agents()
 
 
+class TemplateEnvironment extends TestEnvironment:
+	var templates: Array[ScholaAgent] = []
+
+	func _get_possible_agents() -> Array[ScholaAgent]:
+		return templates
+
+
 class FreeingEnvironment extends TestEnvironment:
 	var victim: Node
 
@@ -53,6 +61,22 @@ class FreeingEnvironment extends TestEnvironment:
 	func _free_victim() -> void:
 		if is_instance_valid(victim):
 			victim.free()
+
+
+class HostCallbackEnvironment extends TestEnvironment:
+	var on_callback: Callable
+
+	func _reset_episode(seed: Variant, options: Dictionary) -> void:
+		super._reset_episode(seed, options)
+		_call_back()
+
+	func _get_step_result(agent: ScholaAgent) -> Dictionary:
+		_call_back()
+		return super._get_step_result(agent)
+
+	func _call_back() -> void:
+		if on_callback.is_valid():
+			on_callback.call()
 
 var _previous_scene: Node
 
@@ -409,6 +433,33 @@ func test_environment_freed_by_another_environment_closes_session(
 	assert_bool(host.is_session_active()).is_false()
 
 
+func test_callbacks_cannot_reenter_the_host_and_close_waits_for_the_call(
+	during_reset: bool,
+	_test_parameters := [[true], [false]]
+) -> void:
+	var root := _test_root()
+	var environment := HostCallbackEnvironment.new()
+	environment.name = "Environment"
+	_add_agent(environment, "agent", "agent")
+	root.add_child(environment)
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	if not during_reset:
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+	var nested: Array[int] = []
+	environment.on_callback = func() -> void:
+		nested.append(_status_code(host.step({"actions": [{"agent": 1}]})))
+		nested.append(_status_code(host.close()))
+
+	var result: Dictionary = host.reset({}) if during_reset else host.step({"actions": [{"agent": 1}]})
+
+	# The nested step is refused, and the close happens once the outer call returns
+	assert_array(nested).contains_exactly([STATUS_FAILED_PRECONDITION, STATUS_OK])
+	assert_int(_status_code(result)).is_equal(STATUS_CLOSED)
+	assert_object(result["value"]).is_null()
+	assert_bool(host.is_session_active()).is_false()
+
+
 func test_close_is_idempotent_and_rejects_later_work() -> void:
 	var root := _test_root()
 	_add_environment(root, "Environment", "agent")
@@ -418,6 +469,24 @@ func test_close_is_idempotent_and_rejects_later_work() -> void:
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_int(_status_code(host.reset({}))).is_equal(STATUS_FAILED_PRECONDITION)
+
+
+func test_an_empty_possible_agent_slot_fails_session_initialization() -> void:
+	var root := _test_root()
+	var environment := TemplateEnvironment.new()
+	environment.name = "Environment"
+	var agent := _add_agent(environment, "agent", "agent")
+	# The second slot was meant for another agent but never assigned
+	environment.templates = [agent, null]
+	root.add_child(environment)
+	var host := _add_host(root)
+
+	var result := host.initialize_session()
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+	assert_str(_status_message(result)).contains("Possible agent 1 is empty")
+	environment.templates = [agent]
+	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
 
 
 func test_duplicate_ids_fail_during_session_initialization() -> void:

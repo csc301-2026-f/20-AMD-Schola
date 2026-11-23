@@ -169,6 +169,14 @@ Status check_box(const BoxSpace &p_box, const std::string &p_path) {
 				return invalid_data(p_path, "Box high[" + std::to_string(i) + "] is " + format_float(p_box.high[i]) + " but dtype float16 needs a finite bound in [-65504, 65504]");
 			}
 		}
+		// The wire formats send any infinite bound as "unbounded on that side",
+		// so only -inf works as a low and only inf as a high.
+		if (p_box.low[i] == std::numeric_limits<float>::infinity()) {
+			return invalid_data(p_path, "Box low[" + std::to_string(i) + "] is inf; use -inf for no lower bound");
+		}
+		if (p_box.high[i] == -std::numeric_limits<float>::infinity()) {
+			return invalid_data(p_path, "Box high[" + std::to_string(i) + "] is -inf; use inf for no upper bound");
+		}
 		if (p_box.low[i] > p_box.high[i]) {
 			return invalid_data(p_path, "Box low[" + std::to_string(i) + "] (" + format_float(p_box.low[i]) + ") is greater than high[" + std::to_string(i) + "] (" + format_float(p_box.high[i]) + ")");
 		}

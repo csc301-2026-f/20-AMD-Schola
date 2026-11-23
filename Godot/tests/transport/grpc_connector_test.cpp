@@ -186,6 +186,30 @@ TEST_CASE("a game failure reaches Python as an error", "[grpc]") {
 	CHECK_FALSE(later_status.ok());
 }
 
+// gRPC enforces its 100 MB send limit only after the reply is handed over, so
+// the game used to think an oversized reply was delivered. Both sides should
+// get the same error instead.
+TEST_CASE("a reply over the message limit fails the session on both sides", "[grpc]") {
+	Godot godot;
+	set_up_two_environments(godot.game);
+	// Info is only sent with replies, so the definition itself stays small
+	godot.game.step_result.state.environments[0].agents["a"].info["log"] = std::string(101 * 1024 * 1024, 'x');
+
+	grpc::Status step_status;
+	auto python = run_python(godot.port, [&](Python &client) {
+		::Schola::State ignored;
+		bool connected = client.connect();
+		step_status = client.update(four_different_actions(), ignored);
+		return connected;
+	});
+
+	REQUIRE(godot.start().is_ok());
+	CHECK(godot.tick().get_code() == StatusCode::INCOMPATIBLE);
+	REQUIRE(python.get());
+	CHECK(step_status.error_code() == grpc::StatusCode::FAILED_PRECONDITION);
+	CHECK(step_status.error_message().find("over the 104857600-byte limit") != std::string::npos);
+}
+
 // Python hit a problem on its side and says so. The game should end the session
 // cleanly rather than treat it as its own failure.
 TEST_CASE("Python reporting an error ends the session cleanly", "[grpc]") {
