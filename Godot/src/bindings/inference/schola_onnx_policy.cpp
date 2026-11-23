@@ -36,7 +36,12 @@ ScholaOnnxPolicy::ScholaOnnxPolicy() :
 ScholaOnnxPolicy::~ScholaOnnxPolicy() = default;
 
 void ScholaOnnxPolicy::set_model_path(const godot::String &p_path) {
+	if (p_path == model_path) {
+		return;
+	}
 	model_path = p_path;
+	// A stepper using this policy listens for this to refresh its warnings
+	emit_changed();
 }
 
 godot::String ScholaOnnxPolicy::get_model_path() const {
