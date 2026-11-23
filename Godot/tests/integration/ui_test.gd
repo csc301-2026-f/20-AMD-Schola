@@ -26,6 +26,17 @@ func test_monitor_accumulates_rewards_and_resets() -> void:
 	assert_str(monitor._status.text).contains("Receiving")
 
 
+func test_monitor_keeps_a_minimum_size_set_before_it_is_ready() -> void:
+	var sized: ScholaMonitor = auto_free(Monitor.new())
+	sized.custom_minimum_size.x = 360
+	add_child(sized)
+	assert_vector(sized.custom_minimum_size).is_equal(Vector2(360, 380))
+
+	var unsized: ScholaMonitor = auto_free(Monitor.new())
+	add_child(unsized)
+	assert_vector(unsized.custom_minimum_size).is_equal(Vector2(300, 380))
+
+
 func test_monitor_bounds_history_and_handles_empty_episode() -> void:
 	var monitor: ScholaMonitor = auto_free(Monitor.new())
 	add_child(monitor)

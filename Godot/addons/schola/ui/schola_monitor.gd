@@ -33,7 +33,12 @@ var _empty: Label
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(300, 380)
+	# A size set in code or saved from the Inspector is already applied by now,
+	# so only fill in the axes nobody chose.
+	if custom_minimum_size.x == 0.0:
+		custom_minimum_size.x = 300.0
+	if custom_minimum_size.y == 0.0:
+		custom_minimum_size.y = 380.0
 	var surface := StyleBoxFlat.new()
 	surface.bg_color = Color("171d28")
 	surface.border_color = Color("ed1c24")
