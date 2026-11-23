@@ -11,7 +11,8 @@ its CI, or the course deliverables.
 
 | File | What it covers |
 | --- | --- |
-| `index.html` | What we're building, the grid-world task, current status and a timeline |
+| `index.html` | The D3 demo video, what we're building, the grid-world task, status and a timeline |
+| `try-it.html` | Running the packaged demo, and setting Schola up in your own Godot project |
 | `demos.html` | The D1, D2 and D3 demos, what was a stand-in at each stage, and newer examples |
 | `stories.html` | How we planned the user stories, where each one stands, and what AMD changed |
 | `how-it-works.html` | Architecture, training and inference paths, testing, CI, dependencies, releases |
@@ -41,6 +42,12 @@ and `assets/img/amd-logo.png` is the AMD wordmark cropped from it. Both files ar
 backgrounds the CSS flips them to white (`.on-black .partner img`). The logo appears as a partner
 credit in the home page intro and every footer, and as the lockup on the team page. It's AMD's
 trademark, so check with our AMD contact before publishing.
+
+## Link previews
+
+Each page's `<head>` has `og:` and `twitter:` tags so a pasted link shows a title, description and
+screenshot. They use the full address `https://csc301-2026-f.github.io/20-AMD-Schola/`; if Pages
+ends up somewhere else, update those URLs.
 
 ## Editing
 

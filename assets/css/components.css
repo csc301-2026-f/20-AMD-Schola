@@ -42,14 +42,25 @@
   height: 1.5rem;
 }
 
-/* The screenshot sits on the black and runs into the white page below. */
+/* The demo video sits on the black and runs into the white page below. */
 .intro__shot {
   margin-top: 3rem;
   margin-bottom: -6rem;
 }
 
-.intro__shot img {
+.intro__shot img,
+.intro__shot iframe {
   border: 1px solid #333333;
+}
+
+/* ---------- Embedded video: the full width of its column, always 16:9 ---------- */
+
+.video iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  background: var(--black);   /* shown for a moment while the player loads */
 }
 
 .intro + .page {

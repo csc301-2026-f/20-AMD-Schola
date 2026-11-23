@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Try it | Schola for Godot</title>
+  <meta name="description" content="Run the Schola for Godot D3 demo in a few minutes, or set Schola up in your own Godot project.">
+  <!-- Link previews: the card Discord, Teams and LinkedIn show when this page's address is pasted. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Schola for Godot">
+  <meta property="og:title" content="Try it | Schola for Godot">
+  <meta property="og:description" content="Run the Schola for Godot D3 demo in a few minutes, or set Schola up in your own Godot project.">
+  <meta property="og:url" content="https://csc301-2026-f.github.io/20-AMD-Schola/try-it.html">
+  <meta property="og:image" content="https://csc301-2026-f.github.io/20-AMD-Schola/assets/img/d3_parallel_training.png">
+  <meta property="og:image:alt" content="Four Godot processes training one shared policy in the Schola for Godot D3 demo.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- Shared header: identical on every page; only aria-current moves. -->
+  <header class="site-header">
+    <div class="frame">
+      <a class="site-name" href="index.html">Schola for Godot</a>
+      <nav class="site-nav" aria-label="Main">
+        <ul>
+          <li><a href="try-it.html" aria-current="page">Try it</a></li>
+          <li><a href="demos.html">Demos</a></li>
+          <li><a href="stories.html">User stories</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="team.html">Team</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="page">
+    <div class="frame">
+
+      <div class="page-top">
+        <h1>Try it</h1>
+        <p>Two ways in: run our D3 demo in a couple of minutes, or set Schola up in your own Godot project.</p>
+      </div>
+
+      <section aria-labelledby="demo">
+        <h2 id="demo">Run the demo</h2>
+        <div class="text">
+          <p>The D3 demo is a packaged desktop app, so you don't need Godot or Python to run it.</p>
+          <ol>
+            <li>Download it for your system: <a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip">Windows</a>, <a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz">Linux</a> or <a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip">macOS (Apple silicon)</a>.</li>
+            <li>Unzip it and open the app. The app isn't signed, so your system may ask before opening it.</li>
+            <li>Move the agent with the arrow keys. Press <strong>Policy</strong> to let the bundled model drive, and <strong>Stop</strong> to take control back.</li>
+            <li>Press <strong>Edit map</strong> to change the layout. The bundled model only knows the default map, so press <strong>Default</strong> before running it again.</li>
+          </ol>
+          <p>Training from the demo needs the source code and Python. The <a href="https://github.com/csc301-2026-f/20-AMD-Schola/blob/D3/Godot/demo/d3/README.md">D3 demo guide</a> covers that.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="own">
+        <h2 id="own">Use Schola in your own project</h2>
+        <div class="text">
+          <p>Schola for Godot isn't released as a packaged plugin yet, so for now you build it from source. These steps follow the <a href="https://github.com/csc301-2026-f/20-AMD-Schola/blob/main/Godot/README.md">Godot README</a>, which has the full detail.</p>
+
+          <h3>Build the plugin</h3>
+          <p>You'll need Git with Git LFS, Python 3.12, Godot 4.7.2 and a C++17 compiler.</p>
+          <figure class="code">
+            <pre><code>git clone https://github.com/csc301-2026-f/20-AMD-Schola.git
+cd 20-AMD-Schola
+git submodule update --init --recursive
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip" --exclude=""
+
+python -m venv .venv
+# activate .venv, then:
+python -m pip install --require-hashes -r Godot/requirements.txt
+python Godot/tools/setup_onnxruntime.py
+python Godot/tools/setup_grpc.py
+
+scons -C Godot platform=linux target=template_debug</code></pre>
+            <figcaption>On Windows use <code>platform=windows</code> from a Visual Studio developer shell. On a Mac use <code>platform=macos arch=arm64</code>.</figcaption>
+          </figure>
+          <p>The build puts its libraries into <code>Godot/addons/schola</code> and <code>Godot/addons/schola_training</code>. Copy both folders into your project's <code>addons</code> folder, then turn on the <strong>AMD Schola</strong> plugin in Project Settings for the Schola dock and Inspector help.</p>
+
+          <h3>Set up the scene</h3>
+          <p>Add a <code>ScholaEnvironment</code> node with a <code>ScholaAgent</code> under it. In the Inspector, give the agent an observation space and an action space. Here the agent sees one of five cells and picks one of two moves.</p>
+          <figure class="diagram">
+            <pre>Main
+└── Environment (ScholaEnvironment)
+    └── Agent (ScholaAgent)
+          observation_space: ScholaDiscreteSpace, n = 5
+          action_space:      ScholaDiscreteSpace, n = 2</pre>
+          </figure>
+
+          <h3>Write the agent and the environment</h3>
+          <p>The agent says what it sees and how it acts:</p>
+          <figure class="code">
+            <pre><code>extends ScholaAgent
+
+var position := 0
+
+func _observe() -&gt; Variant:
+	return position
+
+func _act(action: Variant) -&gt; void:
+	position = clampi(position + (-1 if int(action) == 0 else 1), 0, 4)</code></pre>
+          </figure>
+          <p>The environment resets each episode and scores each step:</p>
+          <figure class="code">
+            <pre><code>extends ScholaEnvironment
+
+const GOAL := 4
+const STEP_LIMIT := 8
+
+func _reset_episode(_seed: Variant, _options: Dictionary) -&gt; void:
+	$Agent.position = 0
+
+func _get_step_result(agent: ScholaAgent) -&gt; Dictionary:
+	var reached_goal: bool = agent.position == GOAL
+	return {
+		"reward": 1.0 if reached_goal else -0.01,
+		"terminated": reached_goal,
+		"truncated": not reached_goal and get_episode_step() + 1 &gt;= STEP_LIMIT,
+	}</code></pre>
+            <figcaption>Adapted from <code>Godot/examples/manual_environment</code>. Schola has no built-in step limit, so the environment decides when an episode is cut short.</figcaption>
+          </figure>
+
+          <h3>Check it without Python</h3>
+          <p>Before training, it's worth stepping the environment by hand to make sure the rewards and endings look right. Our <a href="https://github.com/csc301-2026-f/20-AMD-Schola/tree/main/Godot/examples/manual_environment">manual environment example</a> does exactly that, with a button for each action and a live monitor.</p>
+
+          <h3>Train it from Python</h3>
+          <p>Add a <code>ScholaTrainingConnector</code> node to the scene and run it. The connector waits for Python on port 8000. Within 45 seconds, start Schola's trainer from the same checkout:</p>
+          <figure class="code">
+            <pre><code>python -m pip install -e "./Resources/python[sb3]"
+schola sb3 train ppo editor --port 8000 --timesteps 100000</code></pre>
+            <figcaption>This is the command Unreal Schola documents. The Godot side is merged and tested, but we haven't finished a full run with it yet. That's part of D4.</figcaption>
+          </figure>
+          <p>For several agents with different spaces, use <code>schola rllib train</code> instead, which gives each agent its own policy.</p>
+
+          <h3>Ship the trained policy</h3>
+          <ul>
+            <li>Add a <code>ScholaOnnxPolicy</code> resource and point its <code>model_path</code> at your exported <code>.onnx</code> file.</li>
+            <li>Add a <code>ScholaInferenceStepper</code> node, set its <code>policy</code>, and list the agents it should drive.</li>
+            <li>In your export preset, add <code>*.onnx</code> to the non-resource files to export, and exclude <code>addons/schola_training/*</code>.</li>
+            <li>Build the plugin with <code>target=template_release</code> for release exports.</li>
+          </ul>
+          <p>The exported game runs the model itself, with no Python and no training code inside.</p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Shared footer: identical on every page. -->
+  <footer class="site-footer on-black">
+    <div class="frame">
+      <div>
+        <p>Schola for Godot is a CSC301 project by Team 20 at the University of Toronto. MIT licensed, like Schola.</p>
+        <p>This is our student project site, not an AMD website. <a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></p>
+      </div>
+      <p class="partner">In partnership with <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
+    </div>
+  </footer>
+</body>
+</html>

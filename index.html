@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Schola for Godot</title>
   <meta name="description" content="CSC301 Team 20's port of AMD Schola, a reinforcement learning toolkit, from Unreal Engine to Godot 4.7.">
+  <!-- Link previews: the card Discord, Teams and LinkedIn show when this page's address is pasted. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Schola for Godot">
+  <meta property="og:title" content="Schola for Godot">
+  <meta property="og:description" content="CSC301 Team 20's port of AMD Schola, a reinforcement learning toolkit, from Unreal Engine to Godot 4.7.">
+  <meta property="og:url" content="https://csc301-2026-f.github.io/20-AMD-Schola/">
+  <meta property="og:image" content="https://csc301-2026-f.github.io/20-AMD-Schola/assets/img/d3_parallel_training.png">
+  <meta property="og:image:alt" content="Four Godot processes training one shared policy in the Schola for Godot D3 demo.">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,6 +29,7 @@
       <a class="site-name" href="index.html">Schola for Godot</a>
       <nav class="site-nav" aria-label="Main">
         <ul>
+          <li><a href="try-it.html">Try it</a></li>
           <li><a href="demos.html">Demos</a></li>
           <li><a href="stories.html">User stories</a></li>
           <li><a href="how-it-works.html">How it works</a></li>
@@ -29,22 +39,30 @@
     </div>
   </header>
 
-  <!-- Intro: the only black block in the content. The screenshot overlaps into the page below. -->
+  <!-- Intro: the only black block in the content. The demo video overlaps into the page below. -->
   <div class="intro on-black">
     <div class="frame">
       <p class="intro__by">CSC301 Team 20, University of Toronto</p>
       <h1>Schola for Godot</h1>
       <p class="intro__lede">We're porting AMD Schola, a reinforcement learning toolkit for Unreal Engine, to Godot 4.7. You describe an environment with Godot nodes and a few GDScript functions, connect it to Schola's Python trainers, and ship the trained policy as an ONNX model that runs in your game without Python.</p>
       <ul class="links">
-        <li><a href="https://youtu.be/JGB_9ZzR93k">Watch the D3 demo</a></li>
+        <li><a href="try-it.html">Try it</a></li>
         <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></li>
         <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
       </ul>
       <p class="partner intro__partner">Industry partner <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
-      <figure class="intro__shot">
-        <img src="assets/img/d3_parallel_training.png" width="1920" height="977"
-             alt="The D3 parallel training viewer: four small grid boards, one per Godot process, beside a panel with episode count, exploration rate, success rate and a reward graph.">
-        <figcaption>The D3 demo training one policy across four headless Godot processes, each with its own live board.</figcaption>
+      <!--
+        The D3 demo video, embedded from YouTube's privacy-enhanced domain, which sets no cookies
+        until someone presses play. loading="lazy" waits until the player is close to the screen.
+      -->
+      <figure class="intro__shot video">
+        <iframe src="https://www.youtube-nocookie.com/embed/JGB_9ZzR93k"
+                title="Schola for Godot: Deliverable 3 demo"
+                loading="lazy"
+                allow="encrypted-media; picture-in-picture; fullscreen"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen></iframe>
+        <figcaption>Our Deliverable 3 demo. You can also <a href="https://youtu.be/JGB_9ZzR93k">watch it on YouTube</a>.</figcaption>
       </figure>
     </div>
   </div>
