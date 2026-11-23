@@ -9,6 +9,7 @@
 #include <onnxruntime_c_api.h>
 
 #include <charconv>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -282,6 +283,31 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 	return true;
 }
 
+template <typename T>
+bool fits_integer_tensor(double p_value) {
+	return std::isfinite(p_value) && p_value >= static_cast<double>(std::numeric_limits<T>::min()) &&
+			p_value < std::ldexp(1.0, std::numeric_limits<T>::digits);
+}
+
+bool fits_tensor(ONNXTensorElementDataType p_type, double p_value) {
+	switch (p_type) {
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
+			return fits_integer_tensor<int8_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
+			return fits_integer_tensor<uint8_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
+			return fits_integer_tensor<int16_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
+			return fits_integer_tensor<uint16_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
+			return fits_integer_tensor<int32_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
+			return fits_integer_tensor<int64_t>(p_value);
+		default:
+			return true;
+	}
+}
+
 Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p_values) {
 	for (size_t i = 0; i < p_values.size(); ++i) {
 		if (p_values[i] < 0 || p_values[i] >= p_binding.bounds[i]) {
@@ -294,6 +320,12 @@ Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p
 Status write_observation(Binding &r_binding, const Point &p_point) {
 	bool written = false;
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX) {
+		for (size_t i = 0; i < box->values.size(); ++i) {
+			if (!fits_tensor(r_binding.element_type, box->values[i])) {
+				return Status::error(StatusCode::INVALID_ARGUMENT,
+						r_binding.label("observation") + " value at index " + std::to_string(i) + " cannot be represented by the model's integer tensor");
+			}
+		}
 		written = write_values(r_binding, box->values);
 	} else if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>(); discrete && r_binding.kind == SpaceKind::DISCRETE) {
 		Status status = check_observation(r_binding, { discrete->value });
