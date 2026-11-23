@@ -8,282 +8,183 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono&display=swap">
   <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Shared header: keep identical on every page; only aria-current moves. -->
+  <!-- Shared header: identical on every page; only aria-current moves. -->
   <header class="site-header">
-    <div class="wrap">
-      <a class="brand" href="index.html">Schola for Godot <small>CSC301 Team 20 with AMD</small></a>
+    <div class="frame">
+      <a class="site-name" href="index.html">Schola for Godot</a>
       <nav class="site-nav" aria-label="Main">
         <ul>
-          <li><a href="index.html">Overview</a></li>
           <li><a href="demos.html" aria-current="page">Demos</a></li>
           <li><a href="stories.html">User stories</a></li>
-          <li><a href="architecture.html">Architecture</a></li>
-          <li><a href="engineering.html">Engineering</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
           <li><a href="team.html">Team</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main id="main">
-    <section class="page-intro">
-      <div class="wrap">
-        <h1>Three demos, one grid world.</h1>
-        <p>Every deliverable ended in something you could run. From D2 on we kept the same task, an agent crossing a grid to a goal past hazards, so each demo shows exactly which parts moved from stand-in to production code.</p>
-      </div>
-    </section>
+  <main id="main" class="page">
+    <div class="frame">
 
-    <!-- D1 -->
-    <section class="band" aria-labelledby="d1">
-      <div class="wrap split">
-        <div class="milestone">
-          <span class="milestone__mark" aria-hidden="true">D1</span>
-          <span class="milestone__date">October 2, 2026</span>
+      <div class="page-top">
+        <h1>Demos</h1>
+        <p>Each deliverable ended with something we could run in front of AMD and our TA. Here they are in order, including what was still a stand-in at the time.</p>
+      </div>
+
+      <section aria-labelledby="d1">
+        <h2 id="d1">Deliverable 1: a plan and a prototype</h2>
+        <p class="meta">October 2, 2026</p>
+        <div class="text">
+          <p>D1 was about agreeing on what to build. We turned AMD's MVP into six user stories, which AMD approved, and drew a first architecture with Godot, gRPC and Python each in their own lane.</p>
+          <p>The demo was a quick C# prototype: an environment node with reward fields in the Inspector, a status panel, and a goal you could walk into with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>. There was no training behind it. The point was to get an API in front of AMD early.</p>
+          <p>That worked. AMD pointed out that goal and penalty fields slowly turn into a rules language nobody wants to maintain, and that C# would limit the plugin to Godot's .NET build. A week later we had switched to a C++ GDExtension, which is what the plugin still is.</p>
         </div>
-        <div class="stack-gap">
-          <div class="prose">
-            <h2 id="d1">Plan and prototype</h2>
-            <p>D1 was about agreeing on what to build. We turned AMD's MVP into six user stories, which AMD approved, and drew a first architecture with separate Godot, gRPC and Python lanes.</p>
-            <p>The demo was a throwaway C# Inspector prototype: reward fields on an environment node, a status panel, and a goal you could walk into with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>. It had no training behind it. Its job was to put an API in front of AMD early.</p>
-            <p>That paid off. AMD pointed out that goal and penalty fields lead toward a rules language nobody wants to maintain, and that C# would limit the plugin to the .NET build of Godot. A week later we had moved to a C++ GDExtension, which is what the plugin is today.</p>
-          </div>
+        <figure class="shot">
+          <img src="assets/img/d1_architecture.png" width="1633" height="802" loading="lazy"
+               alt="D1 planning diagram in three lanes. Godot holds the environment, sensors, a connector and an inference path from agent to stepper to ONNX policy. gRPC sits in the middle. Python holds the trainer, environment wrappers, the gRPC protocol and ONNX export.">
+          <figcaption>Our D1 plan. A few names changed on the way: the connector became <code>ScholaTrainingConnector</code> and the stepper became <code>ScholaInferenceStepper</code>.</figcaption>
+        </figure>
+        <ul class="links text">
+          <li><a href="https://youtu.be/zg4K3fiQjJw">D1 video</a></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="d2">
+        <h2 id="d2">Deliverable 2: the first full loop</h2>
+        <p class="meta">October 23, 2026</p>
+        <div class="text">
+          <p>D2 was the first time the whole workflow ran from start to finish. A 3D grid world sent observations and rewards to a small Python learner, applied its actions, and exported what it learned to ONNX. Godot then loaded that model and drove the agent with Python closed. The exported policy reached the goal in 30 of 30 test episodes.</p>
+          <p>Only some of it was production code yet. The space types and ONNX inference were native C++. The environment, the episode lifecycle and the connection to Python were stand-ins written against the real interfaces, so we could swap them out later.</p>
+          <p>At Demo Day our TA liked the live learning graph. The feedback we took forward was one diagram per story, and to keep to time.</p>
+        </div>
+        <figure class="shot text">
+          <img src="assets/img/d2_demo.png" width="804" height="472" loading="lazy"
+               alt="The D2 demo: a 6 by 6 grid in 3D with a blue capsule agent in one corner, a green goal marker in the opposite corner and four red hazard blocks.">
+          <figcaption>The D2 grid world. The same map carried into D3.</figcaption>
+        </figure>
+        <ul class="links text">
+          <li><a href="https://youtu.be/AGgiJN7cSnE">D2 video</a></li>
+          <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2">D2 release</a></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="d3">
+        <h2 id="d3">Deliverable 3: native nodes all the way through</h2>
+        <p class="meta">November 6, 2026</p>
+        <div class="text">
+          <p>For D3 we rebuilt the grid world in 2D on the real nodes. The environment and agent scripts only fill in four functions, and one <code>ScholaTrainingHost</code> runs every reset and step. Keyboard input, the Python learner and the ONNX policy all go through that same host, so the demo exercises the real lifecycle instead of a copy made for the demo.</p>
+          <p>We also added a map editor and parallel training, where separate headless Godot processes learn one shared policy and a viewer shows each of them live.</p>
+        </div>
+        <div class="gallery">
           <figure class="shot">
-            <img src="assets/img/d1_architecture.png" width="1633" height="802" loading="lazy"
-                 alt="D1 planning diagram with three lanes. Godot holds the environment, sensors, a connector and an inference path from agent to stepper to ONNX policy. gRPC sits in the middle. Python holds the trainer, environment wrappers, the gRPC protocol and ONNX export.">
-            <figcaption>The D1 plan, not the shipped design. Several names changed on the way: the connector became <code>ScholaTrainingConnector</code> and the stepper became <code>ScholaInferenceStepper</code>.</figcaption>
+            <img src="assets/img/d3_training.png" width="1920" height="987" loading="lazy"
+                 alt="D3 demo in training mode on a custom 4 by 4 map. A GOAL REACHED +9.8 banner covers the grid; the side panel shows episode, step, reward, outcome, the observation and a rising reward graph.">
+            <figcaption>Training. The Python learner controls the agent and the reward graph updates after each episode (here on an edited 4×4 map).</figcaption>
           </figure>
-          <ul class="link-row">
-            <li><a href="https://youtu.be/zg4K3fiQjJw">Watch the D1 video</a></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- D2 -->
-    <section class="band band--quiet" aria-labelledby="d2">
-      <div class="wrap split">
-        <div class="milestone">
-          <span class="milestone__mark" aria-hidden="true">D2</span>
-          <span class="milestone__date">October 23, 2026</span>
-        </div>
-        <div class="stack-gap">
-          <div class="prose">
-            <h2 id="d2">The first full loop</h2>
-            <p>D2 was the first time the whole workflow ran end to end. A 3D grid world sent observations and rewards to a local Python learner, applied its actions, and exported the result to ONNX. Godot then reloaded that model and drove the agent with Python closed.</p>
-            <p>The space types and ONNX inference were already native C++. The environment, the episode lifecycle and the connection to Python were stand-ins, written to match the real interfaces so they could be swapped out later. The exported policy reached the goal in 30 of 30 evaluation episodes.</p>
-            <p>At Demo Day the TA singled out the live learning graph and parameter display. The feedback we took forward was to show one diagram per story and keep to time.</p>
-          </div>
           <figure class="shot">
-            <img src="assets/img/d2_demo.png" width="804" height="472" loading="lazy"
-                 alt="The D2 demo: a 6 by 6 grid in 3D with a blue capsule agent in one corner, a green goal marker in the opposite corner and four red hazard blocks.">
-            <figcaption>The D2 grid world. The same 6×6 map, goal and four hazards carry into D3 and the hero on our home page.</figcaption>
+            <img src="assets/img/d3_inference_policy.png" width="1920" height="992" loading="lazy"
+                 alt="D3 demo in inference mode. The exported ONNX policy drives the agent, and the log shows the policy loading with its input and output names.">
+            <figcaption>Inference. The exported ONNX policy drives the agent after the trainer has closed.</figcaption>
           </figure>
-          <ul class="link-row">
-            <li><a href="https://youtu.be/AGgiJN7cSnE">Watch the D2 video</a></li>
-            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2">D2 release</a></li>
+          <figure class="shot">
+            <img src="assets/img/d3_map_edit.png" width="1920" height="987" loading="lazy"
+                 alt="D3 map editor with width and height controls and Random, Default, Save and Cancel buttons.">
+            <figcaption>Map editing. Toggle hazards, move the goal, resize from 3 to 10 cells a side. A policy remembers which map it was trained on and warns if it's played on another.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/d3_parallel_training.png" width="1920" height="977" loading="lazy"
+                 alt="Parallel training viewer with four live boards on ports 8000 to 8003 and a panel showing instances, episodes, exploration rate, success rate, steps per second and a reward graph.">
+            <figcaption>Parallel training. Four headless instances learn one shared policy.</figcaption>
+          </figure>
+        </div>
+        <div class="text">
+          <p>On a 20-thread Windows laptop, over 1,200 episodes:</p>
+          <table>
+            <thead>
+              <tr><th scope="col">Godot processes</th><th scope="col">Steps per second</th><th scope="col">Speed-up</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>472</td><td>1.0×</td></tr>
+              <tr><td>4</td><td>1,410</td><td>3.0×</td></tr>
+              <tr><td>8</td><td>2,369</td><td>5.0×</td></tr>
+            </tbody>
+          </table>
+          <p>Two things D3 doesn't show. Training still used the temporary JSON connector and a simple table-based learner, and the model in the downloads is a shortest-path reference for the default map, not a learned policy. A policy also only fits the map it was trained on, because the hazards aren't part of what the agent sees.</p>
+          <ul class="links">
+            <li><a href="https://youtu.be/JGB_9ZzR93k">D3 video</a></li>
+            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip">Windows</a></li>
+            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz">Linux</a></li>
+            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip">macOS (Apple silicon)</a></li>
           </ul>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- D3 -->
-    <section class="band" aria-labelledby="d3">
-      <div class="wrap split">
-        <div class="milestone">
-          <span class="milestone__mark" aria-hidden="true">D3</span>
-          <span class="milestone__date">November 6, 2026</span>
+      <section aria-labelledby="changes">
+        <h2 id="changes">What was real at each stage</h2>
+        <div class="text">
+          <p>After D2 we made a rule to label every stand-in. This is how each part of the training loop changed.</p>
         </div>
-        <div class="stack-gap">
-          <div class="prose">
-            <h2 id="d3">Native end to end</h2>
-            <p>For D3 we rebuilt the grid world in 2D on the native nodes. The environment and agent scripts only implement four hooks, and one native <code>ScholaTrainingHost</code> session runs every reset and step. Keyboard input, the Python learner and the ONNX policy all go through that same session, so the demo exercises the real lifecycle instead of a demo-only copy.</p>
-            <p>On top of that we added a map editor and parallel training. Separate headless Godot processes learn one shared policy, and a viewer shows each one live. On a 20-thread laptop, 4 processes ran 3.0× faster than one and 8 ran 5.0× faster.</p>
-          </div>
-
-          <div class="gallery">
-            <figure class="shot">
-              <img src="assets/img/d3_training.png" width="1920" height="987" loading="lazy"
-                   alt="D3 demo in training mode on a custom 4 by 4 map. A GOAL REACHED +9.8 banner covers the grid; the side panel shows episode, step, reward, outcome, the observation and a rising reward graph.">
-              <figcaption>Training: the Python learner controls the agent and the reward graph updates per episode (here on an edited 4×4 map).</figcaption>
-            </figure>
-            <figure class="shot">
-              <img src="assets/img/d3_inference_policy.png" width="1920" height="992" loading="lazy"
-                   alt="D3 demo in inference mode. The exported ONNX policy drives the agent, and the log shows the policy loading with its input and output names.">
-              <figcaption>Inference: the exported ONNX policy drives the agent after the trainer has closed.</figcaption>
-            </figure>
-            <figure class="shot">
-              <img src="assets/img/d3_map_edit.png" width="1920" height="987" loading="lazy"
-                   alt="D3 map editor with width and height controls and Random, Default, Save and Cancel buttons.">
-              <figcaption>Map editing: toggle hazards, move the goal, resize from 3 to 10 cells a side. Policies remember the map they were trained on and warn on a mismatch.</figcaption>
-            </figure>
-            <figure class="shot">
-              <img src="assets/img/d3_parallel_training.png" width="1920" height="977" loading="lazy"
-                   alt="Parallel training viewer with four live boards on ports 8000 to 8003 and a panel showing instances, episodes, epsilon, success rate, steps per second and a reward graph.">
-              <figcaption>Parallel training: four headless instances learn one shared policy, each with its own live board.</figcaption>
-            </figure>
-          </div>
-
-          <div class="table-scroll">
-            <table class="data-table">
-              <caption class="visually-hidden">Parallel training throughput over 1,200 episodes on a 20-thread Windows laptop</caption>
-              <thead>
-                <tr><th scope="col">Godot processes</th><th scope="col">Steps per second</th><th scope="col">Speed-up</th></tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">1</th><td>472</td><td>1.0×</td></tr>
-                <tr><th scope="row">4</th><td>1,410</td><td>3.0×</td></tr>
-                <tr><th scope="row">8</th><td>2,369</td><td>5.0×</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <p class="note"><strong>What the D3 demo does not show</strong>Training still used the temporary JSON connector and a tabular learner. The model bundled in the downloads is a shortest-path reference for the default map, not a learned policy, and a policy only fits the map it was trained on because hazards are not part of the observation.</p>
-
-          <ul class="link-row">
-            <li><a href="https://youtu.be/JGB_9ZzR93k">Watch the D3 video</a></li>
-            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Windows-x86_64.zip">Windows download</a></li>
-            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-Linux-x86_64.tar.gz">Linux download</a></li>
-            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases/download/D3/Schola-D3-macOS-arm64.zip">macOS (Apple silicon) download</a></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- Stand-in to production, story by story -->
-    <section class="band band--quiet" aria-labelledby="evolution">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="evolution">From stand-in to production</h2>
-          <p>Labelling stand-ins honestly was a rule we set after D2. This is how each piece of the training loop changed.</p>
-        </div>
-        <div class="table-scroll">
-          <table class="data-table">
+        <div class="table-wrap">
+          <table>
             <thead>
               <tr>
-                <th scope="col">Piece</th>
+                <th scope="col">Part</th>
                 <th scope="col">D2</th>
                 <th scope="col">D3</th>
-                <th scope="col">On main today</th>
+                <th scope="col">On main now</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <th scope="row">Spaces (US2)</th>
-                <td><span class="tag tag--done">Native</span></td>
-                <td><span class="tag tag--done">Native</span></td>
-                <td><span class="tag tag--done">Native</span> Box, Discrete, MultiDiscrete, MultiBinary, Dict</td>
-              </tr>
-              <tr>
-                <th scope="row">Environment and agent (US1)</th>
-                <td><span class="tag tag--planned">Stand-in</span> GDScript classes</td>
-                <td><span class="tag tag--done">Native</span> adapters</td>
-                <td><span class="tag tag--done">Native</span> plus dynamic agent populations</td>
-              </tr>
-              <tr>
-                <th scope="row">Episode lifecycle (US4)</th>
-                <td><span class="tag tag--planned">Stand-in</span> demo runner</td>
-                <td><span class="tag tag--done">Native</span> <code>ScholaTrainingHost</code></td>
-                <td><span class="tag tag--done">Native</span></td>
-              </tr>
-              <tr>
-                <th scope="row">Configuration (US5)</th>
-                <td><span class="tag tag--partial">Partial</span> native nodes in the final release</td>
-                <td><span class="tag tag--done">Native</span> one step callback, live warnings</td>
-                <td><span class="tag tag--done">Native</span></td>
-              </tr>
-              <tr>
-                <th scope="row">Connection to Python (US3)</th>
-                <td><span class="tag tag--planned">Stand-in</span> JSON over local TCP</td>
-                <td><span class="tag tag--planned">Stand-in</span> JSON over local TCP</td>
-                <td><span class="tag tag--partial">Merged</span> gRPC connector node; full Python run pending</td>
-              </tr>
-              <tr>
-                <th scope="row">ONNX inference (US7)</th>
-                <td><span class="tag tag--done">Native</span></td>
-                <td><span class="tag tag--done">Native</span> per-agent policy state</td>
-                <td><span class="tag tag--done">Native</span> sequence length from model metadata</td>
-              </tr>
-              <tr>
-                <th scope="row">Trainer</th>
-                <td><span class="tag tag--planned">Stand-in</span> tabular Q-learning</td>
-                <td><span class="tag tag--planned">Stand-in</span> tabular Q-learning</td>
-                <td><span class="tag tag--partial">In progress</span> Schola's SB3 and RLlib trainers, for D4</td>
-              </tr>
+              <tr><th scope="row">Spaces (US2)</th><td>Native</td><td>Native</td><td>Native: Box, Discrete, MultiDiscrete, MultiBinary, Dict</td></tr>
+              <tr><th scope="row">Environment and agent (US1)</th><td>Stand-in GDScript classes</td><td>Native</td><td>Native, with agents joining and leaving mid-episode</td></tr>
+              <tr><th scope="row">Episode lifecycle (US4)</th><td>Stand-in demo runner</td><td>Native <code>ScholaTrainingHost</code></td><td>Native</td></tr>
+              <tr><th scope="row">Configuration (US5)</th><td>Native nodes in the final release</td><td>Native, one step callback, live warnings</td><td>Native</td></tr>
+              <tr><th scope="row">Connection to Python (US3)</th><td>Stand-in JSON over local TCP</td><td>Stand-in JSON over local TCP</td><td>gRPC connector merged; full run with Schola's trainer still to do</td></tr>
+              <tr><th scope="row">ONNX inference (US7)</th><td>Native</td><td>Native, per-agent policy state</td><td>Native, sequence length read from the model</td></tr>
+              <tr><th scope="row">Trainer</th><td>Stand-in table-based learner</td><td>Stand-in table-based learner</td><td>Schola's SB3 and RLlib trainers, in progress for D4</td></tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Examples merged after D3 -->
-    <section class="band" aria-labelledby="examples">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="examples">Examples on main</h2>
-          <p>The D3 demo is frozen at its tag. Newer work comes with its own small examples instead.</p>
-        </div>
-        <div class="columns">
-          <div class="prose">
-            <h3>Debug without Python</h3>
-            <p>A five-cell board you step one action at a time through <code>ScholaTrainingHost</code>, with seeded resets and a live monitor. It is the quickest way to check an environment before training, and nine integration tests cover it.</p>
-            <figure class="code">
-              <pre><code>extends ScholaAgent
-
-var position := 0
-
-func _observe() -&gt; Variant:
-	return position
-
-func _act(action: Variant) -&gt; void:
-	position = clampi(position + (-1 if int(action) == 0 else 1), 0, 4)</code></pre>
-              <figcaption>The whole agent script from <code>examples/manual_environment</code>.</figcaption>
-            </figure>
-          </div>
-          <div class="prose">
-            <h3>Sensors and actuators</h3>
-            <p>A 3D playground where an agent has no hand-written hooks at all. Three rays feed a ray-cast sensor and a movement actuator drives the body. Schola combines them into one observation and one action space automatically.</p>
-            <figure class="code">
-              <pre><code>Agent (ScholaAgent)
+      <section aria-labelledby="examples">
+        <h2 id="examples">Examples added since D3</h2>
+        <div class="text">
+          <p>The D3 demo is frozen at its tag. Newer features come with their own small examples in <code>Godot/examples</code>.</p>
+          <h3>Stepping an environment without Python</h3>
+          <p>A five-cell board you step one action at a time through <code>ScholaTrainingHost</code>, with seeded resets and a live monitor. It's the quickest way to check an environment before training, and nine integration tests cover it. Its agent script is the one on our <a href="index.html#what">home page</a>.</p>
+          <h3>Sensors and actuators</h3>
+          <p>A 3D playground where the agent has no hand-written functions at all. Three rays feed a ray-cast sensor and a movement actuator drives the body, and Schola combines them into one observation space and one action space.</p>
+          <figure class="code">
+            <pre><code>Agent (ScholaAgent)
 ├── Body (CharacterBody3D)
 │   ├── Front (RayCast3D)
 │   ├── Left (RayCast3D)
 │   └── Right (RayCast3D)
 ├── RaySensor (ScholaSensor)
 └── Movement (ScholaActuator)</code></pre>
-              <figcaption>The scene tree from <code>examples/us8_components</code>.</figcaption>
-            </figure>
-          </div>
+            <figcaption>The scene tree from <code>Godot/examples/us8_components</code>.</figcaption>
+          </figure>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="band band--quiet">
-      <div class="wrap">
-        <ul class="next-links">
-          <li><a href="stories.html"><strong>User stories</strong><span>How the work was planned, split and approved.</span></a></li>
-          <li><a href="architecture.html"><strong>Architecture</strong><span>What runs underneath the demos.</span></a></li>
-        </ul>
-      </div>
-    </section>
+    </div>
   </main>
 
-  <!-- Shared footer: keep identical on every page. -->
-  <footer class="site-footer">
-    <div class="wrap">
+  <!-- Shared footer: identical on every page. -->
+  <footer class="site-footer on-black">
+    <div class="frame">
       <div>
-        <p>Built by CSC301 Team 20 at the University of Toronto, in partnership with AMD. MIT licensed, like Schola.</p>
-        <p>A student project site; not an official AMD page.</p>
+        <p>Schola for Godot is a CSC301 project by Team 20 at the University of Toronto. MIT licensed, like Schola.</p>
+        <p>This is our student project site, not an AMD website. <a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></p>
       </div>
-      <ul class="footer-links">
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Source on GitHub</a></li>
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
-      </ul>
+      <p class="partner">In partnership with <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
     </div>
   </footer>
 </body>

@@ -1,26 +1,20 @@
 /*
-  Layout: page frame, header, footer and the section bands every page is built from.
-  A page is a stack of .band sections; each band holds a .wrap that centres the content.
+  Layout: the page frame shared by every page.
+
+  <header class="site-header">   black bar with the name and navigation
+  <main class="page">            centred frame; sections stack inside it
+    .text                        narrower column for reading
+  <footer class="site-footer">   black bar with the AMD partner credit
 */
 
-/* Centred content column with responsive side gutters. */
-.wrap {
-  width: 100%;
-  max-width: calc(var(--page-width) + 2 * var(--gutter));
-  margin-inline: auto;
-  padding-inline: var(--gutter);
-}
-
-/* Lets keyboard users jump straight past the navigation. Hidden until focused. */
 .skip-link {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
+  top: 0.5rem;
+  left: 0.5rem;
   z-index: 10;
-  padding: var(--space-2) var(--space-4);
+  padding: 0.5rem 1rem;
   background: var(--white);
   color: var(--black);
-  font-weight: 700;
   transform: translateY(-200%);
 }
 
@@ -28,7 +22,7 @@
   transform: none;
 }
 
-/* Hidden on screen but still read by screen readers (e.g. table captions). */
+/* Hidden on screen, still read by screen readers. */
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -38,62 +32,40 @@
   white-space: nowrap;
 }
 
-/* ---------- Site header ---------- */
+/* Centred frame used by the header, main content and footer. */
+.frame {
+  max-width: calc(var(--page-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* ---------- Header ---------- */
 
 .site-header {
   background: var(--black);
   color: var(--white);
-  border-bottom: 1px solid var(--grey-900);
 }
 
-.site-header .wrap {
+.site-header .frame {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-  padding-block: var(--space-4);
+  gap: 0.5rem 2rem;
+  padding-block: 1.1rem;
 }
 
-/* The wordmark: a red "agent" square next to the project name. */
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
+.site-name {
   color: inherit;
-  font-weight: 800;
-  font-stretch: 118%;
-  font-size: var(--step-1);
-  letter-spacing: -0.01em;
+  font-size: 1.25rem;
+  font-weight: 600;
   text-decoration: none;
 }
 
-.brand::before {
-  content: "";
-  width: 0.8em;
-  height: 0.8em;
-  background: var(--red);
-}
-
-.brand small {
-  color: var(--grey-300);
-  font-size: var(--step--1);
-  font-weight: 500;
-  font-stretch: 100%;
-}
-
-/* On phones the tagline would squeeze the name onto two lines; the footer still carries the credit. */
-@media (max-width: 30rem) {
-  .brand small {
-    display: none;
-  }
-}
-
-/* Main navigation. On narrow screens it wraps under the wordmark instead of hiding behind a menu. */
 .site-nav ul {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1) var(--space-5);
+  gap: 0.25rem 1.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -104,171 +76,97 @@
 }
 
 .site-nav a {
-  display: block;
-  padding-block: var(--space-1);
-  color: var(--grey-300);
-  font-size: var(--step--1);
-  font-weight: 600;
+  color: var(--grey-on-black);
+  font-size: var(--size-small);
+  font-weight: 500;
   text-decoration: none;
-  border-bottom: 2px solid transparent;
 }
 
 .site-nav a:hover {
   color: var(--white);
 }
 
-/* Each page marks its own link with aria-current="page"; the red underline shows where you are. */
+/* The current page is white with the red underline every other link uses. */
 .site-nav a[aria-current="page"] {
   color: var(--white);
-  border-bottom-color: var(--red);
+  text-decoration: underline;
+  text-decoration-color: var(--red);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
 }
 
-/* ---------- Section bands ---------- */
+/* ---------- Page content ---------- */
 
-.band {
-  padding-block: var(--space-8);
+.page {
+  padding-bottom: 6rem;
 }
 
-.band--tight {
-  padding-block: var(--space-7);
+/* Title block at the top of every page except the home page. */
+.page-top {
+  padding-block: 4rem 1rem;
 }
 
-.band--quiet {
-  background: var(--surface-quiet);
-}
-
-/* Dark bands flip the semantic colours, so components inside them adapt automatically. */
-.band--dark {
-  --text: var(--white);
-  --text-muted: var(--grey-300);
-  --surface-quiet: var(--grey-900);
-  --rule: var(--grey-700);
-  --link: var(--red);
-  background: var(--black);
-  color: var(--text);
-}
-
-/* Section heading block: a heading with an optional short lead paragraph under it. */
-.section-head {
-  display: grid;
-  align-content: start;    /* keep heading and lead together when a grid row stretches the block */
-  gap: var(--space-4);
-  max-width: 48rem;
-  margin-bottom: var(--space-7);
-}
-
-.section-head p {
-  max-width: var(--measure);
-  color: var(--text-muted);
-  font-size: var(--step-1);
+.page-top p {
+  max-width: var(--text-width);
+  margin-top: 1rem;
+  color: var(--grey-text);
+  font-size: 1.25rem;
   line-height: 1.5;
 }
 
-/* Long-form text column. */
-.prose {
-  max-width: var(--measure);
+/* Sections are separated by space alone; the h2 does the rest. */
+.page section {
+  margin-top: 4.5rem;
 }
 
-.prose > * + * {
-  margin-top: var(--space-4);
+.page section > h2 {
+  margin-bottom: 1.25rem;
 }
 
-.prose h3 {
-  margin-top: var(--space-6);
+/* Reading column. Children get even spacing so prose needs no extra classes. */
+.text {
+  max-width: var(--text-width);
 }
 
-/* ---------- Page intro (top of every page except the home page) ---------- */
-
-.page-intro {
-  padding-block: var(--space-8) var(--space-7);
-  background: var(--black);
-  color: var(--white);
+.text > * + * {
+  margin-top: 1rem;
 }
 
-.page-intro h1 {
-  max-width: 14ch;
-  font-size: var(--step-5);
+.text > h3 {
+  margin-top: 2rem;
 }
 
-.page-intro p {
-  max-width: var(--measure);
-  margin-top: var(--space-5);
-  color: var(--grey-300);
-  font-size: var(--step-1);
-  line-height: 1.5;
+/* Anything that follows a block of text (a figure, a table) gets a little room. */
+.text + *,
+* + .text {
+  margin-top: 1.5rem;
 }
 
-/* ---------- Reusable grids ---------- */
-
-/* Two columns: a narrow label column and a wide content column. Collapses on small screens. */
-.split {
-  display: grid;
-  gap: var(--space-5) var(--space-7);
-}
-
-@media (min-width: 52rem) {
-  .split {
-    grid-template-columns: minmax(12rem, 1fr) 2.4fr;
-  }
-}
-
-/* Let grid children shrink below their content width, so wide tables scroll inside their box. */
-.split > *,
-.columns > * {
-  min-width: 0;
-}
-
-/* Even columns that fit as many as the width allows. */
-.columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  gap: var(--space-6);
-}
-
-/* ---------- Site footer ---------- */
+/* ---------- Footer ---------- */
 
 .site-footer {
-  padding-block: var(--space-7);
+  padding-block: 3rem;
   background: var(--black);
-  color: var(--grey-300);
-  font-size: var(--step--1);
+  color: var(--grey-on-black);
+  font-size: var(--size-small);
 }
 
-.site-footer .wrap {
+.site-footer .frame {
   display: grid;
-  gap: var(--space-5);
+  gap: 2rem;
 }
 
-@media (min-width: 52rem) {
-  .site-footer .wrap {
-    grid-template-columns: 2fr 1fr;
+@media (min-width: 48rem) {
+  .site-footer .frame {
+    grid-template-columns: 1fr auto;
     align-items: end;
   }
 }
 
+.site-footer p + p {
+  margin-top: 0.4rem;
+}
+
 .site-footer a {
   color: var(--white);
-}
-
-.site-footer p + p {
-  margin-top: var(--space-2);
-}
-
-.footer-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.footer-links li + li {
-  margin-top: 0;
-}
-
-@media (min-width: 52rem) {
-  .footer-links {
-    justify-content: flex-end;
-  }
 }

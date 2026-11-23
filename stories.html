@@ -4,249 +4,140 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>User stories | Schola for Godot</title>
-  <meta name="description" content="How CSC301 Team 20 planned, split and tracked the user stories for the Schola Godot port, and where each one stands.">
+  <meta name="description" content="How CSC301 Team 20 planned the Schola Godot port as user stories, what AMD asked us to change, and where each story stands.">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono&display=swap">
   <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Shared header: keep identical on every page; only aria-current moves. -->
+  <!-- Shared header: identical on every page; only aria-current moves. -->
   <header class="site-header">
-    <div class="wrap">
-      <a class="brand" href="index.html">Schola for Godot <small>CSC301 Team 20 with AMD</small></a>
+    <div class="frame">
+      <a class="site-name" href="index.html">Schola for Godot</a>
       <nav class="site-nav" aria-label="Main">
         <ul>
-          <li><a href="index.html">Overview</a></li>
           <li><a href="demos.html">Demos</a></li>
           <li><a href="stories.html" aria-current="page">User stories</a></li>
-          <li><a href="architecture.html">Architecture</a></li>
-          <li><a href="engineering.html">Engineering</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
           <li><a href="team.html">Team</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main id="main">
-    <section class="page-intro">
-      <div class="wrap">
-        <h1>Contracts first, then code.</h1>
-        <p>We split the port into user stories, had AMD approve each set, and merged every story's API before its implementation. That let seven people build spaces, lifecycle, transport, configuration and inference at the same time.</p>
-      </div>
-    </section>
+  <main id="main" class="page">
+    <div class="frame">
 
-    <!-- The planning process really is a sequence, so it uses the numbered flow component. -->
-    <section class="band" aria-labelledby="process">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="process">How we planned</h2>
-          <p>Each story names its user, its acceptance criteria, what is out of scope, and how it was verified.</p>
-        </div>
-        <ol class="flow">
-          <li><strong>Draft</strong>The first story set was drafted on September 29 from the MVP AMD set at kickoff: define an environment, train it with Schola's Python tools, export to ONNX, run it in Godot.</li>
-          <li><strong>Approve</strong>AMD approved the set on October 2. A separate export-validation story was folded away, since Schola's Python side already exports models, leaving US1 to US5 and US7.</li>
-          <li><strong>Agree the APIs</strong>Between October 9 and 15 every owner merged an API-only pull request. Interfaces and abstract types meant dependent stories could start before anything was implemented.</li>
-          <li><strong>Build</strong>Owners worked on named branches, sometimes in pairs, and landed focused pull requests with a testing section and a required CI check.</li>
-          <li><strong>Integrate</strong>After D2 we merged shared dependencies before the code that used them and tested against one runnable example.</li>
-          <li><strong>Second wave</strong>On November 6 AMD approved US8 to US14, split into MVP and stretch goals. US15 came out of the same meeting.</li>
-        </ol>
+      <div class="page-top">
+        <h1>User stories</h1>
+        <p>How we split the port into stories, what AMD asked us to change along the way, and where each story stands now.</p>
       </div>
-    </section>
 
-    <!-- Every story, with status checked against git history on main (Nov 22, 2026). -->
-    <section class="band band--quiet" aria-labelledby="status">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="status">Every story, and where it stands</h2>
-          <p>Status is checked against the history of <code>main</code> as of November 22, 2026, not against plans. Ten stories are merged, one is partly merged and three are on branches heading for D4.</p>
+      <section aria-labelledby="planning">
+        <h2 id="planning">How we planned the work</h2>
+        <div class="text">
+          <p>AMD's goal for the term was simple to say: define an environment in Godot, train it with Schola's Python tools, export the result to ONNX, and run it back in Godot. We broke that down into user stories, each with the user it serves, acceptance criteria, what's out of scope, and how we'd verify it.</p>
+          <ol>
+            <li>The first set was drafted on September 29 and approved by AMD on October 2. An export-validation story was dropped that day because Schola's Python side already exports models, which left US1 to US5 and US7.</li>
+            <li>Between October 9 and 15, every owner merged a pull request containing only their story's API. With the interfaces agreed, nobody had to wait for someone else's implementation to start their own.</li>
+            <li>Owners then built on their own branches, sometimes in pairs, and landed focused pull requests that each say how they were tested.</li>
+            <li>After D2 we changed one thing: shared dependencies get merged before the code that uses them, and everything is tested against one runnable example.</li>
+            <li>On November 6 AMD approved a second set, US8 to US14, split into must-haves and stretch goals. US15 came out of the same meeting.</li>
+          </ol>
         </div>
-        <div class="stack-gap">
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Story</th>
-                  <th scope="col">What it gives developers</th>
-                  <th scope="col">Owners</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">US1</th>
-                  <td><strong>Define an RL environment.</strong> <code>ScholaEnvironment</code> and <code>ScholaAgent</code> nodes with four GDScript hooks, seeded resets, and agents that can join, leave or pause mid-episode.</td>
-                  <td>Isaac, Sanjay</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US2</th>
-                  <td><strong>Declare observation and action spaces.</strong> Box, Discrete, MultiDiscrete, MultiBinary and Dict resources, with validation and protocol round-trip tests.</td>
-                  <td>Jimmy</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US3</th>
-                  <td><strong>Connect to Schola's Python trainers.</strong> A gRPC server for Schola's protocol and one <code>ScholaTrainingConnector</code> node that trains every environment in a scene. A full run with Schola's own Python trainer isn't on <code>main</code> yet.</td>
-                  <td>Sanjay, Isaac</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US4</th>
-                  <td><strong>Run the episode lifecycle.</strong> <code>ScholaTrainingHost</code> coordinates resets, steps and the three autoreset modes across every environment in a scene, without leaving half-applied results on failure.</td>
-                  <td>Shahyar</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US5</th>
-                  <td><strong>Configure through Godot's own tools.</strong> Inspector settings with sensible defaults, live configuration warnings, a Schola dock and a runtime monitor.</td>
-                  <td>Vansh</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US7</th>
-                  <td><strong>Run and ship an ONNX policy.</strong> <code>ScholaOnnxPolicy</code> and <code>ScholaInferenceStepper</code>, checked against actions recorded from Schola's Python exporter. Exported games run without Python.</td>
-                  <td>Bohdan</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US8</th>
-                  <td><strong>Build agents from sensors and actuators.</strong> Ray-cast and camera sensors, movement, rotation and teleport actuators, and a base for writing your own.</td>
-                  <td>Guneev</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US9</th>
-                  <td><strong>Test an environment without Python.</strong> Step a real environment by hand through the same lifecycle training uses.</td>
-                  <td>Shahyar</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US10</th>
-                  <td><strong>Stack recent observations.</strong> <code>ScholaStacker</code>, built as a generic observation adapter so other adapters can follow.</td>
-                  <td>Jimmy, Shahyar</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US11</th>
-                  <td><strong>Camera sensor.</strong> The camera sensors landed with US8. A camera-driven example is on a branch, and no camera policy has been trained yet.</td>
-                  <td>Bohdan, Vansh</td>
-                  <td><span class="tag tag--partial">Partial</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US12</th>
-                  <td><strong>Train several agents at once.</strong> A two-agent example and reconnection between Python sessions are on a branch; the Python training run is pending.</td>
-                  <td>Sanjay</td>
-                  <td><span class="tag tag--planned">Branch</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US13</th>
-                  <td><strong>Production example.</strong> A port of AMD's RaceTrack, trained with Schola's SB3 PPO trainer. Its policy drives 1,108 m in 50 seconds against 58.6 m for random actions. Required for D4.</td>
-                  <td>Bohdan</td>
-                  <td><span class="tag tag--planned">Branch</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US14</th>
-                  <td><strong>Read sequence length from the model.</strong> Recurrent policies take their sequence length from ONNX metadata instead of a hand-set value that could silently give wrong actions.</td>
-                  <td>Jimmy</td>
-                  <td><span class="tag tag--done">Merged</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">US15</th>
-                  <td><strong>Define spaces in code.</strong> An optional callback for spaces too large or repetitive to fill in through the Inspector.</td>
-                  <td>Vansh, Isaac</td>
-                  <td><span class="tag tag--planned">Branch</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <p class="note"><strong>Why there is no US6</strong>It was the export-validation story folded away on October 2. We kept the numbering so references in minutes and pull requests stay valid.</p>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Partner feedback that changed a story, oldest first. -->
-    <section class="band" aria-labelledby="feedback">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="feedback">Feedback that reshaped the stories</h2>
-          <p>We met AMD every Friday. These are the discussions that changed code, not just plans.</p>
+      <section aria-labelledby="all">
+        <h2 id="all">All fourteen stories</h2>
+        <div class="text">
+          <p>Status is checked against the history of <code>main</code> on November 22, 2026.</p>
         </div>
-        <ul class="feedback">
-          <li>
-            <p class="feedback__ask">Four separate step callbacks are ambiguous. <cite>AMD, October 23; decided October 30</cite></p>
-            <p>Reward, termination, truncation and info now come back together from one <code>_get_step_result(agent)</code> (US5).</p>
-          </li>
-          <li>
-            <p class="feedback__ask">A built-in step limit will fight custom truncation logic. <cite>AMD, October 23 and 30</cite></p>
-            <p>We removed it and the planned step-limit node. Developers return <code>truncated: true</code> when their own rule says so (US4, US5).</p>
-          </li>
-          <li>
-            <p class="feedback__ask">Delaying actions and rewards harms learning. <cite>AMD, October 23</cite></p>
-            <p>The non-blocking poll was dropped. The connector blocks once per physics frame, so each action and its reward land on the same frame (US3).</p>
-          </li>
-          <li>
-            <p class="feedback__ask">Can the recurrent sequence length come from the model? <cite>Our question, October 23; approved as US14 on November 6</cite></p>
-            <p>ONNX Runtime's C API couldn't read the metadata where it lived, so AMD changed Schola's exporter upstream and we removed the manual setting entirely. Unreal still sets it by hand.</p>
-          </li>
-          <li>
-            <p class="feedback__ask">Make stackers generic observation adapters. <cite>AMD, November 6</cite></p>
-            <p><code>ScholaStacker</code> is the first implementation of an abstract <code>ScholaObservationAdapter</code> that agents apply in order (US10).</p>
-          </li>
-          <li>
-            <p class="feedback__ask">Inspector bounds get tedious for big spaces. <cite>AMD, November 6</cite></p>
-            <p>Became US15, an optional callback that defines spaces in code.</p>
-          </li>
-          <li>
-            <p class="feedback__ask">Avoid warning soup. <cite>AMD, November 6</cite></p>
-            <p>Environments now show one warning summary per agent instead of repeating every problem.</p>
-          </li>
-        </ul>
-      </div>
-    </section>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Story</th>
+                <th scope="col">What it covers</th>
+                <th scope="col">Owners</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">US1</th><td>Define an environment with <code>ScholaEnvironment</code> and <code>ScholaAgent</code> nodes and a few GDScript functions. Agents can join, leave or pause mid-episode.</td><td>Isaac, Sanjay</td><td>Merged</td></tr>
+              <tr><th scope="row">US2</th><td>Observation and action spaces: Box, Discrete, MultiDiscrete, MultiBinary and Dict, with validation.</td><td>Jimmy</td><td>Merged</td></tr>
+              <tr><th scope="row">US3</th><td>Connect to Schola's Python trainers over gRPC with one <code>ScholaTrainingConnector</code> node. A full run with Schola's own trainer isn't on <code>main</code> yet.</td><td>Sanjay, Isaac</td><td>Merged</td></tr>
+              <tr><th scope="row">US4</th><td>The episode lifecycle: resets, steps and the three autoreset modes across every environment in a scene.</td><td>Shahyar</td><td>Merged</td></tr>
+              <tr><th scope="row">US5</th><td>Set everything up in the Inspector, with live warnings, a Schola dock and a runtime monitor.</td><td>Vansh</td><td>Merged</td></tr>
+              <tr><th scope="row">US7</th><td>Run a trained ONNX policy in Godot and export games without the training code.</td><td>Bohdan</td><td>Merged</td></tr>
+              <tr><th scope="row">US8</th><td>Reusable sensors and actuators: ray-cast and camera sensors, movement, rotation and teleport actuators.</td><td>Guneev</td><td>Merged</td></tr>
+              <tr><th scope="row">US9</th><td>Step an environment by hand to debug it before training, without Python.</td><td>Shahyar</td><td>Merged</td></tr>
+              <tr><th scope="row">US10</th><td>Stack recent observations, built as a general observation adapter.</td><td>Jimmy, Shahyar</td><td>Merged</td></tr>
+              <tr><th scope="row">US11</th><td>Camera sensor. The sensors landed with US8; a camera example is on a branch and no camera policy has been trained yet.</td><td>Bohdan, Vansh</td><td>Partly merged</td></tr>
+              <tr><th scope="row">US12</th><td>Train several agents at once. A two-agent example is on a branch; the Python training run is still to do.</td><td>Sanjay</td><td>Branch</td></tr>
+              <tr><th scope="row">US13</th><td>A production example: AMD's RaceTrack, trained with Schola's SB3 PPO trainer. Its policy drives 1,108 m in 50 seconds, against 58.6 m for random actions. Needed for D4.</td><td>Bohdan</td><td>Branch</td></tr>
+              <tr><th scope="row">US14</th><td>Read a recurrent model's sequence length from its metadata instead of a hand-set value.</td><td>Jimmy</td><td>Merged</td></tr>
+              <tr><th scope="row">US15</th><td>Define spaces in code when they're too big or repetitive for the Inspector.</td><td>Vansh, Isaac</td><td>Branch</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="text">
+          <p>There's no US6. It was the export-validation story we dropped on October 2, and we kept the numbering so references in our minutes and pull requests stay correct.</p>
+        </div>
+      </section>
 
-    <!-- Scope control: the rule for promoting an idea to a story. -->
-    <section class="band band--quiet" aria-labelledby="scope">
-      <div class="wrap split">
-        <h2 id="scope">Saying no on purpose</h2>
-        <div class="prose">
-          <p>An idea only becomes a story if it passes all five of these:</p>
+      <section aria-labelledby="feedback">
+        <h2 id="feedback">What AMD changed</h2>
+        <div class="text">
+          <p>We met AMD every Friday. These are the conversations that ended up changing code.</p>
+          <dl class="pairs">
+            <dt>Four separate step callbacks are ambiguous. <span>AMD, October 23. Decided October 30.</span></dt>
+            <dd>Reward, termination, truncation and info now come back together from one <code>_get_step_result(agent)</code>.</dd>
+            <dt>A built-in step limit will fight custom truncation rules. <span>AMD, October 23 and 30.</span></dt>
+            <dd>We removed it, along with a step-limit node we'd planned. Developers return <code>truncated: true</code> when their own rule says so.</dd>
+            <dt>Delaying actions and rewards hurts learning. <span>AMD, October 23.</span></dt>
+            <dd>We dropped the non-blocking poll. The connector waits once per physics frame, so an action and its reward always land on the same frame.</dd>
+            <dt>Can the sequence length come from the model? <span>Our question, October 23. Approved as US14 on November 6.</span></dt>
+            <dd>ONNX Runtime's C API couldn't read the metadata where it was stored, so AMD changed Schola's exporter upstream. We then removed the manual setting. Unreal still sets it by hand.</dd>
+            <dt>Stackers should be general observation adapters. <span>AMD, November 6.</span></dt>
+            <dd><code>ScholaStacker</code> is the first adapter built on an abstract <code>ScholaObservationAdapter</code>, and agents can chain several.</dd>
+            <dt>Typing bounds into the Inspector gets tedious for big spaces. <span>AMD, November 6.</span></dt>
+            <dd>That became US15, an optional function that defines spaces in code.</dd>
+            <dt>Too many repeated warnings. <span>AMD, November 6.</span></dt>
+            <dd>Environments now show one warning summary per agent.</dd>
+          </dl>
+        </div>
+      </section>
+
+      <section aria-labelledby="scope">
+        <h2 id="scope">What we left out</h2>
+        <div class="text">
+          <p>An idea only became a story if it passed all five of these:</p>
           <ul>
             <li>It solves a concrete problem a Godot developer has.</li>
-            <li>Schola's behaviour stays the same across engines.</li>
+            <li>Schola behaves the same across engines.</li>
             <li>It can't be done as a task inside an existing story.</li>
-            <li>AMD accepts the cost of maintaining it.</li>
-            <li>It doesn't delay the end-to-end train, export and run workflow.</li>
+            <li>AMD is happy to maintain it.</li>
+            <li>It doesn't hold up the end-to-end train, export and run workflow.</li>
           </ul>
-          <p>That rule is why Unreal-only systems such as StateTree and imitation learning are deliberately not being ported, and why parallel training inside one Godot process stays a possible follow-up rather than a story.</p>
+          <p>That's why Unreal-only features such as StateTree and imitation learning aren't being ported, and why running several environments inside one Godot process is a possible follow-up rather than a story.</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="band">
-      <div class="wrap">
-        <ul class="next-links">
-          <li><a href="architecture.html"><strong>Architecture</strong><span>How the stories fit together in code.</span></a></li>
-          <li><a href="team.html"><strong>Team</strong><span>Who owned what, and how we worked with AMD.</span></a></li>
-        </ul>
-      </div>
-    </section>
+    </div>
   </main>
 
-  <!-- Shared footer: keep identical on every page. -->
-  <footer class="site-footer">
-    <div class="wrap">
+  <!-- Shared footer: identical on every page. -->
+  <footer class="site-footer on-black">
+    <div class="frame">
       <div>
-        <p>Built by CSC301 Team 20 at the University of Toronto, in partnership with AMD. MIT licensed, like Schola.</p>
-        <p>A student project site; not an official AMD page.</p>
+        <p>Schola for Godot is a CSC301 project by Team 20 at the University of Toronto. MIT licensed, like Schola.</p>
+        <p>This is our student project site, not an AMD website. <a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></p>
       </div>
-      <ul class="footer-links">
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Source on GitHub</a></li>
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
-      </ul>
+      <p class="partner">In partnership with <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
     </div>
   </footer>
 </body>

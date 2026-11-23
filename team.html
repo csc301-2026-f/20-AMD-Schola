@@ -8,176 +8,122 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono&display=swap">
   <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- Shared header: keep identical on every page; only aria-current moves. -->
+  <!-- Shared header: identical on every page; only aria-current moves. -->
   <header class="site-header">
-    <div class="wrap">
-      <a class="brand" href="index.html">Schola for Godot <small>CSC301 Team 20 with AMD</small></a>
+    <div class="frame">
+      <a class="site-name" href="index.html">Schola for Godot</a>
       <nav class="site-nav" aria-label="Main">
         <ul>
-          <li><a href="index.html">Overview</a></li>
           <li><a href="demos.html">Demos</a></li>
           <li><a href="stories.html">User stories</a></li>
-          <li><a href="architecture.html">Architecture</a></li>
-          <li><a href="engineering.html">Engineering</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
           <li><a href="team.html" aria-current="page">Team</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main id="main">
-    <section class="page-intro">
-      <div class="wrap">
-        <h1>Seven students, one partner, every Friday.</h1>
-        <p>We are CSC301 Team 20 at the University of Toronto, also known as The Hard Workers. Each of us owns user stories end to end, and we met AMD's Schola team every week for the whole term.</p>
-      </div>
-    </section>
+  <main id="main" class="page">
+    <div class="frame">
 
-    <!-- Team members, alphabetical by family name, with their documented roles and main stories. -->
-    <section class="band" aria-labelledby="people">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="people">The team</h2>
-          <p>Roles are the ones we set at the start of term. The stories are the ones each person owned or co-owned.</p>
-        </div>
-        <ul class="people">
-          <li><strong>Shahyar Anfaz</strong><span>Episode lifecycle developer. US4 and US9, plus CI, packaging and the release automation.</span></li>
-          <li><strong>Guneev Pannu</strong><span>Developer and project manager. US8 and dynamic agent populations, plus the protocol message conversions.</span></li>
-          <li><strong>Sanjay Ram</strong><span>Developer and meeting manager. US1, US3 and US12, including the engine-independent connector loop.</span></li>
-          <li><strong>Vansh Sehrawat</strong><span>Developer and partner liaison. US5 and US15, and our main point of contact with AMD.</span></li>
-          <li><strong>Isaac Tilahun</strong><span>Backend developer. US1 and US3, including the gRPC server and the training connector node.</span></li>
-          <li><strong>Jimmy Zhu</strong><span>Developer and QA. US2, US10 and US14, and the D2 and D3 demos.</span></li>
-          <li><strong>Bohdan Zmeul</strong><span>AI integration developer. US7 and US13, and co-owner of US11.</span></li>
-        </ul>
+      <div class="page-top">
+        <h1>Team</h1>
+        <p>We're CSC301 Team 20 at the University of Toronto, also known as The Hard Workers. Each of us owned user stories from API to tests, and we met AMD's Schola team every week.</p>
       </div>
-    </section>
 
-    <!-- Partner and course contacts. Names and roles only. -->
-    <section class="band band--quiet" aria-labelledby="partners">
-      <div class="wrap split">
-        <h2 id="partners">Our partners</h2>
-        <div class="prose">
-          <p><strong>Alexander Cann</strong>, Member of Technical Staff at AMD, was our primary contact and joined every partner meeting. <strong>TianYue "Michael" Liu</strong>, Senior Software Engineer at AMD, was our secondary contact and joined us at kickoff. Our TA, <strong>Salman Sayeed</strong>, reviewed our demos and process through the term.</p>
-          <p>AMD's long-term goal is to make Schola a multi-engine platform, where people keep the same Python entry point and choose their engine. We built with that in mind: same protocol, same semantics, Godot-native APIs.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- How the team worked day to day. -->
-    <section class="band" aria-labelledby="process">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="process">How we worked</h2>
-        </div>
-        <div class="columns">
-          <div class="prose">
-            <h3>Weekly with AMD</h3>
-            <p>Partner meetings every Friday morning from the September 25 kickoff, each written up with dated minutes, decisions and action items.</p>
-          </div>
-          <div class="prose">
-            <h3>Check-ins with our TA</h3>
-            <p>Regular meetings with our TA, including reviews of our D2 and D3 demos, with notes on scope, presentation and how graders read our history.</p>
-          </div>
-          <div class="prose">
-            <h3>One board, one chat</h3>
-            <p>Trello held every task, owner and dependency, and a card only moved to done once its pull request merged. Discord had a channel per deliverable and per story.</p>
-          </div>
-          <div class="prose">
-            <h3>Pairs and hand-offs</h3>
-            <p>Some stories were built in pairs on shared branches, and pieces changed hands when someone had more context. Our co-authored merges show it.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Key partner meetings and what each decided. -->
-    <section class="band band--quiet" aria-labelledby="meetings">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="meetings">What the first seven partner meetings decided</h2>
-        </div>
-        <div class="table-scroll">
-          <table class="data-table">
+      <section aria-labelledby="people">
+        <h2 id="people">Who did what</h2>
+        <div class="table-wrap">
+          <table>
             <thead>
-              <tr><th scope="col">Date</th><th scope="col">Decision</th></tr>
+              <tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">Worked on</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">September 25</th><td>Kickoff. A Godot-native port that reuses Schola's Python stack, with a small extensible core and training kept separate from inference.</td></tr>
-              <tr><th scope="row">October 2</th><td>First story set approved. Reward fields on nodes would grow into a rules language, and C# would tie the plugin to Godot's .NET build.</td></tr>
-              <tr><th scope="row">October 9</th><td>The move to a C++ GDExtension confirmed, with every story's API already in review.</td></tr>
-              <tr><th scope="row">October 16</th><td>All API proposals merged. The upstream baseline frozen, and the set of possible agents fixed for a training run.</td></tr>
-              <tr><th scope="row">October 23</th><td>Drop the non-blocking poll so actions and rewards land on the same frame. AMD also suggested a single step callback, and we took away whether sequence length could come from the model.</td></tr>
-              <tr><th scope="row">October 30</th><td>Combine the four step callbacks into one, drop the special step-limit node, and keep spaces as a single variant type. We also presented an error-handling plan where one place translates core errors into Godot errors.</td></tr>
-              <tr><th scope="row">November 6</th><td>Second story wave approved. Generic observation adapters, spaces defined in code, fewer repeated warnings, and CI on Windows.</td></tr>
+              <tr><th scope="row">Shahyar Anfaz</th><td>Episode lifecycle developer</td><td>US4 and US9, CI, packaging and release automation</td></tr>
+              <tr><th scope="row">Guneev Pannu</th><td>Developer and project manager</td><td>US8, dynamic agent populations, protocol message conversions</td></tr>
+              <tr><th scope="row">Sanjay Ram</th><td>Developer and meeting manager</td><td>US1, US3 and US12, including the connector loop</td></tr>
+              <tr><th scope="row">Vansh Sehrawat</th><td>Developer and partner liaison</td><td>US5 and US15, and our main contact with AMD</td></tr>
+              <tr><th scope="row">Isaac Tilahun</th><td>Backend developer</td><td>US1 and US3, including the gRPC server and the training connector node</td></tr>
+              <tr><th scope="row">Jimmy Zhu</th><td>Developer and QA</td><td>US2, US10 and US14, and the D2 and D3 demos</td></tr>
+              <tr><th scope="row">Bohdan Zmeul</th><td>AI integration developer</td><td>US7 and US13, and co-owner of US11</td></tr>
             </tbody>
           </table>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Collaboration with AMD's own codebase, in both directions. -->
-    <section class="band" aria-labelledby="both-ways">
-      <div class="wrap split">
-        <h2 id="both-ways">Collaboration in both directions</h2>
-        <div class="prose">
-          <p>When we needed recurrent models to report their sequence length in a form ONNX Runtime's C API could read, Alex changed Schola's exporter upstream. We then mirrored that change in the shared exporter and removed the manual setting in Godot.</p>
-          <p>Earlier, we waited for AMD's frozen upstream baseline, which brought in their policy-state refactor, before finishing our multi-agent and recurrent APIs.</p>
-          <p>Our own changes to AMD's shared code are small and additive: a Godot training lifecycle guide in Schola's docs, that exporter metadata copy, and a fix so RLlib episodes don't end early when agents join or leave.</p>
+      <section aria-labelledby="partner">
+        <h2 id="partner">Our partner</h2>
+        <div class="text">
+          <img class="lockup" src="assets/img/amd-schola-lockup.png" width="844" height="398" alt="AMD Schola">
+          <p>Schola is AMD's open-source reinforcement learning plugin for Unreal Engine, and AMD wants it to work with more engines. Godot is the first port.</p>
+          <p><strong>Alexander Cann</strong>, Member of Technical Staff at AMD, was our main contact and came to every partner meeting. <strong>TianYue "Michael" Liu</strong>, Senior Software Engineer at AMD, was our secondary contact and joined us at kickoff. Our TA, <strong>Salman Sayeed</strong>, reviewed our demos and how we worked.</p>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- The D2 retrospective, because it changed how D3 was built. -->
-    <section class="band band--dark" aria-labelledby="retro">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="retro">What D2 taught us</h2>
-          <p>Our retrospective after D2 was blunt about what went wrong, and D3 was built around the fixes.</p>
+      <section aria-labelledby="process">
+        <h2 id="process">How we worked</h2>
+        <div class="text">
+          <p>We met AMD on Friday mornings on Teams, starting with the kickoff on September 25. Every meeting has dated minutes with its decisions and action items, and Vansh carried AMD's requests back into our planning.</p>
+          <p>Trello held every task, owner and dependency, and a card only counted as done once its pull request had merged. Day to day we talked on Discord, with a channel for each deliverable and each story.</p>
+          <p>Some stories were built in pairs on shared branches, and pieces changed hands when someone else had more context. Sanjay finished the environment side of US1 on top of Isaac's agent side, and Isaac took over the gRPC connector from Sanjay.</p>
         </div>
-        <div class="columns">
-          <div class="prose">
-            <h3>What worked</h3>
-            <p>Agreeing every API up front meant seven people could build in parallel without waiting on each other.</p>
-          </div>
-          <div class="prose">
-            <h3>What didn't</h3>
-            <p>Dependencies between stories were sorted out too late, and branches were polished before the product worked as a whole. The C# to C++ switch also cost us iteration time.</p>
-          </div>
-          <div class="prose">
-            <h3>What we changed</h3>
-            <p>One integration branch with a runnable example, shared dependencies merged first, packaged-demo CI from the start, and every stand-in labelled as one.</p>
-          </div>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="band">
-      <div class="wrap">
-        <ul class="next-links">
-          <li><a href="stories.html"><strong>User stories</strong><span>What each of us built.</span></a></li>
-          <li><a href="demos.html"><strong>Demos</strong><span>The results, deliverable by deliverable.</span></a></li>
-        </ul>
-      </div>
-    </section>
+      <section aria-labelledby="meetings">
+        <h2 id="meetings">What our first seven partner meetings decided</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Date</th><th scope="col">Outcome</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">September 25</th><td>A Godot-native port that reuses Schola's Python side, with a small core that's easy to extend and training kept separate from inference.</td></tr>
+              <tr><th scope="row">October 2</th><td>First set of stories approved. Reward fields on nodes would grow into a rules language, and C# would tie the plugin to Godot's .NET build.</td></tr>
+              <tr><th scope="row">October 9</th><td>The move to a C++ GDExtension confirmed, with every story's API already up for review.</td></tr>
+              <tr><th scope="row">October 16</th><td>All API proposals merged. We froze the upstream baseline and fixed the set of possible agents for a training run.</td></tr>
+              <tr><th scope="row">October 23</th><td>Drop the non-blocking poll so actions and rewards land on the same frame. AMD also suggested a single step callback, and we took away the question of reading sequence length from the model.</td></tr>
+              <tr><th scope="row">October 30</th><td>Combine the four step callbacks into one, drop the special step-limit node, and keep spaces as a single variant type. We also presented a plan for turning core errors into Godot errors in one place.</td></tr>
+              <tr><th scope="row">November 6</th><td>Second set of stories approved, plus general observation adapters, spaces defined in code, fewer repeated warnings, and CI on Windows.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="upstream">
+        <h2 id="upstream">Working with AMD's code</h2>
+        <div class="text">
+          <p>When we needed recurrent models to store their sequence length somewhere ONNX Runtime's C API could read it, Alex changed Schola's exporter upstream. We mirrored that change in the shared exporter and removed the manual setting in Godot.</p>
+          <p>Earlier on, we waited for AMD's frozen upstream baseline, which included their policy-state refactor, before finishing our multi-agent and recurrent APIs.</p>
+          <p>Our own changes to AMD's shared code are small additions: a Godot training guide in Schola's docs, that exporter change, and a fix so RLlib episodes don't end early when agents join or leave.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="retro">
+        <h2 id="retro">What D2 taught us</h2>
+        <div class="text">
+          <p>Agreeing every API up front worked: seven people could build at the same time without waiting on each other.</p>
+          <p>What didn't work was sorting out dependencies between stories too late, and polishing branches before the product worked as a whole. Switching from C# to C++ also cost us time we'd planned for features.</p>
+          <p>For D3 we kept one integration branch with a runnable example, merged shared dependencies first, set up packaged-demo CI from the start, and labelled every stand-in as one.</p>
+        </div>
+      </section>
+
+    </div>
   </main>
 
-  <!-- Shared footer: keep identical on every page. -->
-  <footer class="site-footer">
-    <div class="wrap">
+  <!-- Shared footer: identical on every page. -->
+  <footer class="site-footer on-black">
+    <div class="frame">
       <div>
-        <p>Built by CSC301 Team 20 at the University of Toronto, in partnership with AMD. MIT licensed, like Schola.</p>
-        <p>A student project site; not an official AMD page.</p>
+        <p>Schola for Godot is a CSC301 project by Team 20 at the University of Toronto. MIT licensed, like Schola.</p>
+        <p>This is our student project site, not an AMD website. <a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></p>
       </div>
-      <ul class="footer-links">
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola">Source on GitHub</a></li>
-        <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/releases">Releases</a></li>
-      </ul>
+      <p class="partner">In partnership with <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
     </div>
   </footer>
 </body>

@@ -1,6 +1,6 @@
 # Schola for Godot: project site
 
-The showcase site for CSC301 Team 20's Godot port of AMD Schola. It is plain HTML and CSS with no
+The project site for CSC301 Team 20's Godot port of AMD Schola. It's plain HTML and CSS with no
 build step, no JavaScript and no framework, published by GitHub Pages straight from this
 `gh-pages` branch.
 
@@ -11,12 +11,11 @@ its CI, or the course deliverables.
 
 | File | What it covers |
 | --- | --- |
-| `index.html` | Overview: what Schola is, what we built, the journey at a glance |
-| `demos.html` | Each deliverable's demo (D1, D2, D3) and what changed between them |
-| `stories.html` | How we planned and tracked the user stories, and where each one stands |
-| `architecture.html` | How the plugin is put together: modules, lifecycle, training and inference |
-| `engineering.html` | Testing, CI, packaging, dependency pinning and how we review work |
-| `team.html` | The team, our AMD partners, and how we worked together |
+| `index.html` | What we're building, the grid-world task, current status and a timeline |
+| `demos.html` | The D1, D2 and D3 demos, what was a stand-in at each stage, and newer examples |
+| `stories.html` | How we planned the user stories, where each one stands, and what AMD changed |
+| `how-it-works.html` | Architecture, training and inference paths, testing, CI, dependencies, releases |
+| `team.html` | Who did what, our AMD partner, how we worked, and partner meeting outcomes |
 | `404.html` | Shown by GitHub Pages for unknown URLs |
 
 ## Styles
@@ -25,22 +24,31 @@ Every page links one stylesheet, `assets/css/site.css`, which imports the module
 
 | File | Holds |
 | --- | --- |
-| `tokens.css` | Colours, type scale, spacing. Change the look here first. |
+| `tokens.css` | Colours, type and sizes. Change the look here first. |
 | `base.css` | Reset and plain element styles (no classes) |
-| `layout.css` | Header, footer, section bands, grids |
-| `components.css` | Reusable blocks: buttons, timeline, tables, diagrams, tags |
-| `hero.css` | The animated grid-world on the home page |
+| `layout.css` | Header, page frame, reading column, footer |
+| `components.css` | Home intro, AMD partner credit, screenshots, timeline, code and diagrams |
+| `gridworld.css` | The animated grid world on the home page |
 
-Colours follow AMD's palette: black, white and AMD red (`#ED1C24`). Red text on white uses a
-darker shade (`--red-ink`) so it stays readable.
+The look follows AMD's palette of black, white and AMD red (`#ED1C24`). Red is used for link
+underlines, the current page in the navigation, and the agent in the grid world. Text is set in
+Barlow, with JetBrains Mono for code.
+
+## AMD logo
+
+`assets/img/amd-schola-lockup.png` is AMD's Schola lockup from `Docs/Sphinx/_static` on `main`,
+and `assets/img/amd-logo.png` is the AMD wordmark cropped from it. Both files are black; on black
+backgrounds the CSS flips them to white (`.on-black .partner img`). The logo appears as a partner
+credit in the home page intro and every footer, and as the lockup on the team page. It's AMD's
+trademark, so check with our AMD contact before publishing.
 
 ## Editing
 
-The header and footer are repeated in each page, since there is no build step to share them.
-When you change one, change it in every `.html` file. Each copy is marked with
-`<!-- Shared header -->` and `<!-- Shared footer -->`.
+The header and footer are repeated in each page, since there's no build step to share them.
+When you change one, change it in every `.html` file. Each copy is marked with a
+`Shared header` or `Shared footer` comment.
 
-To preview, open `index.html` in a browser. To serve it the way Pages does:
+To preview the site the way Pages serves it:
 
 ```sh
 python -m http.server 8000

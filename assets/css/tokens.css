@@ -1,57 +1,30 @@
 /*
-  Design tokens: the single source for colour, type, spacing and layout sizes.
-  Every other stylesheet reads these variables, so restyling the site starts here.
+  Design tokens: colours, type and sizes in one place.
+  Every other stylesheet reads these, so changing the look starts here.
 */
 
 :root {
-  /* Colour. AMD's palette is true black, white and AMD red; the greys are neutral (no warm tint). */
+  /* AMD's palette: black, white and AMD red. Greys are neutral. */
   --black: #000000;
   --white: #ffffff;
-  --red: #ed1c24;          /* AMD red: fills, markers, and text on black only */
-  --red-ink: #c8102e;      /* darker red for text on white (passes WCAG AA, plain #ed1c24 does not) */
-  --grey-900: #1c1c1c;
-  --grey-700: #3d3d3d;
-  --grey-500: #6b6b6b;     /* muted text on white */
-  --grey-300: #b8b8b8;     /* muted text on black */
-  --grey-150: #e4e4e4;     /* rules and borders on white */
-  --grey-50: #f4f4f5;      /* quiet panels on white */
+  --red: #ed1c24;
+  --grey-text: #555555;     /* secondary text on white (7:1 contrast) */
+  --grey-on-black: #a6a6a6; /* secondary text on black */
+  --grey-rule: #dcdcdc;     /* table and divider lines */
+  --grey-tint: #f4f4f4;     /* code backgrounds */
 
-  /* Semantic roles, so components never hard-code a palette colour. */
-  --text: var(--black);
-  --text-muted: var(--grey-500);
-  --surface: var(--white);
-  --surface-quiet: var(--grey-50);
-  --rule: var(--grey-150);
-  --accent: var(--red);
-  --link: var(--red-ink);
+  /* Type: Barlow for everything, JetBrains Mono for code only. */
+  --font: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
 
-  /* Type. One variable family; its width axis does the expressive work in headlines. */
-  --font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --size-body: 1.125rem;
+  --size-small: 0.9375rem;
+  --size-h1: clamp(2.375rem, 1.7rem + 2.8vw, 3.75rem);
+  --size-h2: 1.75rem;
+  --size-h3: 1.25rem;
 
-  /* Type scale (roughly 1.25 ratio); the large steps grow with the viewport. */
-  --step--1: 0.875rem;
-  --step-0: 1.0625rem;
-  --step-1: 1.25rem;
-  --step-2: 1.5625rem;
-  --step-3: clamp(1.75rem, 1.35rem + 1.6vw, 2.375rem);
-  --step-4: clamp(2.25rem, 1.5rem + 3.2vw, 3.75rem);
-  --step-5: clamp(2.75rem, 1.4rem + 6vw, 6rem);
-
-  /* Spacing scale, used for gaps, padding and vertical rhythm. */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --space-8: 4.5rem;
-  --space-9: 7rem;
-
-  /* Layout. --measure keeps reading lines under ~75 characters. */
-  --page-width: 72rem;
-  --measure: 38rem;
-  --gutter: clamp(1rem, 4vw, 2.5rem);
-  --radius: 2px;           /* AMD's look is sharp-edged; corners are only softened, never rounded */
+  /* Layout: a page frame for figures, and a narrower column for reading. */
+  --page-width: 66rem;
+  --text-width: 40rem;
+  --gutter: clamp(1.25rem, 5vw, 3rem);
 }
