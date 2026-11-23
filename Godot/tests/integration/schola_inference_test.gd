@@ -516,6 +516,23 @@ func test_stepper_forgets_an_agent_that_leaves_the_tree() -> void:
 	assert_int(agent.actions.size()).is_equal(2)
 
 
+func test_stepper_checks_a_new_agent_against_an_initialized_policy() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+	# Same shapes, but narrower action bounds than the agent the policy was set up with
+	var narrow := _agent(3, 3, PackedFloat32Array([1.0, 2.0, 3.0]))
+	narrow.action_space.low = PackedFloat32Array([-1.0, -1.0, -1.0])
+	narrow.action_space.high = PackedFloat32Array([1.0, 1.0, 1.0])
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = policy
+	stepper.enabled = false
+	add_child(stepper)
+
+	assert_int(stepper.add_agent(narrow)).is_equal(ERR_INVALID_DATA)
+	assert_int(policy.initialize(narrow)).is_equal(OK)
+	assert_int(stepper.add_agent(narrow)).is_equal(OK)
+
+
 func test_stepper_forgets_a_reparented_agent() -> void:
 	var holder: Node = auto_free(Node.new())
 	add_child(holder)
