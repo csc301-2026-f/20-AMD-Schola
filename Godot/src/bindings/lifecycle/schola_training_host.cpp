@@ -468,6 +468,12 @@ schola::Status ScholaTrainingHost::initialize_session_core() {
 }
 
 schola::Status ScholaTrainingHost::require_active_session() const {
+	// A nested define, reset or step would change lifecycle state underneath
+	// the call that is still running.
+	if (in_coordinator) {
+		return schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
+				"ScholaTrainingHost cannot be called from a training callback; use call_deferred()");
+	}
 	if (session_state == SessionState::ACTIVE) {
 		return schola::Status::ok();
 	}
@@ -530,8 +536,30 @@ schola::Status ScholaTrainingHost::handle_coordinator_result(const schola::Statu
 	return p_status;
 }
 
+// Runs a coordinator call that can reach gameplay callbacks. If one of them
+// closes the host, the close is carried out here, once the coordinator has
+// returned, and the call reports that the session was closed.
+schola::Status ScholaTrainingHost::run_coordinator(const std::function<schola::Status()> &p_call) {
+	in_coordinator = true;
+	const schola::Status status = p_call();
+	in_coordinator = false;
+	if (close_requested) {
+		close_requested = false;
+		const schola::Status closed = schola::Status::error(schola::StatusCode::CLOSED,
+				"training session was closed by a callback while it was running");
+		return fail_session(status.is_ok() ? closed : status);
+	}
+	return handle_coordinator_result(status);
+}
+
 schola::Status ScholaTrainingHost::shutdown_core() {
 	if (session_state == SessionState::CLOSED || session_state == SessionState::SHUTTING_DOWN) {
+		return schola::Status::ok();
+	}
+	// close() or leaving the tree from inside a callback. Closing now would free
+	// the lifecycles that are still on the call stack, so wait for them to return.
+	if (in_coordinator) {
+		close_requested = true;
 		return schola::Status::ok();
 	}
 
@@ -598,7 +626,7 @@ godot::Dictionary ScholaTrainingHost::define() {
 	}
 
 	schola::TrainingDefinition definition;
-	schola::Status status = handle_coordinator_result(coordinator.define(definition));
+	schola::Status status = run_coordinator([&] { return coordinator.define(definition); });
 	if (!status.is_ok()) {
 		return encode_result(status);
 	}
@@ -630,7 +658,7 @@ godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) 
 	}
 
 	schola::InitialState state;
-	status = handle_coordinator_result(coordinator.reset(request, state));
+	status = run_coordinator([&] { return coordinator.reset(request, state); });
 	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
 }
 
@@ -662,7 +690,7 @@ godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 	}
 
 	schola::StepResult result;
-	status = handle_coordinator_result(coordinator.step(request, result));
+	status = run_coordinator([&] { return coordinator.step(request, result); });
 	return status.is_ok() ? encode_result(status, encode_step_result(result)) : encode_result(status);
 }
 
