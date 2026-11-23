@@ -276,6 +276,16 @@ schola::Status decode_reset_request(const godot::Dictionary &dict, schola::Reset
 					"reset settings for environment " + std::to_string(environment_id) + " must be a dictionary");
 		}
 		const godot::Dictionary entry = dict[key];
+		// A misspelled key would otherwise give a silent, unseeded default reset
+		const godot::Array setting_keys = entry.keys();
+		for (int64_t j = 0; j < setting_keys.size(); ++j) {
+			const godot::Variant setting = setting_keys[j];
+			if (setting.get_type() != godot::Variant::STRING || (godot::String(setting) != "seed" && godot::String(setting) != "options")) {
+				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
+						"reset settings for environment " + std::to_string(environment_id) + " have unknown key " +
+								to_std_string(setting.stringify()) + "; only \"seed\" and \"options\" are allowed");
+			}
+		}
 		schola::ResetSettings settings;
 
 		if (entry.has("seed")) {

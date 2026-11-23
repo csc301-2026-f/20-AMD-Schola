@@ -539,6 +539,7 @@ func test_invalid_reset_requests_do_not_reset_any_environment() -> void:
 		{0: {"seed": 2147483648}}, {0: {"seed": -2147483649}},
 		{0: {"options": "invalid options"}},
 		{0: {"options": {1: "value"}}}, {0: {"options": {"key": 1}}},
+		{0: {"Seed": 42}}, {0: {"seed": 42, "option": {"track": "hard"}}},
 	]
 	for request in invalid_requests:
 		var result := host.reset(request)
