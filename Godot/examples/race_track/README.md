@@ -12,33 +12,40 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
-Press 1, 2, 3 or 4 to switch between the untrained, 25,000-step, 350,000-step and final policies while the car drives, and R to put the car back at the start. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car; it disappears once the car has passed it. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
+Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
 
 ## Results
 
-`evaluate.gd` drives the inference scene for one 50-second episode without Python and reports the metres driven along the track.
+`demo_check.gd` drives the inference scene without Python and scores each policy on what the demo needs:
 
-The committed policy was trained from scratch with `train.py` for 350,000 steps, then for 300,000 more with `--resume` after touching an obstacle began ending episodes and the drift bonus rose to 0.5. Over a 3-minute drive it completes 4.5 laps without touching an obstacle and drifts for about 31 seconds.
+- **Demo map:** from the start line until two laps or 120 seconds; counts obstacle and wall contacts and reports laps, distance, average speed and drifting time.
+- **Dropped obstacles:** 30 trials, 10 per lane. The car starts 150 m before a trigger point and drives at its own speed; when it reaches the trigger, an obstacle appears 50 m ahead. A trial passes when the car is 10 m past the obstacle without touching it, a wall, or leaving the track. These trials run without the map's fixed obstacles, at points chosen so the run-up and the obstacle are clear of the jumps.
+- **Layouts:** 10 random obstacle layouts, 60 seconds each from the start line; a layout passes without any contact and with at least 600 m driven.
 
-| Policy | Distance in 50 s | Laps |
-|---|---|---|
-| Committed policy (`policies/race_track.onnx`) | 1108.4 m | 1.22 |
-| Random actions (seeded uniform steering and pedal) | 58.6 m | 0.06 |
-| Untrained exported fixture (`tests/inference/fixtures/schola_ppo_race_car.onnx`) | 20.2 m | 0.02 |
+A policy passes with a clean demo map (two laps, no contact, at least 50 km/h), at least 27 of 30 dodges and at least 8 of 10 layouts.
 
-All three stayed on the track. Physics runs at a fixed 60 Hz, so repeated runs give the same numbers. Reproduce them from the repository root:
+| Key | Policy | Demo map | Average speed | Drifting | Dodged | Layouts | Result |
+|---|---|---|---|---|---|---|---|
+| 1 | `policies/race_track_untrained.onnx` | 61 m, no lap | 2 km/h | 0 s | 0 of 30 | 0 of 10 | Fail |
+| 2 | `policies/race_track_350k_steps.onnx` | 2 laps, 20 contacts | 78 km/h | 0 s | 16 of 30 | 0 of 10 | Fail |
+| 3 | `policies/race_track_650k_steps.onnx` | 2 laps, no contact | 81 km/h | 18 s | 18 of 30 | 0 of 10 | Fail |
+| 4 | `policies/race_track.onnx` (committed) | 2 laps, no contact | 58 km/h | 69 s | 30 of 30 | 10 of 10 | Pass |
+
+The untrained policy barely moves, so it never reaches the points where obstacles are dropped.
+
+The committed policy uses a bigger network than the policies on keys 1-3: two hidden layers of 256 units instead of 64, and it reads all 25 rays and the RoadAhead sensor. It is the only one that passes, and it also passes every trial and layout of the held-out set.
+
+The policy on key 3 was trained from scratch with `train.py` for 350,000 steps, then for 300,000 more with `--resume` after touching an obstacle began ending episodes and the drift bonus rose to 0.5. It drives faster on the demo map it was trained on, but misses 12 of the 30 dropped obstacles and completes none of the random layouts.
+
+Physics runs at a fixed 60 Hz, so repeated runs give the same numbers. Reproduce the table from the repository root:
 
 ```sh
-godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/evaluate.gd
+godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/demo_check.gd -- res://examples/race_track/policies/race_track_untrained.onnx res://examples/race_track/policies/race_track_350k_steps.onnx res://examples/race_track/policies/race_track_650k_steps.onnx res://examples/race_track/policies/race_track.onnx
 ```
 
-Pass ONNX paths, or `random`, after `--` to score other policies:
+Pass any ONNX paths after `--` to score other policies. The script ranks them: passing policies first, then by safety, demo-map distance and drifting time. `--held-out` uses a separate set of trial points and layout seeds that is never used to pick checkpoints and requires every trial and layout to pass.
 
-```sh
-godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/evaluate.gd -- res://examples/race_track/policies/race_track.onnx random
-```
-
-The script exits with status 1 if a policy cannot run. In CI, `tests/integration/race_track_inference_test.gd` checks that the inference scene points at the committed policy and drives the car with a Schola-exported stand-in policy.
+In CI, `tests/integration/race_track_inference_test.gd` checks that the inference scene points at the committed policy and drives the car with a Schola-exported stand-in policy.
 
 ## Train your own policy
 
@@ -70,17 +77,18 @@ From the repository root:
 Godot/.venv/bin/python Godot/examples/race_track/train.py --godot godot --headless --steps 100000
 ```
 
-The script launches the training scene, connects on localhost port 8000, and trains Stable-Baselines3 PPO with the composed dictionary observations and actions. Each action advances one physics frame at a fixed 60 Hz.
+The script launches the training scene, connects on localhost port 8000, and trains Stable-Baselines3 PPO with the composed dictionary observations and actions. Each action advances one physics frame at a fixed 60 Hz. PPO collects 1,024 steps per Godot process before each update, in batches of 128, with `gamma` 0.99, `gae_lambda` 0.98 so a crash still counts against the steering that caused it a second earlier, and a learning rate of 1e-4. `--resume` applies the same settings to the loaded policy.
 
-Training episodes start at random points on the track, and each one gets a new random obstacle layout so the policy has to react to what its sensors report instead of memorizing the map. One layout in five has almost no obstacles (0-2), almost half have 3-8 single obstacles, and the rest are busier, with up to 12 single obstacles. Some of the busier layouts also contain clusters of two to four gates 16-22 m apart, where each gate blocks two of the three lanes and the open lane switches sides, so the car has to slow to about 40 km/h or less to weave through. Every layout keeps obstacles at least 25 m apart outside clusters, away from the first 45 m and last 15 m of the lap, and clear of the 30 m before and 45 m after each jump. Turn off `random_obstacles` on the training scene's environment to train on the fixed map instead.
+Training episodes start at random points on the track, and each one gets a new random obstacle layout so the policy has to react to what its sensors report instead of memorizing the map. One layout in five has almost no obstacles (0-2), almost half have 3-8 single obstacles, and the rest are busier, with up to 12 single obstacles. Some of the busier layouts also contain clusters of two to four gates 20-26 m apart, where each gate blocks two of the three lanes and the open lane switches sides, so the car has to slow to about 40 km/h or less to weave through. Every layout keeps obstacles at least 25 m apart outside clusters, away from the first 45 m and last 15 m of the lap, and clear of the 30 m before and 45 m after each jump. Turn off `random_obstacles` on the training scene's environment to train on the fixed map instead. One training episode in five uses the demo map instead (the environment's `demo_map_share`), so the policy keeps practising the layout the inference scene shows.
 
-Every 25,000 steps, and once at the end, the script starts a second copy of the scene on the next port (8001) and test-drives the current policy from the start line without random actions on five 50-second episodes: the demo map that the inference scene shows, then four random layouts (seeds `test_drive_layout_seed` to `test_drive_layout_seed` + 3, 0 by default). They are the same in every test drive, so scores can be compared, and averaging them keeps one lucky or unlucky layout from deciding which policy is kept. The score is the average training reward of those drives: mostly the metres driven along the track before each episode ends, with up to 50% more for metres driven while drifting, and -10 if it ends in a crash. A policy that drifts can therefore beat one that drives slightly farther without drifting. Each test drive also prints the metres driven and how long the car drifted. Training is noisy, so a later policy can drive worse than an earlier one. Only a policy that beats the best score so far is saved, as `race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at any time and keep the best policy. Before each test drive the current policy is also saved as `race_track_latest.zip` and `race_track_latest.onnx`, whatever its score, so a long run is never lost.
+Every 100,000 steps, and once at the end, the script starts another copy of the scene on the port after the training ports and test-drives the current policy from the start line without random actions on five 50-second episodes: the demo map that the inference scene shows, then four random layouts (seeds `test_drive_layout_seed` to `test_drive_layout_seed` + 3, 0 by default). They are the same in every test drive, so scores can be compared, and averaging them keeps one lucky or unlucky layout from deciding which policy is kept. The score is the average training reward of those drives: mostly the metres driven along the track before each episode ends, with up to 50% more for metres driven while drifting, and -10 if it ends in a crash. A policy that drifts can therefore beat one that drives slightly farther without drifting. Each test drive also prints the metres driven and how long the car drifted. Training is noisy, so a later policy can drive worse than an earlier one. Only a policy that beats the best score so far is saved, as `race_track.zip` and `race_track.onnx` under `policies/`, so you can stop training at any time and keep the best policy. Before each test drive the current policy is also saved as `race_track_latest.zip` and `race_track_latest.onnx`, whatever its score, so a long run is never lost. Each of these points also leaves an ONNX copy in `policies/checkpoints/race_track_<steps>.onnx`, so the whole run can be scored afterwards with `demo_check.gd`.
 
 Saving replaces the committed `race_track.onnx`; `git restore Godot/examples/race_track/policies/race_track.onnx` brings it back. The script closes its Godot processes when training finishes or fails.
 
 Options:
 
-- `--port N` uses ports N and N+1 instead of 8000 and 8001.
+- `--envs N` trains N Godot processes in parallel on ports 8000 to 8000 + N - 1, and test drives use the next port.
+- `--port N` starts the ports at N instead of 8000.
 - `--godot PATH` points at Godot when it is not on PATH as `godot`.
 - Omit `--headless` to watch; each test drive then opens its own window.
 - `--attach` trains a scene you started yourself instead of launching one. Test drives still open their own Godot, so `--godot` is still needed.
@@ -93,7 +101,7 @@ The scene runs at normal game speed, about 55 steps per second, so this is sever
 
 ### Run the exported policy
 
-Open `race_track_inference.tscn` and press F6, or score it with `evaluate.gd` as in [Results](#results).
+Open `race_track_inference.tscn` and press F6, or score it with `demo_check.gd` as in [Results](#results).
 
 ### Continue training
 
@@ -170,7 +178,7 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
 | `scripts/race_track_controls.gd` | The car's vehicle actuator, which also keeps the last action | None |
-| `scripts/evaluation.gd`, `evaluate.gd` | Python-free policy scoring and the random-action baseline | None |
+| `demo_check.gd` | Python-free policy scoring on the demo map, dropped obstacles and random layouts | None |
 | `train.py` | PPO training, test drives, best-policy saving, and ONNX export | None |
 | `scripts/editor_trainer.gd` | Starts `train.py` when the training scene is played from the editor | None |
 | `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
@@ -193,16 +201,17 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | Observation | Dict: `00000000:Track` → Box(6), `00000001:Velocity` → Box(3), `00000002:Rays` → Box(75), `00000003:RoadAhead` → Box(3) |
 | Action | Dict: `00000000:Controls` → Box(2), bounded [-1, 1] |
 
-The untrained, 25,000-step, 350,000-step and 650,000-step policies were trained when the car had nine rays, 15° apart, and no RoadAhead sensor. Every third of today's 25 rays points in the same direction as one of those nine, so each of these ONNX models was converted by adding a step that passes only those rays to the original network and an unused RoadAhead input; they drive exactly as before.
+The policies on keys 1-3 were trained when the car had nine rays, 15° apart, and no RoadAhead sensor. Every third of today's 25 rays points in the same direction as one of those nine, so each of these ONNX models was converted by adding a step that passes only those rays to the original network and an unused RoadAhead input; they drive exactly as before.
 
 **Observation**, all in the car's own frame, ordered forward, right, up:
 
 1. The point on the track centre 10 m ahead of the closest point, divided by 5 m (values 1-3).
 2. The track direction at that point (values 4-6).
 3. The car's velocity, divided by 2 m/s (values 7-9).
-4. Nine rays from the front bumper, 30 m long and spread over 120° from left to right (values 10-36). For each ray: whether it hit an obstacle, whether it hit anything, and the hit distance as a fraction of 30 m (0 when nothing is hit). The rays are drawn on screen, green where they hit something and red where they don't.
+4. 25 rays from the front bumper, one every 5°, 30 m long and spread over 120° from left to right (values 10-84). For each ray: whether it hit an obstacle, whether it hit anything, and the hit distance as a fraction of 30 m (0 when nothing is hit). The rays are drawn on screen, green where they hit something and red where they don't.
+5. For each lane (left, middle, right), the distance along the road to the next obstacle in that lane divided by 60 m, or 1 when the lane is clear for 60 m (values 85-87).
 
-Looking 10 m ahead lets the car see a corner before it reaches it. With only the closest point, the car noticed the hairpin too late to brake and got stuck on its wall. Track features keep bounds of [-100000, 100000]; velocity is unbounded; ray values are in [0, 1].
+Looking 10 m ahead lets the car see a corner before it reaches it. With only the closest point, the car noticed the hairpin too late to brake and got stuck on its wall. Track features keep bounds of [-100000, 100000]; velocity is unbounded; ray and road-ahead values are in [0, 1].
 
 **Action:**
 
