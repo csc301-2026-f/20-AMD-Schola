@@ -56,7 +56,7 @@ core         spaces, environment interfaces, lifecycle, connector loop,
           <figcaption>Every layer depends on the core, never the other way round.</figcaption>
         </figure>
         <div class="text">
-          <p>Because the core never touches the engine, about 3,000 lines of it are covered by 128 Catch2 unit tests that run in seconds without starting Godot.</p>
+          <p>Because the core never touches the engine, about 3,000 lines of it are covered by 131 Catch2 unit tests that run in seconds without starting Godot.</p>
           <p>The plugin ships as two libraries. <code>schola</code> has the nodes, spaces, sensors, actuators, training host and ONNX inference, and it's what an exported game includes. <code>schola_training</code> has the gRPC server and the connector node. It creates the training host by class name and talks to it through ordinary Godot method calls, so it never links against the runtime's C++. Leaving training out of an export is one filter: <code>addons/schola_training/*</code>.</p>
         </div>
       </section>
@@ -153,7 +153,7 @@ ScholaTrainingHost  ───►  every ScholaEnvironment in the scene</pre>
       <section aria-labelledby="testing">
         <h2 id="testing">Testing</h2>
         <div class="text">
-          <p>There's about as much test code as plugin code: roughly 10,900 lines against 11,300.</p>
+          <p>There's roughly as much test code as plugin code. Counts are from <code>main</code> on November 23.</p>
         </div>
         <div class="table-wrap">
           <table>
@@ -161,10 +161,10 @@ ScholaTrainingHost  ───►  every ScholaEnvironment in the scene</pre>
               <tr><th scope="col">Suite</th><th scope="col">Tests</th><th scope="col">What it covers</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">Core (Catch2)</th><td>128</td><td>Spaces, the lifecycle, the connector loop and stackers, without the engine.</td></tr>
-              <tr><th scope="row">Inference (Catch2)</th><td>35</td><td>Real ONNX models, including five exported by Schola's own Python exporter. Godot has to reproduce the exact actions recorded in Python.</td></tr>
+              <tr><th scope="row">Core (Catch2)</th><td>131</td><td>Spaces, the lifecycle, the connector loop and stackers, without the engine.</td></tr>
+              <tr><th scope="row">Inference (Catch2)</th><td>37</td><td>Real ONNX models, including five exported by Schola's own Python exporter. Godot has to reproduce the exact actions recorded in Python.</td></tr>
               <tr><th scope="row">Transport (Catch2)</th><td>22</td><td>A full gRPC session, oversized messages, timeouts, Python hanging up, and a port that's already taken.</td></tr>
-              <tr><th scope="row">Integration (GdUnit4)</th><td>206</td><td>Real scenes loaded in headless Godot. The training host alone has 43.</td></tr>
+              <tr><th scope="row">Integration (GdUnit4)</th><td>281</td><td>Real scenes loaded in headless Godot. The training host alone has 46.</td></tr>
             </tbody>
           </table>
         </div>
@@ -181,10 +181,9 @@ ScholaTrainingHost  ───►  every ScholaEnvironment in the scene</pre>
               <tr><th scope="col">Job</th><th scope="col">What it checks</th><th scope="col">Runs on</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">Format</th><td>All 131 Godot C++ files match clang-format 17.</td><td>Linux</td></tr>
-              <tr><th scope="row">Build</th><td>Both libraries compile, the dependency pins match the lockfile, and the three Catch2 suites pass.</td><td>Linux</td></tr>
+              <tr><th scope="row">Format</th><td>All 136 Godot C++ files match clang-format 17.</td><td>Linux</td></tr>
+              <tr><th scope="row">Build and test</th><td>Both libraries compile, the dependency pins match the lockfile, and the three Catch2 suites pass. Headless Godot 4.7.2 then runs the GdUnit4 suite, plays the D3 reference policy to the goal, trains two instances for 20 episodes, exports to ONNX and replays the result.</td><td>Linux</td></tr>
               <tr><th scope="row">Windows dependencies</th><td>The committed gRPC and ONNX Runtime packages install, and a generated gRPC client compiles, links and runs with MSVC.</td><td>Windows</td></tr>
-              <tr><th scope="row">Smoke</th><td>Headless Godot 4.7.2 runs the GdUnit4 suite, plays the D3 reference policy to the goal, then trains two instances for 20 episodes, exports to ONNX and replays the result.</td><td>Linux</td></tr>
               <tr><th scope="row">Packages</th><td>The D3 demo is exported, and the exported app is launched and has to report its checks passed within 60 seconds.</td><td>Windows, Linux, macOS</td></tr>
             </tbody>
           </table>

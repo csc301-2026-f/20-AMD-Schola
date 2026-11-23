@@ -105,7 +105,7 @@ func _act(action: Variant) -&gt; void:
       <section aria-labelledby="status">
         <h2 id="status">Where things stand</h2>
         <div class="text">
-          <p>As of November 22, ten of our fourteen user stories are merged on <code>main</code>:</p>
+          <p>As of November 23, twelve of our fourteen user stories are merged on <code>main</code>:</p>
           <ul>
             <li>Environments and agents built from Godot nodes, including agents that join or leave mid-episode</li>
             <li>Box, Discrete, MultiDiscrete, MultiBinary and Dict spaces</li>
@@ -116,9 +116,11 @@ func _act(action: Variant) -&gt; void:
             <li>Reusable sensors and actuators</li>
             <li>Stepping an environment by hand, without Python</li>
             <li>Observation stacking</li>
+            <li>Several agents with different spaces training in one environment</li>
             <li>Reading a recurrent model's sequence length from its metadata</li>
+            <li>Defining spaces in code instead of the Inspector</li>
           </ul>
-          <p>Still on branches, aimed at Deliverable 4 on November 27: a full training run with Schola's own Python trainer, the RaceTrack production example, training several agents at once, camera-based training, and defining spaces in code.</p>
+          <p>Still to come for Deliverable 4 on November 27: a full training run with Schola's own Python trainers, the RaceTrack production example, camera-based training, and a round of bug fixes and speed-ups across the merged stories.</p>
         </div>
       </section>
 
@@ -138,7 +140,7 @@ func _act(action: Variant) -&gt; void:
           <dt>November 6</dt>
           <dd>Deliverable 3: the demo rebuilt on native nodes. AMD approved seven more stories.</dd>
           <dt>November 17 to 22</dt>
-          <dd>The training connector, sensors and actuators, observation stacking and dynamic agent populations merged.</dd>
+          <dd>The training connector, sensors and actuators, observation stacking, multi-agent training, code-defined spaces and dynamic agent populations merged.</dd>
           <dt>November 27</dt>
           <dd>Deliverable 4 release, scheduled.</dd>
         </dl>

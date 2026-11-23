@@ -54,7 +54,7 @@
       <section aria-labelledby="all">
         <h2 id="all">All fourteen stories</h2>
         <div class="text">
-          <p>Status is checked against the history of <code>main</code> on November 22, 2026.</p>
+          <p>Status is checked against the history of <code>main</code> on November 23, 2026.</p>
         </div>
         <div class="table-wrap">
           <table>
@@ -77,10 +77,10 @@
               <tr><th scope="row">US9</th><td>Step an environment by hand to debug it before training, without Python.</td><td>Shahyar</td><td>Merged</td></tr>
               <tr><th scope="row">US10</th><td>Stack recent observations, built as a general observation adapter.</td><td>Jimmy, Shahyar</td><td>Merged</td></tr>
               <tr><th scope="row">US11</th><td>Camera sensor. The sensors landed with US8; a camera example is on a branch and no camera policy has been trained yet.</td><td>Bohdan, Vansh</td><td>Partly merged</td></tr>
-              <tr><th scope="row">US12</th><td>Train several agents at once. A two-agent example is on a branch; the Python training run is still to do.</td><td>Sanjay</td><td>Branch</td></tr>
+              <tr><th scope="row">US12</th><td>Train several agents at once. A two-agent example with different spaces, per-agent routing tests, and a connector that waits for Python's next session. A full RLlib training run is still to do.</td><td>Sanjay</td><td>Merged</td></tr>
               <tr><th scope="row">US13</th><td>A production example: AMD's RaceTrack, trained with Schola's SB3 PPO trainer. Its policy drives 1,108 m in 50 seconds, against 58.6 m for random actions. Needed for D4.</td><td>Bohdan</td><td>Branch</td></tr>
               <tr><th scope="row">US14</th><td>Read a recurrent model's sequence length from its metadata instead of a hand-set value.</td><td>Jimmy</td><td>Merged</td></tr>
-              <tr><th scope="row">US15</th><td>Define spaces in code when they're too big or repetitive for the Inspector.</td><td>Vansh, Isaac</td><td>Branch</td></tr>
+              <tr><th scope="row">US15</th><td>Define spaces in code with <code>_define_spaces()</code> when they're too big or repetitive for the Inspector.</td><td>Vansh, Isaac</td><td>Merged</td></tr>
             </tbody>
           </table>
         </div>
@@ -105,7 +105,7 @@
             <dt>Stackers should be general observation adapters. <span>AMD, November 6.</span></dt>
             <dd><code>ScholaStacker</code> is the first adapter built on an abstract <code>ScholaObservationAdapter</code>, and agents can chain several.</dd>
             <dt>Typing bounds into the Inspector gets tedious for big spaces. <span>AMD, November 6.</span></dt>
-            <dd>That became US15, an optional function that defines spaces in code.</dd>
+            <dd>That became US15, an optional <code>_define_spaces()</code> function, merged on November 22.</dd>
             <dt>Too many repeated warnings. <span>AMD, November 6.</span></dt>
             <dd>Environments now show one warning summary per agent.</dd>
           </dl>
