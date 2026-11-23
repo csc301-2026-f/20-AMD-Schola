@@ -43,6 +43,19 @@ namespace {
 // 4 MB, which large observations (cameras) would exceed.
 constexpr int MAX_MESSAGE_BYTES = 100 * 1024 * 1024;
 
+// gRPC only applies the send limit after a handler returns, so an oversized
+// reply would fail Python's call without the game ever hearing about it.
+// Checking first lets the session end with an error both sides can see.
+Status check_message_size(const google::protobuf::Message &p_message, const char *p_what) {
+	const size_t size = p_message.ByteSizeLong();
+	if (size <= static_cast<size_t>(MAX_MESSAGE_BYTES)) {
+		return Status::ok();
+	}
+	return Status::error(StatusCode::INCOMPATIBLE,
+			std::string(p_what) + " is " + std::to_string(size) + " bytes, over the " + std::to_string(MAX_MESSAGE_BYTES) +
+					"-byte limit Python accepts. Use smaller observations (such as a lower camera resolution) or fewer agents per Godot instance.");
+}
+
 // A gRPC thread cannot be woken by Python hanging up, so a waiting handler
 // checks for that this often.
 constexpr std::chrono::milliseconds HANG_UP_CHECK_INTERVAL{ 100 };
@@ -315,6 +328,10 @@ Status GrpcConnector::reply_start(const Status &p_result) {
 Status GrpcConnector::publish_definition(const TrainingDefinition &p_definition) {
 	::Schola::TrainingDefinition message;
 	to_proto(p_definition, message);
+	Status status = check_message_size(message, "The training definition");
+	if (!status.is_ok()) {
+		return status;
+	}
 	service->definition = p_definition;
 
 	std::lock_guard<std::mutex> lock(service->mutex);
@@ -356,6 +373,9 @@ Status GrpcConnector::wait_for_update(ConnectorUpdate &r_update, std::chrono::mi
 Status GrpcConnector::reply_reset(const InitialState &p_initial_state) {
 	::Schola::State reply;
 	Status status = to_proto(p_initial_state, service->definition, reply);
+	if (status.is_ok()) {
+		status = check_message_size(reply, "The reset reply");
+	}
 	if (!status.is_ok()) {
 		return status;
 	}
@@ -367,6 +387,9 @@ Status GrpcConnector::reply_reset(const InitialState &p_initial_state) {
 Status GrpcConnector::reply_step(const StepResult &p_result) {
 	::Schola::State reply;
 	Status status = to_proto(p_result, service->definition, reply);
+	if (status.is_ok()) {
+		status = check_message_size(reply, "The step reply");
+	}
 	if (!status.is_ok()) {
 		return status;
 	}
