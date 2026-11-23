@@ -63,7 +63,7 @@
       <div class="wrap split">
         <h2 id="partners">Our partners</h2>
         <div class="prose">
-          <p><strong>Alexander Cann</strong>, Member of Technical Staff at AMD, was our primary contact and joined every partner meeting. <strong>TianYue "Michael" Liu</strong>, Senior Software Engineer at AMD, was our secondary contact and helped set the project's direction at kickoff. Our TA, <strong>Salman Sayeed</strong>, reviewed our demos and process through the term.</p>
+          <p><strong>Alexander Cann</strong>, Member of Technical Staff at AMD, was our primary contact and joined every partner meeting. <strong>TianYue "Michael" Liu</strong>, Senior Software Engineer at AMD, was our secondary contact and joined us at kickoff. Our TA, <strong>Salman Sayeed</strong>, reviewed our demos and process through the term.</p>
           <p>AMD's long-term goal is to make Schola a multi-engine platform, where people keep the same Python entry point and choose their engine. We built with that in mind: same protocol, same semantics, Godot-native APIs.</p>
         </div>
       </div>
@@ -78,11 +78,11 @@
         <div class="columns">
           <div class="prose">
             <h3>Weekly with AMD</h3>
-            <p>Seven partner meetings on Friday mornings, from the September 25 kickoff to November 6. Every one has dated minutes with decisions and action items.</p>
+            <p>Partner meetings every Friday morning from the September 25 kickoff, each written up with dated minutes, decisions and action items.</p>
           </div>
           <div class="prose">
             <h3>Check-ins with our TA</h3>
-            <p>Four recorded meetings, two of them reviews of our D2 and D3 demos, with notes on scope, presentation and how graders read our history.</p>
+            <p>Regular meetings with our TA, including reviews of our D2 and D3 demos, with notes on scope, presentation and how graders read our history.</p>
           </div>
           <div class="prose">
             <h3>One board, one chat</h3>
@@ -100,7 +100,7 @@
     <section class="band band--quiet" aria-labelledby="meetings">
       <div class="wrap">
         <div class="section-head">
-          <h2 id="meetings">What each partner meeting decided</h2>
+          <h2 id="meetings">What the first seven partner meetings decided</h2>
         </div>
         <div class="table-scroll">
           <table class="data-table">
@@ -112,8 +112,8 @@
               <tr><th scope="row">October 2</th><td>First story set approved. Reward fields on nodes would grow into a rules language, and C# would tie the plugin to Godot's .NET build.</td></tr>
               <tr><th scope="row">October 9</th><td>The move to a C++ GDExtension confirmed, with every story's API already in review.</td></tr>
               <tr><th scope="row">October 16</th><td>All API proposals merged. The upstream baseline frozen, and the set of possible agents fixed for a training run.</td></tr>
-              <tr><th scope="row">October 23</th><td>Drop the non-blocking poll, use one step callback, reject nested environments, and read sequence length from the model.</td></tr>
-              <tr><th scope="row">October 30</th><td>No built-in step limit, and spaces stay a single variant type. We also presented an error-handling plan where one place translates core errors into Godot errors.</td></tr>
+              <tr><th scope="row">October 23</th><td>Drop the non-blocking poll so actions and rewards land on the same frame. AMD also suggested a single step callback, and we took away whether sequence length could come from the model.</td></tr>
+              <tr><th scope="row">October 30</th><td>Combine the four step callbacks into one, drop the special step-limit node, and keep spaces as a single variant type. We also presented an error-handling plan where one place translates core errors into Godot errors.</td></tr>
               <tr><th scope="row">November 6</th><td>Second story wave approved. Generic observation adapters, spaces defined in code, fewer repeated warnings, and CI on Windows.</td></tr>
             </tbody>
           </table>
@@ -127,7 +127,7 @@
         <h2 id="both-ways">Collaboration in both directions</h2>
         <div class="prose">
           <p>When we needed recurrent models to report their sequence length in a form ONNX Runtime's C API could read, Alex changed Schola's exporter upstream. We then mirrored that change in the shared exporter and removed the manual setting in Godot.</p>
-          <p>Earlier, at AMD's request, we waited for and synced their policy-state refactor before finishing our multi-agent and recurrent APIs.</p>
+          <p>Earlier, we waited for AMD's frozen upstream baseline, which brought in their policy-state refactor, before finishing our multi-agent and recurrent APIs.</p>
           <p>Our own changes to AMD's shared code are small and additive: a Godot training lifecycle guide in Schola's docs, that exporter metadata copy, and a fix so RLlib episodes don't end early when agents join or leave.</p>
         </div>
       </div>

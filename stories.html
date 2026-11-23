@@ -65,105 +65,105 @@
           <p>Status is checked against the history of <code>main</code> as of November 22, 2026, not against plans. Ten stories are merged, one is partly merged and three are on branches heading for D4.</p>
         </div>
         <div class="stack-gap">
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Story</th>
-                <th scope="col">What it gives developers</th>
-                <th scope="col">Owners</th>
-                <th scope="col">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row">US1</th>
-                <td><strong>Define an RL environment.</strong> <code>ScholaEnvironment</code> and <code>ScholaAgent</code> nodes with four GDScript hooks, seeded resets, and agents that can join, leave or pause mid-episode.</td>
-                <td>Isaac, Sanjay</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US2</th>
-                <td><strong>Declare observation and action spaces.</strong> Box, Discrete, MultiDiscrete, MultiBinary and Dict resources, with validation and protocol round-trip tests.</td>
-                <td>Jimmy</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US3</th>
-                <td><strong>Connect to Schola's Python trainers.</strong> A gRPC server for Schola's protocol and one <code>ScholaTrainingConnector</code> node that trains every environment in a scene. A full run with Schola's own trainer is still to come.</td>
-                <td>Sanjay, Isaac</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US4</th>
-                <td><strong>Run the episode lifecycle.</strong> <code>ScholaTrainingHost</code> coordinates resets, steps and the three autoreset modes across every environment in a scene, without leaving half-applied results on failure.</td>
-                <td>Shahyar</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US5</th>
-                <td><strong>Configure through Godot's own tools.</strong> Inspector settings with sensible defaults, live configuration warnings, a Schola dock and a runtime monitor.</td>
-                <td>Vansh</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US7</th>
-                <td><strong>Run and ship an ONNX policy.</strong> <code>ScholaOnnxPolicy</code> and <code>ScholaInferenceStepper</code>, checked against actions recorded from Schola's Python exporter. Exported games run without Python.</td>
-                <td>Bohdan</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US8</th>
-                <td><strong>Build agents from sensors and actuators.</strong> Ray-cast and camera sensors, movement, rotation and teleport actuators, and a base for writing your own.</td>
-                <td>Guneev</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US9</th>
-                <td><strong>Test an environment without Python.</strong> Step a real environment by hand through the same lifecycle training uses.</td>
-                <td>Shahyar</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US10</th>
-                <td><strong>Stack recent observations.</strong> <code>ScholaStacker</code>, built as a generic observation adapter so other adapters can follow.</td>
-                <td>Jimmy, Shahyar</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US11</th>
-                <td><strong>Camera sensor.</strong> The camera sensors landed with US8. A camera-driven example is on a branch, and no camera policy has been trained yet.</td>
-                <td>Bohdan, Vansh</td>
-                <td><span class="tag tag--partial">Partial</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US12</th>
-                <td><strong>Train several agents at once.</strong> A two-agent example and reconnection between Python sessions are on a branch; the Python training run is pending.</td>
-                <td>Sanjay</td>
-                <td><span class="tag tag--planned">Branch</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US13</th>
-                <td><strong>Production example.</strong> A port of AMD's RaceTrack, trained with Schola's SB3 PPO trainer. Its policy drives 1,094 m in 50 seconds against 58.6 m for random actions. Required for D4.</td>
-                <td>Bohdan</td>
-                <td><span class="tag tag--planned">Branch</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US14</th>
-                <td><strong>Read sequence length from the model.</strong> Recurrent policies take their sequence length from ONNX metadata instead of a hand-set value that could silently give wrong actions.</td>
-                <td>Jimmy</td>
-                <td><span class="tag tag--done">Merged</span></td>
-              </tr>
-              <tr>
-                <th scope="row">US15</th>
-                <td><strong>Define spaces in code.</strong> An optional callback for spaces too large or repetitive to fill in through the Inspector.</td>
-                <td>Vansh, Isaac</td>
-                <td><span class="tag tag--planned">Branch</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="note"><strong>Why there is no US6</strong>It was the export-validation story folded away on October 2. We kept the numbering so references in minutes and pull requests stay valid.</p>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Story</th>
+                  <th scope="col">What it gives developers</th>
+                  <th scope="col">Owners</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">US1</th>
+                  <td><strong>Define an RL environment.</strong> <code>ScholaEnvironment</code> and <code>ScholaAgent</code> nodes with four GDScript hooks, seeded resets, and agents that can join, leave or pause mid-episode.</td>
+                  <td>Isaac, Sanjay</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US2</th>
+                  <td><strong>Declare observation and action spaces.</strong> Box, Discrete, MultiDiscrete, MultiBinary and Dict resources, with validation and protocol round-trip tests.</td>
+                  <td>Jimmy</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US3</th>
+                  <td><strong>Connect to Schola's Python trainers.</strong> A gRPC server for Schola's protocol and one <code>ScholaTrainingConnector</code> node that trains every environment in a scene. A full run with Schola's own Python trainer isn't on <code>main</code> yet.</td>
+                  <td>Sanjay, Isaac</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US4</th>
+                  <td><strong>Run the episode lifecycle.</strong> <code>ScholaTrainingHost</code> coordinates resets, steps and the three autoreset modes across every environment in a scene, without leaving half-applied results on failure.</td>
+                  <td>Shahyar</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US5</th>
+                  <td><strong>Configure through Godot's own tools.</strong> Inspector settings with sensible defaults, live configuration warnings, a Schola dock and a runtime monitor.</td>
+                  <td>Vansh</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US7</th>
+                  <td><strong>Run and ship an ONNX policy.</strong> <code>ScholaOnnxPolicy</code> and <code>ScholaInferenceStepper</code>, checked against actions recorded from Schola's Python exporter. Exported games run without Python.</td>
+                  <td>Bohdan</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US8</th>
+                  <td><strong>Build agents from sensors and actuators.</strong> Ray-cast and camera sensors, movement, rotation and teleport actuators, and a base for writing your own.</td>
+                  <td>Guneev</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US9</th>
+                  <td><strong>Test an environment without Python.</strong> Step a real environment by hand through the same lifecycle training uses.</td>
+                  <td>Shahyar</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US10</th>
+                  <td><strong>Stack recent observations.</strong> <code>ScholaStacker</code>, built as a generic observation adapter so other adapters can follow.</td>
+                  <td>Jimmy, Shahyar</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US11</th>
+                  <td><strong>Camera sensor.</strong> The camera sensors landed with US8. A camera-driven example is on a branch, and no camera policy has been trained yet.</td>
+                  <td>Bohdan, Vansh</td>
+                  <td><span class="tag tag--partial">Partial</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US12</th>
+                  <td><strong>Train several agents at once.</strong> A two-agent example and reconnection between Python sessions are on a branch; the Python training run is pending.</td>
+                  <td>Sanjay</td>
+                  <td><span class="tag tag--planned">Branch</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US13</th>
+                  <td><strong>Production example.</strong> A port of AMD's RaceTrack, trained with Schola's SB3 PPO trainer. Its policy drives 1,108 m in 50 seconds against 58.6 m for random actions. Required for D4.</td>
+                  <td>Bohdan</td>
+                  <td><span class="tag tag--planned">Branch</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US14</th>
+                  <td><strong>Read sequence length from the model.</strong> Recurrent policies take their sequence length from ONNX metadata instead of a hand-set value that could silently give wrong actions.</td>
+                  <td>Jimmy</td>
+                  <td><span class="tag tag--done">Merged</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">US15</th>
+                  <td><strong>Define spaces in code.</strong> An optional callback for spaces too large or repetitive to fill in through the Inspector.</td>
+                  <td>Vansh, Isaac</td>
+                  <td><span class="tag tag--planned">Branch</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note"><strong>Why there is no US6</strong>It was the export-validation story folded away on October 2. We kept the numbering so references in minutes and pull requests stay valid.</p>
         </div>
       </div>
     </section>
@@ -173,11 +173,11 @@
       <div class="wrap">
         <div class="section-head">
           <h2 id="feedback">Feedback that reshaped the stories</h2>
-          <p>We met AMD every Friday. These are the comments that changed code, not just plans.</p>
+          <p>We met AMD every Friday. These are the discussions that changed code, not just plans.</p>
         </div>
         <ul class="feedback">
           <li>
-            <p class="feedback__ask">Four separate step callbacks are ambiguous. <cite>AMD, October 23</cite></p>
+            <p class="feedback__ask">Four separate step callbacks are ambiguous. <cite>AMD, October 23; decided October 30</cite></p>
             <p>Reward, termination, truncation and info now come back together from one <code>_get_step_result(agent)</code> (US5).</p>
           </li>
           <li>
@@ -189,8 +189,8 @@
             <p>The non-blocking poll was dropped. The connector blocks once per physics frame, so each action and its reward land on the same frame (US3).</p>
           </li>
           <li>
-            <p class="feedback__ask">Read the recurrent sequence length from the model. <cite>AMD, October 23</cite></p>
-            <p>This became US14. ONNX Runtime's C API couldn't read the metadata where it lived, so AMD changed Schola's exporter upstream and we removed the manual setting entirely. Unreal still sets it by hand.</p>
+            <p class="feedback__ask">Can the recurrent sequence length come from the model? <cite>Our question, October 23; approved as US14 on November 6</cite></p>
+            <p>ONNX Runtime's C API couldn't read the metadata where it lived, so AMD changed Schola's exporter upstream and we removed the manual setting entirely. Unreal still sets it by hand.</p>
           </li>
           <li>
             <p class="feedback__ask">Make stackers generic observation adapters. <cite>AMD, November 6</cite></p>

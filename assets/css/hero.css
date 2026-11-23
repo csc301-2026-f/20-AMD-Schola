@@ -26,8 +26,15 @@
   }
 }
 
+/* Grid items default to their content's width; this lets the columns shrink on phones. */
+.hero__inner > * {
+  min-width: 0;
+}
+
+/* "Reinforcement" is one long word, so the hero headline scales down further than other h1s. */
 .hero h1 {
   max-width: 11ch;
+  font-size: clamp(2.25rem, 0.9rem + 6.4vw, 6rem);
 }
 
 .hero__lead {

@@ -44,6 +44,12 @@ h2 { font-size: var(--step-4); }
 h3 { font-size: var(--step-2); font-stretch: 105%; }
 h4 { font-size: var(--step-1); font-stretch: 100%; font-weight: 700; }
 
+/* On phones the widest setting would push long words past the edge, so headlines narrow a little. */
+@media (max-width: 30rem) {
+  h1 { font-stretch: 110%; }
+  h2 { font-stretch: 104%; }
+}
+
 p,
 ul,
 ol,

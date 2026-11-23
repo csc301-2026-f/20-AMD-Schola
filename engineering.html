@@ -44,7 +44,7 @@
       <div class="wrap">
         <dl class="facts">
           <div><dt>native C++ test cases (Catch2)</dt><dd>185</dd></div>
-          <div><dt>Godot integration tests (GdUnit4)</dt><dd>205</dd></div>
+          <div><dt>Godot integration tests (GdUnit4)</dt><dd>206</dd></div>
           <div><dt>platforms exported and launched in CI</dt><dd>3</dd></div>
           <div><dt>shorter CI builds after caching</dt><dd>93%</dd></div>
           <div><dt>ONNX models in the inference tests</dt><dd>26</dd></div>
@@ -91,7 +91,7 @@
           </div>
           <div class="prose">
             <h3>Inside Godot</h3>
-            <p>205 GdUnit4 tests load real scenes headlessly. The training host has the largest suite, with 43 tests of its own.</p>
+            <p>206 GdUnit4 tests load real scenes headlessly. The training host has the largest suite, with 43 tests of its own.</p>
           </div>
           <div class="prose">
             <h3>Against Python</h3>
@@ -99,7 +99,7 @@
           </div>
           <div class="prose">
             <h3>No silent passes</h3>
-            <p>The D3 smoke suite must print a completion marker, so a script that crashes but exits cleanly still fails. We added that after it happened to us.</p>
+            <p>The D3 smoke suite fails unless every group of checks finishes, and the exported app must also print a completion marker, so a script that crashes but still exits cleanly can't pass.</p>
           </div>
         </div>
       </div>
@@ -141,7 +141,7 @@
           </figure>
           <div class="prose">
             <h3>When the downloads went away</h3>
-            <p>On November 17 we lost access to ONNX Runtime's upstream downloads. Within a day the build installed offline from packages repacked out of Microsoft's signed NuGet release: both signatures verified, and all 69 payload files byte-identical to the signed originals.</p>
+            <p>On November 17 we lost access to ONNX Runtime's upstream downloads. Within a day the build installed offline from packages repacked out of Microsoft's signed NuGet release: both signatures verified, and all 69 payload entries byte-identical to the signed originals.</p>
             <p>The written record also says what those checks don't prove. We'd rather be precise than reassuring.</p>
             <h3>Everywhere else</h3>
             <p>GitHub Actions are pinned to full commit hashes, build tools install with hash checking, and every Godot editor, export template and test framework download is checked against a SHA-256 before use.</p>
@@ -155,7 +155,7 @@
       <div class="wrap split">
         <h2 id="releases">Releases on a schedule</h2>
         <div class="prose">
-          <p>Course snapshots are automated so nobody has to be awake at the deadline. D2 was published from a tag. D3 was tagged on <code>main</code> at the deadline by a scheduled workflow, which then built and published the three desktop packages.</p>
+          <p>Course snapshots are automated so nobody has to be awake at the deadline. D2 was published from a tag. D3 was tagged on <code>main</code> at the deadline by a scheduled workflow, and the tag then triggered the build that published the three desktop packages.</p>
           <p>D4 is scheduled the same way for November 27 at 11:30 p.m. Toronto time. The workflow refuses to run from any branch but <code>main</code>, checks that the tag points at the commit it packaged, and on a retry only uploads what's missing.</p>
           <ul class="link-row">
             <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/actions/runs/42157175290">The validated D3 run</a></li>

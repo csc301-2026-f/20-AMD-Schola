@@ -55,7 +55,7 @@
             <li><strong>interop</strong><span>Converts Godot values to and from core types. Compiled into both extensions.</span></li>
             <li class="is-core"><strong>core</strong><span>Plain C++17: spaces, environment interfaces, the lifecycle, the connector loop, stackers and the stepper. No Godot, gRPC, Protocol Buffers or ONNX Runtime headers.</span></li>
           </ul>
-          <p class="note"><strong>Why it matters</strong>Because the core never touches the engine, about 3,000 lines of lifecycle, spaces and connector logic are covered by 128 Catch2 unit tests that run in seconds without starting Godot. The rule is written into our development contract.</p>
+          <p class="note"><strong>Why it matters</strong>Because the core never touches the engine, about 3,000 lines of core logic, from the lifecycle and spaces to the connector, stackers and stepper, are covered by 128 Catch2 unit tests that run in seconds without starting Godot. The rule is written into our development contract.</p>
         </div>
       </div>
     </section>
@@ -91,8 +91,8 @@
           <ol class="flow">
             <li><strong>Validate</strong>Every action is checked against its agent's action space. Missing or extra actions are rejected before anything moves.</li>
             <li><strong>Act</strong><code>_act(action)</code> runs for every active agent.</li>
-            <li><strong>Observe and score</strong><code>_observe()</code> then <code>_get_step_result(agent)</code> run per agent, in scene-tree order.</li>
-            <li><strong>Reconcile</strong>Agents that joined get a first observation; agents that left become terminal transitions.</li>
+            <li><strong>Observe and score</strong><code>_observe()</code> then <code>_get_step_result(agent)</code> run per agent, in scene-tree order. Agents that joined mid-step get their first observation here.</li>
+            <li><strong>Reconcile</strong>Agents that left during the step become terminal transitions.</li>
             <li><strong>Finish</strong><code>episode_ended</code> fires once every agent has terminated or been truncated.</li>
           </ol>
           <div class="columns">

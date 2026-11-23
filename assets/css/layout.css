@@ -82,6 +82,13 @@
   font-stretch: 100%;
 }
 
+/* On phones the tagline would squeeze the name onto two lines; the footer still carries the credit. */
+@media (max-width: 30rem) {
+  .brand small {
+    display: none;
+  }
+}
+
 /* Main navigation. On narrow screens it wraps under the wordmark instead of hiding behind a menu. */
 .site-nav ul {
   display: flex;
@@ -144,6 +151,7 @@
 /* Section heading block: a heading with an optional short lead paragraph under it. */
 .section-head {
   display: grid;
+  align-content: start;    /* keep heading and lead together when a grid row stretches the block */
   gap: var(--space-4);
   max-width: 48rem;
   margin-bottom: var(--space-7);
@@ -202,6 +210,12 @@
   .split {
     grid-template-columns: minmax(12rem, 1fr) 2.4fr;
   }
+}
+
+/* Let grid children shrink below their content width, so wide tables scroll inside their box. */
+.split > *,
+.columns > * {
+  min-width: 0;
 }
 
 /* Even columns that fit as many as the width allows. */
