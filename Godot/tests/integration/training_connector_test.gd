@@ -235,6 +235,10 @@ func test_connector_properties_stay_in_range() -> void:
 	assert_int(connector.port).is_equal(65535)
 	connector.start_timeout_sec = -5.0
 	assert_float(connector.start_timeout_sec).is_equal(0.0)
+	# Timeouts too long to count mean "wait forever", the same as 0
+	for forever in [INF, NAN, 1e12]:
+		connector.step_timeout_sec = forever
+		assert_float(connector.step_timeout_sec).is_equal(0.0)
 	assert_bool(connector.is_training()).is_false()
 
 
