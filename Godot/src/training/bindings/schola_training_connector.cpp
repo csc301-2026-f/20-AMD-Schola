@@ -25,8 +25,22 @@ namespace {
 constexpr int32_t MIN_PORT = 1;
 constexpr int32_t MAX_PORT = 65535;
 
+// About 31 years. Longer values would overflow once converted to milliseconds
+// (and nanoseconds inside the wait), which turned "wait forever" into "give up now".
+constexpr double MAX_TIMEOUT_SEC = 1.0e9;
+
+// 0 means wait forever, and so do INF, NaN and anything too long to count.
+double clamp_timeout(double p_seconds) {
+	if (std::isnan(p_seconds) || p_seconds >= MAX_TIMEOUT_SEC) {
+		return 0.0;
+	}
+	return std::max(p_seconds, 0.0);
+}
+
 std::chrono::milliseconds to_milliseconds(double p_seconds) {
-	return std::chrono::milliseconds(static_cast<int64_t>(std::llround(p_seconds * 1000.0)));
+	// A tiny positive timeout must not round down to 0, which means forever
+	const int64_t milliseconds = std::llround(p_seconds * 1000.0);
+	return std::chrono::milliseconds(p_seconds > 0.0 ? std::max<int64_t>(milliseconds, 1) : 0);
 }
 
 godot::String to_godot_string(const std::string &p_text) {
@@ -77,7 +91,7 @@ int32_t ScholaTrainingConnector::get_port() const {
 }
 
 void ScholaTrainingConnector::set_start_timeout_sec(double p_seconds) {
-	start_timeout_sec = std::max(p_seconds, 0.0);
+	start_timeout_sec = clamp_timeout(p_seconds);
 }
 
 double ScholaTrainingConnector::get_start_timeout_sec() const {
@@ -85,7 +99,7 @@ double ScholaTrainingConnector::get_start_timeout_sec() const {
 }
 
 void ScholaTrainingConnector::set_step_timeout_sec(double p_seconds) {
-	step_timeout_sec = std::max(p_seconds, 0.0);
+	step_timeout_sec = clamp_timeout(p_seconds);
 }
 
 double ScholaTrainingConnector::get_step_timeout_sec() const {

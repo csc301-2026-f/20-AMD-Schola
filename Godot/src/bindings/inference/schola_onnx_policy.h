@@ -46,6 +46,8 @@ public:
 	godot::Variant infer(const godot::Variant &p_observation, const godot::Ref<ScholaPolicyState> &p_state = godot::Ref<ScholaPolicyState>());
 
 	schola::OnnxPolicy *get_policy() const;
+	// The spaces the policy was initialized with, or null before initialize().
+	const schola::InteractionDefinition *get_definition() const;
 
 protected:
 	static void _bind_methods();
