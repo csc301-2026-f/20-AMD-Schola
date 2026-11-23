@@ -270,7 +270,7 @@ transform = Transform3D(-1, 0, 0, 0, 0.9659, 0.2588, 0, 0.2588, -0.9659, 0, 3.5,
 [node name="RayOrigin" type="Node3D" parent="."]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.7, 1.7)
 
-[node name="Agent" type="ScholaAgent" parent="."]
+[node name="Agent" type="ScholaAgent" parent="." groups=["race_car_agent"]]
 script = ExtResource("1_agent")
 
 [node name="Track" type="ScholaSensor" parent="Agent"]

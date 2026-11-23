@@ -4,6 +4,7 @@ extends Node
 const AHEAD := 50.0
 const SPACING := 25.0
 const LANE := 2.5
+const CAR_LENGTH := 5.0
 const FALL_HEIGHT := 12.0
 const FALL_SECONDS := 0.6
 
@@ -100,6 +101,10 @@ func _allowed(offset: float) -> bool:
 	var length := track.curve.get_baked_length()
 	for item in dropped:
 		if absf(wrapf(item.offset - offset, -length * 0.5, length * 0.5)) < SPACING:
+			return false
+	for other: RaceTrackAgent in get_tree().get_nodes_in_group("race_car_agent"):
+		var gap := wrapf(offset - track.progress_of(other.car.global_position), -length * 0.5, length * 0.5)
+		if other != agent and gap > -CAR_LENGTH and gap < AHEAD:
 			return false
 	return true
 

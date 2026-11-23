@@ -85,6 +85,68 @@ func test_model_switcher_changes_model_in_place_and_r_restarts_the_car() -> void
 	assert_float(car.global_position.distance_to(track.start_transform().origin)).is_less(0.5)
 
 
+func test_plus_adds_a_driving_car_ahead_and_minus_removes_the_last_added() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var steppers := _use_exported_model(scene)
+	var failures: Array[String] = []
+	for stepper in steppers:
+		stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	add_child(scene)
+	var spawner: Node = scene.get_node("CarSpawner")
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var track := agent.track
+	await get_tree().physics_frame
+
+	await _press_and_step(KEY_EQUAL)
+	await _press_and_step(KEY_KP_ADD)
+	assert_int(spawner.added.size()).is_equal(2)
+	var first: RaceTrackAgent = spawner.added[0]
+	var second: RaceTrackAgent = spawner.added[1]
+	var here := track.progress_of(agent.car.global_position)
+	var first_at := track.progress_of(first.car.global_position)
+	assert_float(first_at - here).is_between(45.0, 60.0)
+	assert_float(track.progress_of(second.car.global_position) - first_at).is_greater_equal(35.0)
+	assert_object(get_viewport().get_camera_3d()).is_same(scene.get_node("Car/Camera"))
+
+	for frame in 60:
+		await get_tree().physics_frame
+	assert_array(failures).is_empty()
+	for added: RaceTrackAgent in [first, second]:
+		assert_float(absf(added.controls.action[0]) + absf(added.controls.action[1])).is_greater(0.0)
+
+	await _press_and_step(KEY_MINUS)
+	assert_array(spawner.added).contains_exactly([first])
+	assert_bool(is_instance_valid(second)).is_false()
+	for press in 2:
+		await _press_and_step(KEY_KP_SUBTRACT)
+	assert_array(spawner.added).is_empty()
+	assert_bool(is_instance_valid(first)).is_false()
+	assert_bool(is_instance_valid(agent)).is_true()
+	assert_array(failures).is_empty()
+
+
+func test_an_added_car_avoids_obstacles_and_r_lines_the_cars_up() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	_use_exported_model(scene)
+	add_child(scene)
+	var spawner: Node = scene.get_node("CarSpawner")
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var track := agent.track
+	await get_tree().physics_frame
+	var here := track.progress_of(agent.car.global_position)
+	var body := track.add_obstacle(here + 70.0, 0.0)
+	spawner.add()
+	var added: RaceTrackAgent = spawner.added[0]
+	assert_float(track.progress_of(added.car.global_position) - here).is_between(80.0, 90.0)
+
+	body.free()
+	agent.car.global_position = track.center_at(400.0)
+	added.car.global_position = track.center_at(450.0)
+	await _press_and_step(KEY_R)
+	assert_float(track.progress_of(agent.car.global_position)).is_between(3.0, 6.0)
+	assert_float(track.progress_of(added.car.global_position)).is_between(53.0, 56.0)
+
+
 func test_clicking_drops_an_obstacle_ahead_in_that_lane() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	_use_exported_model(scene)
@@ -245,6 +307,12 @@ func test_road_ahead_sensor_reports_the_nearest_obstacle_in_each_lane() -> void:
 			dropper.remove(child)
 	values = sensor._observe()
 	assert_float(values[0]).is_equal(1.0)
+
+
+func _press_and_step(keycode: Key) -> void:
+	await _press(keycode)
+	for frame in 3:
+		await get_tree().physics_frame
 
 
 func _press(keycode: Key) -> void:
