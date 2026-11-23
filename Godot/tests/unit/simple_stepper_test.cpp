@@ -221,6 +221,27 @@ TEST_CASE("invalid indices return NOT_FOUND or nullptr", "[stepper]") {
 	REQUIRE(stepper.get_state(1) == nullptr);
 }
 
+TEST_CASE("resetting inference state clears the previous episode observation fallback", "[stepper][regression]") {
+	FakeAgent first = make_agent(1.0f);
+	FakeAgent second = make_agent(0.5f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	REQUIRE(stepper.step().is_ok());
+	const bool reset_all = GENERATE(true, false);
+	if (reset_all) {
+		stepper.reset_states();
+	} else {
+		REQUIRE(stepper.reset_state(0).is_ok());
+	}
+	first.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor unavailable after reset");
+	second.observe_result = first.observe_result;
+	REQUIRE(stepper.step().get_code() == StatusCode::RUNTIME_FAILURE);
+	REQUIRE(policy.observations.size() == 4);
+	CHECK(box_value(policy.observations[2]) == 0.0f);
+	CHECK(box_value(policy.observations[3]) == (reset_all ? 0.0f : 0.5f));
+}
+
 TEST_CASE("add_agent rejects bad input", "[stepper]") {
 	FakeAgent agent = make_agent(1.0f);
 	FakePolicy policy = make_policy();
