@@ -13,6 +13,7 @@ namespace schola {
 namespace {
 
 constexpr int64_t MAX_BOX_ELEMENTS = std::numeric_limits<int32_t>::max();
+constexpr float MAX_FLOAT16_BOUND = 65504.0f;
 
 const char *kind_name(SpaceKind p_kind) {
 	switch (p_kind) {
@@ -157,6 +158,16 @@ Status check_box(const BoxSpace &p_box, const std::string &p_path) {
 		}
 		if (std::isnan(p_box.high[i])) {
 			return invalid_data(p_path, "Box high[" + std::to_string(i) + "] is NaN");
+		}
+		// Python casts bounds to the declared dtype; overflowing binary16
+		// would turn a finite bound into infinity and change the space.
+		if (p_box.dtype == DType::FLOAT16) {
+			if (std::isfinite(p_box.low[i]) && std::abs(p_box.low[i]) > MAX_FLOAT16_BOUND) {
+				return invalid_data(p_path, "Box low[" + std::to_string(i) + "] is " + format_float(p_box.low[i]) + " but dtype float16 needs a finite bound in [-65504, 65504]");
+			}
+			if (std::isfinite(p_box.high[i]) && std::abs(p_box.high[i]) > MAX_FLOAT16_BOUND) {
+				return invalid_data(p_path, "Box high[" + std::to_string(i) + "] is " + format_float(p_box.high[i]) + " but dtype float16 needs a finite bound in [-65504, 65504]");
+			}
 		}
 		if (p_box.low[i] > p_box.high[i]) {
 			return invalid_data(p_path, "Box low[" + std::to_string(i) + "] (" + format_float(p_box.low[i]) + ") is greater than high[" + std::to_string(i) + "] (" + format_float(p_box.high[i]) + ")");
