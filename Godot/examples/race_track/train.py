@@ -9,16 +9,20 @@ import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.vec_env import VecMonitor
+from schola.core.protocols.protobuf.async_grpc_protocol import AsyncGrpcProtocol
 from schola.core.protocols.protobuf.grpc_protocol import GrpcProtocol
 from schola.core.simulators.external_simulator import ExternalSimulator
+from schola.sb3.async_env import AsyncVecEnv
 from schola.sb3.env import VecEnv
 from schola.sb3.export import save_model_as_onnx
 from schola.sb3.utils import VecMergeDictActionWrapper
 
 SCENE = "res://examples/race_track/scenes/race_track_train.tscn"
-TEST_DRIVE_STEPS = 25_000
+CHECK_STEPS = 100_000
 TEST_DRIVE_LAYOUTS = 5
-GAMMA = 0.99
+PPO_SETTINGS = dict(
+    n_steps=1024, batch_size=128, gamma=0.99, gae_lambda=0.98, learning_rate=1e-4
+)
 
 
 def launch(godot, port, *flags):
@@ -31,18 +35,30 @@ def connect(port):
     )
 
 
+def connect_all(ports):
+    if len(ports) == 1:
+        return connect(ports[0])
+    return VecMergeDictActionWrapper(
+        AsyncVecEnv(
+            [ExternalSimulator() for _ in ports],
+            [AsyncGrpcProtocol("127.0.0.1", port) for port in ports],
+        )
+    )
+
+
 def stop(process, env):
     try:
         if env is not None:
             env.close()
     finally:
-        if process is not None:
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait()
+        for running in process if isinstance(process, list) else [process]:
+            if running is not None:
+                running.terminate()
+                try:
+                    running.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    running.kill()
+                    running.wait()
 
 
 def test_drive(model, godot, port):
@@ -81,9 +97,13 @@ class KeepBest(BaseCallback):
         self.output = output
         self.action_space = action_space
         self.best = best
+        self.next_check = None
 
     def _on_step(self):
-        if self.n_calls % TEST_DRIVE_STEPS == 0:
+        if self.next_check is None:
+            self.next_check = self.model.num_timesteps + CHECK_STEPS
+        if self.model.num_timesteps >= self.next_check:
+            self.next_check += CHECK_STEPS
             self.check()
         return True
 
@@ -97,6 +117,16 @@ class KeepBest(BaseCallback):
 
     def check(self):
         self.save("race_track_latest")
+        (self.output / "checkpoints").mkdir(exist_ok=True)
+        save_model_as_onnx(
+            self.model,
+            str(
+                self.output
+                / "checkpoints"
+                / f"race_track_{self.model.num_timesteps}.onnx"
+            ),
+            action_space=self.action_space,
+        )
         score = test_drive(self.model, self.godot, self.port)
         steps = self.model.num_timesteps
         if score <= self.best:
@@ -130,7 +160,13 @@ def main():
         "--port",
         type=int,
         default=8000,
-        help="Training port; test drives use the next port",
+        help="First training port; each extra Godot uses the next port, and test drives use the port after them",
+    )
+    parser.add_argument(
+        "--envs",
+        type=int,
+        default=1,
+        help="Number of Godot processes training in parallel",
     )
     parser.add_argument("--headless", action="store_true")
     parser.add_argument(
@@ -146,8 +182,12 @@ def main():
     args = parser.parse_args()
     if args.steps <= 0:
         parser.error("--steps must be positive")
-    if not 1 <= args.port <= 65534:
-        parser.error("--port must be between 1 and 65534")
+    if args.envs < 1 or (args.attach and args.envs != 1):
+        parser.error("--envs must be at least 1, and 1 with --attach")
+    if not 1 <= args.port <= 65535 - args.envs:
+        parser.error("--port leaves no room for the test-drive port")
+    ports = [args.port + index for index in range(args.envs)]
+    test_port = args.port + args.envs
     torch.set_num_threads(2)
     example = Path(__file__).resolve().parent
     project = example.parents[1]
@@ -156,10 +196,10 @@ def main():
     godot = [args.godot, "--path", str(project), "--fixed-fps", "60"]
     if args.headless:
         godot.append("--headless")
-    process = None if args.attach else launch(godot, args.port)
+    process = None if args.attach else [launch(godot, port) for port in ports]
     env = None
     try:
-        env = connect(args.port)
+        env = connect_all(ports)
         print(
             "Observation:",
             env.observation_space,
@@ -169,22 +209,23 @@ def main():
         )
         if args.smoke:
             obs = env.reset()
-            assert [value.shape for value in obs.values()] == [
-                (1, 6),
-                (1, 3),
-                (1, 75),
-                (1, 3),
+            assert [value.shape[1:] for value in obs.values()] == [
+                (6,),
+                (3,),
+                (75,),
+                (3,),
             ], obs
             peak_speed = 0.0
             episodes = 0
             for _ in range(600):
                 obs, reward, done, info = env.step(
-                    np.array([[0.0, 1.0]], dtype=np.float32)
+                    np.array([[0.0, 1.0]] * env.num_envs, dtype=np.float32)
                 )
                 assert np.isfinite(reward).all()
                 assert all(np.isfinite(value).all() for value in obs.values())
                 peak_speed = max(
-                    peak_speed, float(np.linalg.norm(list(obs.values())[1])) * 2
+                    peak_speed,
+                    float(np.linalg.norm(list(obs.values())[1], axis=1).max()) * 2,
                 )
                 episodes += int(done.sum())
             assert peak_speed > 1.0, f"No vehicle motion: {peak_speed}"
@@ -200,24 +241,24 @@ def main():
                 "race_track_latest.zip" if args.resume == "latest" else "race_track.zip"
             )
             model = PPO.load(
-                output / saved, env=monitored_env, device="cpu", gamma=GAMMA
+                output / saved,
+                env=monitored_env,
+                device="cpu",
+                verbose=1,
+                **PPO_SETTINGS,
             )
-            best = test_drive(model, godot, args.port + 1)
+            best = test_drive(model, godot, test_port)
             print(f"Saved model test drive: score {best:.1f}", flush=True)
         else:
             model = PPO(
                 "MultiInputPolicy",
                 monitored_env,
-                n_steps=512,
-                batch_size=64,
-                gamma=GAMMA,
+                **PPO_SETTINGS,
                 seed=7,
                 device="cpu",
                 verbose=1,
             )
-        keep_best = KeepBest(
-            godot, args.port + 1, output, env.unmerged_action_space, best
-        )
+        keep_best = KeepBest(godot, test_port, output, env.unmerged_action_space, best)
         model.learn(
             total_timesteps=args.steps,
             reset_num_timesteps=not args.resume,

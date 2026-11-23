@@ -23,6 +23,7 @@ maximum_tilt_degrees = 60.0
 terminate_on_obstacle = true
 random_start = true
 random_obstacles = true
+demo_map_share = 0.2
 
 [node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
 contact_monitor = true

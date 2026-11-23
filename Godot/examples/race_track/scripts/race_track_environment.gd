@@ -15,6 +15,7 @@ const DEFAULT_MAXIMUM_TRACK_DISTANCE := 10.0
 @export var random_start := false
 @export var random_obstacles := false
 @export var test_drive_layout_seed := 0
+@export_range(0.0, 1.0) var demo_map_share := 0.0
 @export var drift_bonus := 0.5
 
 var _previous_distance := 0.0
@@ -34,7 +35,7 @@ func _reset_episode(_seed: Variant, _options: Dictionary) -> void:
 			rng = RandomNumberGenerator.new()
 			rng.seed = test_drive_layout_seed + _test_drive_episodes - 1
 			_test_drive_episodes += 1
-		if test_drive and _test_drive_episodes == 1:
+		if (test_drive and _test_drive_episodes == 1) or (not test_drive and get_rng().randf() < demo_map_share):
 			agent.track.set_obstacles(agent.track.map_obstacles)
 		else:
 			agent.track.set_obstacles(agent.track.random_obstacle_layout(rng))
