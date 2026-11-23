@@ -7,6 +7,9 @@ const CHANNEL_ERROR := "Enable at least one RGBA channel using only the four cha
 const SOURCE_ERROR := "Camera sources must reference SubViewport nodes."
 const SIZE_ERROR := "Source viewport size must match the image width and height."
 const HEADLESS_ERROR := "Camera readback requires a rendering display; use ScholaFakeCameraSensor for headless runs."
+const MINIMUM_ERROR := "Camera images must be at least 2x2 pixels because Godot SubViewports are never smaller."
+const UPDATE_ERROR := "Source viewports must render for each capture; set render_target_update_mode to Always, or to Once before each capture."
+const HDR_ERROR := "Source viewports must not use HDR 2D, which produces linear values above 1."
 
 var agent: ScholaAgent
 
@@ -136,6 +139,49 @@ func test_real_camera_reports_that_headless_runs_cannot_render(
 	assert_that(sensor._observe()).is_null()
 
 
+func test_real_camera_images_must_be_at_least_2_by_2() -> void:
+	for size in [Vector2i(1, 4), Vector2i(4, 1), Vector2i(1, 1)]:
+		assert_bool(_camera(size.x, size.y, 7).get_configuration_errors().has(MINIMUM_ERROR)).is_true()
+	assert_bool(_camera(2, 2, 7).get_configuration_errors().has(MINIMUM_ERROR)).is_false()
+	assert_bool(_fake(1, 1, 7).get_configuration_errors().has(MINIMUM_ERROR)).is_false()
+
+
+func test_viewports_that_stop_rendering_are_reported() -> void:
+	var sensor := _camera(8, 4, 7)
+	var color := _viewport("Color", Vector2i(8, 4))
+	sensor.viewport_path = sensor.get_path_to(color)
+	var cases := [
+		[SubViewport.UPDATE_DISABLED, true],
+		[SubViewport.UPDATE_WHEN_VISIBLE, true],
+		[SubViewport.UPDATE_ONCE, false],
+		[SubViewport.UPDATE_WHEN_PARENT_VISIBLE, false],
+		[SubViewport.UPDATE_ALWAYS, false],
+	]
+	for case in cases:
+		color.render_target_update_mode = case[0]
+		assert_bool(sensor.get_configuration_errors().has(UPDATE_ERROR)).is_equal(case[1])
+	var depth := _viewport("Depth", Vector2i(8, 4))
+	depth.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	sensor.depth_viewport_path = sensor.get_path_to(depth)
+	sensor.capture_mode = ScholaCameraSensor.CaptureMode.COLOR_DEPTH
+	assert_bool(sensor.get_configuration_errors().has(UPDATE_ERROR)).is_true()
+
+
+func test_hdr_viewports_are_reported() -> void:
+	var sensor := _camera(8, 4, 7)
+	var color := _viewport("Color", Vector2i(8, 4))
+	sensor.viewport_path = sensor.get_path_to(color)
+	assert_bool(sensor.get_configuration_errors().has(HDR_ERROR)).is_false()
+	color.use_hdr_2d = true
+	assert_bool(sensor.get_configuration_errors().has(HDR_ERROR)).is_true()
+	color.use_hdr_2d = false
+	var depth := _viewport("Depth", Vector2i(8, 4))
+	depth.use_hdr_2d = true
+	sensor.depth_viewport_path = sensor.get_path_to(depth)
+	sensor.capture_mode = ScholaCameraSensor.CaptureMode.DEPTH
+	assert_bool(sensor.get_configuration_errors().has(HDR_ERROR)).is_true()
+
+
 func _camera(width: int, height: int, channels: int) -> ScholaCameraSensor:
 	var sensor := ScholaCameraSensor.new()
 	sensor.width = width
@@ -158,5 +204,6 @@ func _viewport(viewport_name: String, size: Vector2i) -> SubViewport:
 	var viewport := SubViewport.new()
 	viewport.name = viewport_name
 	viewport.size = size
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	agent.add_child(viewport)
 	return viewport
