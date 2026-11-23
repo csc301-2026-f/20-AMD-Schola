@@ -179,6 +179,10 @@ schola::OnnxPolicy *ScholaOnnxPolicy::get_policy() const {
 	return policy.get();
 }
 
+const schola::InteractionDefinition *ScholaOnnxPolicy::get_definition() const {
+	return definition.get();
+}
+
 void ScholaOnnxPolicy::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_model_path", "path"), &ScholaOnnxPolicy::set_model_path);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_model_path"), &ScholaOnnxPolicy::get_model_path);
