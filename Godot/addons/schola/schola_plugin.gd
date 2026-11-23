@@ -34,7 +34,10 @@ func _enter_tree() -> void:
 	_capabilities = Label.new()
 	_capabilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dock_content.add_child(_capabilities)
-	_button("Open interactive UI preview", func(): get_editor_interface().open_scene_from_path(PREVIEW))
+	# The preview scene ships with this repository's project, not with the add-on,
+	# so projects that only copy addons/schola/ don't get a button that can't work.
+	if ResourceLoader.exists(PREVIEW):
+		_button("Open interactive UI preview", func(): get_editor_interface().open_scene_from_path(PREVIEW))
 	_button("Add monitor to current scene", _add_monitor)
 	var caption := Label.new()
 	caption.text = "SCENE NODES · select to inspect"
