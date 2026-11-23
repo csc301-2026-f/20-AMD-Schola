@@ -98,6 +98,11 @@ func _get_component_errors() -> PackedStringArray:
 			errors.append("Direction flags must use only Wait, Positive and Negative.")
 	if not step.is_finite():
 		errors.append("step must be finite.")
-	if not ScholaComponentSpace.matches(space, _expected_space()):
+	var expected := _expected_space()
+	# An axis needs at least two choices to become an action, so with none left
+	# the space is empty. Say which flags to change instead of only "nvec is empty".
+	if expected.nvec.is_empty():
+		errors.append("Enable at least two of Wait, Positive and Negative on one axis; axes with fewer are left out.")
+	if not ScholaComponentSpace.matches(space, expected):
 		errors.append("Teleport space must match its direction flags.")
 	return errors
