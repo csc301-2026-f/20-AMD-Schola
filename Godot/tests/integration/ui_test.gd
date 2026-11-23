@@ -85,3 +85,10 @@ func test_preview_controls_drive_only_sample_telemetry() -> void:
 	assert_int(preview.monitor.step).is_equal(60)
 	assert_bool(preview.monitor.is_episode_active()).is_false()
 	assert_str(preview.monitor._status.text).contains("Truncated")
+
+
+func test_monitor_text_is_light_on_its_dark_panel() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	add_child(monitor)
+	assert_that(monitor._heading.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._episode_value.get_theme_color("font_color")).is_equal(Color("eef2fa"))

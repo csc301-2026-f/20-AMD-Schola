@@ -49,9 +49,14 @@ func _ready() -> void:
 	surface.content_margin_top = 18
 	surface.content_margin_bottom = 18
 	add_theme_stylebox_override("panel", surface)
-	add_theme_color_override("font_color", Color("eef2fa"))
 	var layout := VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 12)
+	# Color overrides only apply to the node they're set on, so the light text
+	# for the dark panel comes from a small theme that the labels inherit.
+	# Labels with their own color still win.
+	var text_theme := Theme.new()
+	text_theme.set_color("font_color", "Label", Color("eef2fa"))
+	layout.theme = text_theme
 	add_child(layout)
 	var brand := Label.new()
 	brand.text = "AMD  /  SCHOLA"
