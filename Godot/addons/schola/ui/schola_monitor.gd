@@ -20,6 +20,7 @@ var _active: bool = false
 var _step_limit: int = 0
 var _history: Array[float] = []
 var _last_rewards: Dictionary = {}
+var _warning: String = ""
 var _heading: Label
 var _status: Label
 var _episode_value: Label
@@ -115,6 +116,7 @@ func begin_episode(number: int, agent_ids: PackedStringArray, step_limit: int = 
 	agent_returns.clear()
 	_last_rewards.clear()
 	_history.assign([0.0])
+	_warning = ""
 	for agent_id in agent_ids:
 		agent_returns[agent_id] = 0.0
 	_refresh()
@@ -126,11 +128,12 @@ func record_step(rewards: Dictionary) -> void:
 		return
 	# Validate the whole batch before changing any displayed totals.
 	for agent_id in rewards:
-		if not agent_returns.has(agent_id) or not (rewards[agent_id] is float or rewards[agent_id] is int):
-			push_warning("ScholaMonitor: reward batch contains an unknown agent or nonnumeric reward.")
+		var reward: Variant = rewards[agent_id]
+		if not agent_returns.has(agent_id):
+			_reject("agent '%s' was not declared in begin_episode()" % [agent_id])
 			return
-		if not is_finite(float(rewards[agent_id])):
-			push_warning("ScholaMonitor: rewards must be finite.")
+		if not (reward is float or reward is int) or not is_finite(float(reward)):
+			_reject("the reward for agent '%s' must be a finite number" % [agent_id])
 			return
 	step += 1
 	_last_rewards = rewards.duplicate()
@@ -141,6 +144,14 @@ func record_step(rewards: Dictionary) -> void:
 	while _history.size() > maxi(8, history_limit):
 		_history.pop_front()
 	_refresh()
+
+
+# record_step() runs every frame, so a problem that persists is reported once
+# per episode instead of flooding the log.
+func _reject(reason: String) -> void:
+	if _warning.is_empty():
+		_warning = "ScholaMonitor: reward batch rejected; %s." % reason
+		push_warning(_warning)
 
 
 ## Use terminated for natural episode endings, truncated for external limits.

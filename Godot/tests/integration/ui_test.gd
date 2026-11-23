@@ -41,6 +41,24 @@ func test_monitor_bounds_history_and_handles_empty_episode() -> void:
 	assert_str(monitor._status.text).contains("Terminated")
 
 
+func test_monitor_warns_once_per_episode_and_names_the_agent() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	add_child(monitor)
+	monitor.begin_episode(1, PackedStringArray(["A"]))
+	for index in range(3):
+		monitor.record_step({"A": 1.0, "spawned": 0.0})
+	assert_int(monitor.step).is_equal(0)
+	assert_str(monitor._warning).contains("agent 'spawned' was not declared")
+	# Later rejections in the same episode stay quiet
+	monitor.record_step({"A": NAN})
+	assert_str(monitor._warning).contains("'spawned'")
+
+	monitor.begin_episode(2, PackedStringArray(["A"]))
+	assert_str(monitor._warning).is_empty()
+	monitor.record_step({"A": "fast"})
+	assert_str(monitor._warning).contains("reward for agent 'A' must be a finite number")
+
+
 func test_preview_controls_drive_only_sample_telemetry() -> void:
 	var preview: Control = auto_free(Preview.instantiate())
 	add_child(preview)
