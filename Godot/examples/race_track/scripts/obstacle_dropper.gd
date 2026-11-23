@@ -6,14 +6,13 @@ const SPACING := 25.0
 const LANE := 2.5
 const FALL_HEIGHT := 12.0
 const FALL_SECONDS := 0.6
-const REMOVE_BEHIND := 15.0
 
 @export var agent_path: NodePath
 
 @onready var agent: RaceTrackAgent = get_node(agent_path)
 var dropped: Array[Dictionary] = []
 var _right_clicks: Array[Vector2] = []
-var _removed: Dictionary = {}
+var _removed: Array[StaticBody3D] = []
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -64,9 +63,8 @@ func clear() -> void:
 	for item in dropped:
 		_free(item)
 	dropped.clear()
-	for body: StaticBody3D in _removed:
-		body.collision_layer = _removed[body]
-		body.visible = true
+	for body in _removed:
+		RaceTrackPath.set_solid(body, true)
 	_removed.clear()
 
 
@@ -74,14 +72,6 @@ func _physics_process(_delta: float) -> void:
 	for position in _right_clicks:
 		_remove_at(position)
 	_right_clicks.clear()
-	var track := agent.track
-	var length := track.curve.get_baked_length()
-	var now := track.progress_of(agent.car.global_position)
-	for item in dropped.duplicate():
-		var behind := fposmod(now - item.offset, length)
-		if behind > REMOVE_BEHIND and behind < length * 0.5:
-			_free(item)
-			dropped.erase(item)
 
 
 func _remove_at(position: Vector2) -> void:
@@ -99,9 +89,8 @@ func remove(body: StaticBody3D) -> void:
 			_free(item)
 			dropped.erase(item)
 			return
-	_removed[body] = body.collision_layer
-	body.collision_layer = 0
-	body.visible = false
+	_removed.append(body)
+	RaceTrackPath.set_solid(body, false)
 
 
 func _allowed(offset: float) -> bool:

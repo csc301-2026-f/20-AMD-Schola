@@ -12,11 +12,11 @@ model_path = "res://examples/race_track/policies/race_track.onnx"
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_untrained"]
 model_path = "res://examples/race_track/policies/race_track_untrained.onnx"
 
-[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_25k_steps"]
-model_path = "res://examples/race_track/policies/race_track_25k_steps.onnx"
-
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_350k_steps"]
 model_path = "res://examples/race_track/policies/race_track_350k_steps.onnx"
+
+[sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_650k_steps"]
+model_path = "res://examples/race_track/policies/race_track_650k_steps.onnx"
 
 [node name="RaceTrackInference" type="Node3D"]
 
@@ -38,12 +38,12 @@ agents = Array[NodePath]([NodePath("../Car/Agent")])
 enabled = false
 
 [node name="EarlyStepper" type="ScholaInferenceStepper" parent="."]
-policy = SubResource("ScholaOnnxPolicy_25k_steps")
+policy = SubResource("ScholaOnnxPolicy_350k_steps")
 agents = Array[NodePath]([NodePath("../Car/Agent")])
 enabled = false
 
 [node name="PartlyTrainedStepper" type="ScholaInferenceStepper" parent="."]
-policy = SubResource("ScholaOnnxPolicy_350k_steps")
+policy = SubResource("ScholaOnnxPolicy_650k_steps")
 agents = Array[NodePath]([NodePath("../Car/Agent")])
 enabled = false
 
@@ -55,7 +55,7 @@ offset_left = 16.0
 offset_top = 16.0
 script = ExtResource("4_switcher")
 stepper_paths = Array[NodePath]([NodePath("../UntrainedStepper"), NodePath("../EarlyStepper"), NodePath("../PartlyTrainedStepper"), NodePath("../InferenceStepper")])
-names = PackedStringArray("UNTRAINED", "25,000 TRAINING STEPS", "350,000 TRAINING STEPS", "650,000 TRAINING STEPS")
+names = PackedStringArray("UNTRAINED", "300,000 TRAINING STEPS", "650,000 TRAINING STEPS", "800,000 TRAINING STEPS")
 agent_path = NodePath("../Car/Agent")
 selected = 3
 

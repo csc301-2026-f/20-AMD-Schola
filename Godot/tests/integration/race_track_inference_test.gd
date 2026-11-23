@@ -5,8 +5,8 @@ const SCENE := "res://examples/race_track/scenes/race_track_inference.tscn"
 const TRAINED_MODEL := "res://examples/race_track/policies/race_track.onnx"
 const SWITCHER_MODELS: Array[String] = [
 	"res://examples/race_track/policies/race_track_untrained.onnx",
-	"res://examples/race_track/policies/race_track_25k_steps.onnx",
 	"res://examples/race_track/policies/race_track_350k_steps.onnx",
+	"res://examples/race_track/policies/race_track_650k_steps.onnx",
 	TRAINED_MODEL,
 ]
 const EXPORTED_MODEL := "res://tests/inference/fixtures/schola_ppo_race_car.onnx"
@@ -160,15 +160,39 @@ func test_removed_map_obstacle_comes_back_with_r() -> void:
 	for child in track.get_children():
 		if child.is_in_group("obstacle") and child.global_position.distance_to(track.center_at(325.0)) < 4.0:
 			obstacle = child
-	var layer := obstacle.collision_layer
 
 	dropper.remove(obstacle)
 	assert_int(obstacle.collision_layer).is_equal(0)
+	assert_int(obstacle.collision_mask).is_equal(0)
 	assert_bool(obstacle.visible).is_false()
 
 	await _press(KEY_R)
-	assert_int(obstacle.collision_layer).is_equal(layer)
+	assert_int(obstacle.collision_layer).is_equal(1)
+	assert_int(obstacle.collision_mask).is_equal(1)
 	assert_bool(obstacle.visible).is_true()
+
+
+func test_a_hidden_obstacle_does_not_block_the_car() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var steppers := _use_exported_model(scene)
+	add_child(scene)
+	for stepper in steppers:
+		stepper.enabled = false
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var car := agent.car
+	car.contact_monitor = true
+	car.max_contacts_reported = 4
+	var track := agent.track
+	track.set_obstacles(PackedVector2Array([Vector2(120.0, 0.0)]))
+	track.set_obstacles(PackedVector2Array())
+	get_tree().physics_frame.connect(agent.place.bind(track.transform_at(100.0)), CONNECT_ONE_SHOT)
+	var touched := false
+	for frame in 180:
+		agent.controls._act(PackedFloat32Array([0.0, 1.0]))
+		await get_tree().physics_frame
+		touched = touched or car.get_colliding_bodies().any(func(body: Node) -> bool: return body.is_in_group("obstacle"))
+	assert_bool(touched).is_false()
+	assert_float(track.progress_of(car.global_position)).is_greater(125.0)
 
 
 func test_brake_lights_turn_on_only_while_braking() -> void:

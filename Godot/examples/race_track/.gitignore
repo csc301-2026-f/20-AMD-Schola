@@ -2,6 +2,6 @@
 *.onnx
 !policies/race_track.onnx
 !policies/race_track_untrained.onnx
-!policies/race_track_25k_steps.onnx
 !policies/race_track_350k_steps.onnx
+!policies/race_track_650k_steps.onnx
 *.onnx.data
