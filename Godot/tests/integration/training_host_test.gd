@@ -1272,3 +1272,16 @@ func test_session_activity_tracks_initialization_recoverable_errors_and_close() 
 	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_bool(host.is_session_active()).is_false()
+
+
+func test_autoreset_mode_rejects_values_that_would_wrap() -> void:
+	var root := _test_root()
+	_add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+
+	# 2^32 and 2^32 + 2 used to wrap into SAME_STEP and DISABLED
+	assert_int(_status_code(host.set_autoreset_mode(4294967296))).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_int(_status_code(host.set_autoreset_mode(4294967298))).is_equal(STATUS_INVALID_ARGUMENT)
+	# Nothing was configured, so the real mode is still accepted
+	assert_int(_status_code(host.set_autoreset_mode(AUTORESET_DISABLED))).is_equal(STATUS_OK)

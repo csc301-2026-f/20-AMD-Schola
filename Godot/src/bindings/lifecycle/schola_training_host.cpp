@@ -615,6 +615,12 @@ godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
 		return encode_result(fail_session(nodes));
 	}
 
+	// AutoResetMode is an int underneath, so a wider value would wrap into a valid
+	// mode (2^32 becomes SAME_STEP). Reject it before the cast; the coordinator
+	// checks everything in range.
+	if (p_mode < std::numeric_limits<int32_t>::min() || p_mode > std::numeric_limits<int32_t>::max()) {
+		return encode_result(schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "unknown autoreset mode"));
+	}
 	return encode_result(coordinator.set_autoreset_mode(
 			static_cast<schola::AutoResetMode>(p_mode)));
 }
