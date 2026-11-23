@@ -168,7 +168,10 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 	for (int32_t index = 0; index < agents.size(); ++index) {
 		godot::Object *agent_object = agents[index];
 		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(agent_object);
+		// Usually an unassigned slot in an exported templates array. Skipping it
+		// quietly leaves that ID undeclared until a spawn fails mid-training.
 		if (agent == nullptr) {
+			errors.append("Possible agent " + godot::String::num_int64(index) + " is empty. Assign a ScholaAgent or remove the entry.");
 			continue;
 		}
 		const godot::String id = agent->get_resolved_agent_id();
