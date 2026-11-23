@@ -285,8 +285,10 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 
 template <typename T>
 bool fits_integer_tensor(double p_value) {
-	return std::isfinite(p_value) && p_value >= static_cast<double>(std::numeric_limits<T>::min()) &&
-			p_value < std::ldexp(1.0, std::numeric_limits<T>::digits);
+	// C++ truncates fractions before converting; preserve every safe cast.
+	const double truncated = std::trunc(p_value);
+	return std::isfinite(truncated) && truncated >= static_cast<double>(std::numeric_limits<T>::min()) &&
+			truncated < std::ldexp(1.0, std::numeric_limits<T>::digits);
 }
 
 bool fits_tensor(ONNXTensorElementDataType p_type, double p_value) {

@@ -81,7 +81,7 @@ TEST_CASE("integer ONNX inputs reject Box observations outside their numeric ran
 	const float upper = std::ldexp(1.0f, digits[type]);
 	const bool is_unsigned = type == 1 || type == 3;
 	const float lower = is_unsigned ? 0.0f : -upper;
-	const float bad = GENERATE_COPY(upper, is_unsigned ? -1.0f : std::nextafter(lower, -INFINITY), INFINITY, -INFINITY, std::nanf(""));
+	const float bad = GENERATE_COPY(upper, is_unsigned ? -1.0f : std::floor(std::nextafter(lower, -INFINITY)), INFINITY, -INFINITY, std::nanf(""));
 	Fixture fixture(models[type], definition(box(3, INFINITY), box(3, INFINITY)));
 	const Status status = fixture.think(Point(BoxPoint{ { 0.0f, bad, 1.0f } }));
 	INFO(models[type]);
@@ -99,6 +99,19 @@ TEST_CASE("integer ONNX inputs preserve representable Box observations", "[infer
 	Fixture fixture(name, definition(box(3, INFINITY), box(3, INFINITY)));
 	REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f, 1.0f, 42.0f } })).is_ok());
 	CHECK(box_values(fixture.action) == std::vector<float>{ 0.0f, 1.0f, 42.0f });
+}
+
+TEST_CASE("integer ONNX inputs preserve safe fractional truncation", "[inference][integer-input]") {
+	SECTION("signed values near both limits") {
+		Fixture fixture("int8_box.onnx", definition(box(3, INFINITY), box(3, INFINITY)));
+		REQUIRE(fixture.think(Point(BoxPoint{ { -128.5f, 127.5f, 1.75f } })).is_ok());
+		CHECK(box_values(fixture.action) == std::vector<float>{ -128.0f, 127.0f, 1.0f });
+	}
+	SECTION("negative fractions that truncate to unsigned zero") {
+		Fixture fixture("uint8_box.onnx", definition(box(3, INFINITY), box(3, INFINITY)));
+		REQUIRE(fixture.think(Point(BoxPoint{ { -0.5f, 255.5f, 1.75f } })).is_ok());
+		CHECK(box_values(fixture.action) == std::vector<float>{ 0.0f, 255.0f, 1.0f });
+	}
 }
 
 TEST_CASE("think returns Discrete, MultiDiscrete, and MultiBinary actions", "[inference]") {
