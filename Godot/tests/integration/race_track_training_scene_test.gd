@@ -60,6 +60,25 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	assert_array(Array(controls.high)).contains_exactly([1.0, 1.0])
 
 
+func test_reward_chart_plots_the_average_reward_per_second() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var connector: Node = scene.get_node("TrainingConnector")
+	scene.remove_child(connector)
+	connector.free()
+	add_child(scene)
+	var environment: RaceTrackEnvironment = scene.get_node("RaceTrackEnvironment")
+	var chart: Control = scene.get_node("RewardChart")
+	for step in chart.STEPS_PER_POINT - 1:
+		environment.step_rewarded.emit(0.1)
+	assert_int(chart.points.size()).is_equal(0)
+	environment.step_rewarded.emit(0.1)
+	assert_int(chart.points.size()).is_equal(1)
+	assert_float(chart.points[0]).is_equal_approx(6.0, 0.01)
+	for step in chart.STEPS_PER_POINT:
+		environment.step_rewarded.emit(0.2)
+	assert_float(chart.points[1]).is_equal_approx(6.6, 0.01)
+
+
 func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	var connector: Node = scene.get_node("TrainingConnector")

@@ -2,6 +2,8 @@
 class_name RaceTrackEnvironment
 extends ScholaEnvironment
 
+signal step_rewarded(reward: float)
+
 @export var maximum_stalled_steps: int = 0 # Zero disables stall endings.
 @export var maximum_steps: int = 500 # Zero disables the step limit.
 const LOCATION_SCALE := 5.0
@@ -74,6 +76,7 @@ func _get_step_result(_agent: ScholaAgent) -> Variant:
 	var reward := 0.01 * exp(-pow(distance_from_track / LOCATION_SCALE, 2.0)) + progress * (1.0 + drift_bonus * drift)
 	if terminated:
 		reward = OFF_TRACK_PENALTY
+	step_rewarded.emit(reward)
 	return {
 		"reward": reward,
 		"terminated": terminated,
