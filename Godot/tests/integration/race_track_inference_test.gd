@@ -174,6 +174,56 @@ func test_h_hides_and_shows_the_rays_of_every_car() -> void:
 	assert_array(failures).is_empty()
 
 
+func test_m_hands_the_car_to_the_keyboard_and_back_to_the_ai() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	var steppers := _use_exported_model(scene)
+	var failures: Array[String] = []
+	for stepper in steppers:
+		stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	add_child(scene)
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var driver: Label = scene.get_node("ManualDriver")
+	var switcher: Label = scene.get_node("ModelSwitcher")
+	var spawner: Node = scene.get_node("CarSpawner")
+	for frame in 3:
+		await get_tree().physics_frame
+	assert_bool(driver.visible).is_false()
+
+	await _press_and_step(KEY_M)
+	assert_bool(driver.visible).is_true()
+	assert_array(Array(agent.controls.action)).contains_exactly([0.0, 0.0])
+	for step: Array in [[KEY_W, [0.0, 1.0]], [KEY_S, [0.0, -1.0]], [KEY_A, [-1.0, 0.0]], [KEY_D, [1.0, 0.0]]]:
+		_hold(step[0], true)
+		for frame in 3:
+			await get_tree().physics_frame
+		assert_array(Array(agent.controls.action)).contains_exactly(step[1])
+		_hold(step[0], false)
+		for frame in 3:
+			await get_tree().physics_frame
+
+	_hold(KEY_S, true)
+	for frame in 120:
+		await get_tree().physics_frame
+	assert_float(agent.car.linear_velocity.dot(agent.car.global_basis.z)).is_between(-6.0, -2.0)
+	_hold(KEY_S, false)
+	await get_tree().physics_frame
+
+	await _press_and_step(KEY_EQUAL)
+	var added: RaceTrackAgent = spawner.added[0]
+	await _press_and_step(KEY_2)
+	assert_str(switcher.text).contains(switcher.names[1])
+	assert_bool(steppers[1].enabled).is_true()
+	for stepper in steppers:
+		assert_int(stepper.remove_agent(agent)).is_equal(0)
+	assert_float(absf(added.controls.action[0]) + absf(added.controls.action[1])).is_greater(0.0)
+	assert_array(Array(agent.controls.action)).contains_exactly([0.0, 0.0])
+
+	await _press_and_step(KEY_M)
+	assert_bool(driver.visible).is_false()
+	assert_float(absf(agent.controls.action[0]) + absf(agent.controls.action[1])).is_greater(0.0)
+	assert_array(failures).is_empty()
+
+
 func test_clicking_drops_an_obstacle_ahead_in_that_lane() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	_use_exported_model(scene)
@@ -338,6 +388,14 @@ func test_road_ahead_sensor_reports_the_nearest_obstacle_in_each_lane() -> void:
 
 func _shows_rays(agent: RaceTrackAgent) -> bool:
 	return agent.rays.get_children(true).any(func(child: Node) -> bool: return child is MeshInstance3D and child.visible)
+
+
+func _hold(keycode: Key, pressed: bool) -> void:
+	var key := InputEventKey.new()
+	key.keycode = keycode
+	key.physical_keycode = keycode
+	key.pressed = pressed
+	Input.parse_input_event(key)
 
 
 func _press_and_step(keycode: Key) -> void:

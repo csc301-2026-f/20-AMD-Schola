@@ -12,7 +12,7 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
-Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Press H to show or hide the rays. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
+Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Press H to show or hide the rays. Press M to drive the car yourself with W, A, S and D (S brakes, then reverses), and M again to give it back to the AI. While you drive, 1-4 choose the model of the cars added with +. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
 
 ## Results
 
@@ -174,6 +174,7 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scripts/obstacle_dropper.gd` | Drops an obstacle 50 m ahead of the car when the viewer clicks, and removes obstacles on right-click | None |
 | `scripts/road_ahead_sensor.gd` | Distance to the next obstacle in each lane along the road ahead | None |
 | `scripts/model_switcher.gd` | Switches the inference scene between four policies with keys 1-4 and restarts the car with R | None |
+| `scripts/manual_driver.gd` | Lets the viewer drive the car with W, A, S and D after pressing M | None |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, start positions, walls, obstacles and random obstacle layouts | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |

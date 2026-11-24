@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
 [ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="2_car"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://examples/race_track/scripts/model_switcher.gd" id="4_switcher"]
 [ext_resource type="Script" path="res://examples/race_track/scripts/obstacle_dropper.gd" id="5_dropper"]
 [ext_resource type="Script" path="res://examples/race_track/scripts/car_spawner.gd" id="6_spawner"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/manual_driver.gd" id="7_manual"]
 
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_race_track"]
 model_path = "res://examples/race_track/policies/race_track.onnx"
@@ -18,6 +19,17 @@ model_path = "res://examples/race_track/policies/race_track_350k_steps.onnx"
 
 [sub_resource type="ScholaOnnxPolicy" id="ScholaOnnxPolicy_650k_steps"]
 model_path = "res://examples/race_track/policies/race_track_650k_steps.onnx"
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_manual"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0, 0, 0, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
 
 [node name="RaceTrackInference" type="Node3D"]
 
@@ -67,5 +79,20 @@ agent_path = NodePath("../Car/Agent")
 [node name="CarSpawner" type="Node" parent="."]
 script = ExtResource("6_spawner")
 car_scene = ExtResource("2_car")
+agent_path = NodePath("../Car/Agent")
+stepper_paths = Array[NodePath]([NodePath("../InferenceStepper"), NodePath("../UntrainedStepper"), NodePath("../EarlyStepper"), NodePath("../PartlyTrainedStepper")])
+
+[node name="ManualDriver" type="Label" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -16.0
+offset_top = 16.0
+offset_right = -16.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_manual")
+text = "MANUAL DRIVING"
+script = ExtResource("7_manual")
 agent_path = NodePath("../Car/Agent")
 stepper_paths = Array[NodePath]([NodePath("../InferenceStepper"), NodePath("../UntrainedStepper"), NodePath("../EarlyStepper"), NodePath("../PartlyTrainedStepper")])
