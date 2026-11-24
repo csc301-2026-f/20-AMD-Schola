@@ -131,6 +131,7 @@ Status SimpleStepper::reset_state(int32_t p_index) {
 	}
 	entries[p_index].state->reset();
 	entries[p_index].agent->reset_observation_history();
+	entries[p_index].observation = observation_space.make_point();
 	return Status::ok();
 }
 
@@ -138,6 +139,7 @@ void SimpleStepper::reset_states() {
 	for (Entry &entry : entries) {
 		entry.state->reset();
 		entry.agent->reset_observation_history();
+		entry.observation = observation_space.make_point();
 	}
 }
 
