@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://examples/race_track/scripts/track.gd" id="1_track"]
 
@@ -25,7 +25,26 @@ albedo_color = Color(0.2, 0.2, 0.22, 1)
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_embankment"]
 albedo_color = Color(0.36, 0.42, 0.24, 1)
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_blue"]
+sky_top_color = Color(0.16, 0.42, 0.85, 1)
+sky_horizon_color = Color(0.55, 0.78, 0.97, 1)
+ground_bottom_color = Color(0.3, 0.58, 0.9, 1)
+ground_horizon_color = Color(0.55, 0.78, 0.97, 1)
+sun_angle_max = 0.0
+
+[sub_resource type="Sky" id="Sky_blue"]
+sky_material = SubResource("ProceduralSkyMaterial_blue")
+
+[sub_resource type="Environment" id="Environment_blue"]
+background_mode = 2
+sky = SubResource("Sky_blue")
+ambient_light_source = 1
+reflected_light_source = 1
+
 [node name="RaceTrack" type="Node3D"]
+
+[node name="Sky" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_blue")
 
 [node name="Ground" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.8, -0.5, 83.7)
