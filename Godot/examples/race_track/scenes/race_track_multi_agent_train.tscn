@@ -1,0 +1,115 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/multi_agent_environment.gd" id="2_environment"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="3_car"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/multi_agent_trainer.gd" id="4_trainer"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/multi_agent_status.gd" id="5_status"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/reward_chart.gd" id="6_chart"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_blue"]
+albedo_color = Color(0.1, 0.45, 1, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_white"]
+albedo_color = Color(0.95, 0.95, 0.95, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_status"]
+content_margin_left = 10.0
+content_margin_top = 10.0
+content_margin_right = 10.0
+content_margin_bottom = 10.0
+bg_color = Color(0, 0, 0, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="RaceTrackMultiAgentTrain" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 0, 50, 0)
+shadow_enabled = true
+
+[node name="RaceTrack" parent="." instance=ExtResource("1_race_track")]
+
+[node name="RaceTrackEnvironment" type="ScholaEnvironment" parent="."]
+script = ExtResource("2_environment")
+maximum_steps = 3000
+maximum_stalled_steps = 120
+maximum_track_distance = 4.5
+maximum_tilt_degrees = 60.0
+terminate_on_obstacle = true
+random_start = true
+random_obstacles = true
+
+[node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
+contact_monitor = true
+max_contacts_reported = 4
+
+[node name="Agent" parent="RaceTrackEnvironment/Car"]
+agent_id = "car_1"
+agent_type = "race_car"
+
+[node name="Car2" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
+contact_monitor = true
+max_contacts_reported = 4
+
+[node name="Body" parent="RaceTrackEnvironment/Car2"]
+material_override = SubResource("StandardMaterial3D_blue")
+
+[node name="Cabin" parent="RaceTrackEnvironment/Car2"]
+material_override = SubResource("StandardMaterial3D_blue")
+
+[node name="Agent" parent="RaceTrackEnvironment/Car2"]
+agent_id = "car_2"
+agent_type = "race_car"
+
+[node name="Car3" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
+contact_monitor = true
+max_contacts_reported = 4
+
+[node name="Body" parent="RaceTrackEnvironment/Car3"]
+material_override = SubResource("StandardMaterial3D_white")
+
+[node name="Cabin" parent="RaceTrackEnvironment/Car3"]
+material_override = SubResource("StandardMaterial3D_white")
+
+[node name="Agent" parent="RaceTrackEnvironment/Car3"]
+agent_id = "car_3"
+agent_type = "race_car"
+
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]
+start_timeout_sec = 120.0
+step_timeout_sec = 300.0
+
+[node name="EditorTrainer" type="Node" parent="."]
+script = ExtResource("4_trainer")
+
+[node name="Status" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_status")
+script = ExtResource("5_status")
+environment_path = NodePath("../RaceTrackEnvironment")
+
+[node name="RewardChart" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -256.0
+offset_top = -156.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("6_chart")
+environment_path = NodePath("../RaceTrackEnvironment")
+
+[editable path="RaceTrackEnvironment/Car"]
+[editable path="RaceTrackEnvironment/Car2"]
+[editable path="RaceTrackEnvironment/Car3"]

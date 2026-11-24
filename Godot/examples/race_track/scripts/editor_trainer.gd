@@ -16,9 +16,7 @@ func _ready() -> void:
 	if not OS.has_feature("editor") or not OS.get_cmdline_user_args().is_empty() or get_tree().current_scene != owner:
 		return
 	var python := _find_python()
-	var arguments := PackedStringArray(["-u", ProjectSettings.globalize_path(TRAIN_SCRIPT), "--godot", OS.get_executable_path(), "--attach", "--steps", str(steps)])
-	if FileAccess.file_exists(SAVED_MODEL):
-		arguments.append("--resume")
+	var arguments := _arguments()
 	var process := OS.execute_with_pipe(python, arguments, false)
 	if process.is_empty():
 		push_error("Could not start %s %s" % [python, " ".join(arguments)])
@@ -27,6 +25,13 @@ func _ready() -> void:
 	_pipes = [process.stdio, process.stderr]
 	_partial_lines = ["", ""]
 	print("Started training with %s" % python)
+
+
+func _arguments() -> PackedStringArray:
+	var arguments := PackedStringArray(["-u", ProjectSettings.globalize_path(TRAIN_SCRIPT), "--godot", OS.get_executable_path(), "--attach", "--steps", str(steps)])
+	if FileAccess.file_exists(SAVED_MODEL):
+		arguments.append("--resume")
+	return arguments
 
 
 func _process(_delta: float) -> void:
