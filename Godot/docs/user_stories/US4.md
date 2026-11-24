@@ -2,7 +2,7 @@
 
 - **Owner:** Shahyar
 - **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 24, 2026
 
 ## Story
 
@@ -19,7 +19,7 @@ As an ML practitioner, I want Schola to coordinate observations, actions, reward
 
 ## Progress
 
-- The Godot training lifecycle host merged in [PR #32](https://github.com/csc301-2026-f/20-AMD-Schola/pull/32) ([`80dbfa0`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/80dbfa0)). Lifecycle changes for dynamic agent populations are open in [PR #52](https://github.com/csc301-2026-f/20-AMD-Schola/pull/52).
+- The Godot training lifecycle host merged in [PR #32](https://github.com/csc301-2026-f/20-AMD-Schola/pull/32) ([`80dbfa0`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/80dbfa0)). Lifecycle changes for dynamic agent populations merged in [PR #52](https://github.com/csc301-2026-f/20-AMD-Schola/pull/52).
 - `ScholaTrainingHost` is fully implemented. It discovers environment nodes and constructs one lifecycle per environment.
 - Session initialization is atomic: a failure does not expose a partially initialized session.
 - Godot-facing host operations enforce main-thread execution.

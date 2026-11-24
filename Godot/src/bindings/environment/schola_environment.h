@@ -140,6 +140,13 @@ public:
 	const schola::Environment *get_environment() const;
 
 	/**
+	 * Releases the adapter from a closed training session, so a later
+	 * session can initialize it again. Called by ScholaTrainingHost when its
+	 * session closes; does nothing if no adapter was created.
+	 */
+	void release_environment();
+
+	/**
 	 * Checks the Inspector and scene-tree configuration.
 	 *
 	 * Reports missing agents, duplicate resolved IDs, and each agent's resource
@@ -148,6 +155,12 @@ public:
 	 * @return One message per problem; empty when the configuration is valid.
 	 */
 	godot::PackedStringArray get_configuration_errors() const;
+
+	/** Checks scene structure without reading mutable authored space resources.
+	 * Runtime callers must validate spaces through Agent::define(), which resolves
+	 * or reuses the saved snapshot. Editor diagnostics still inspect authored fields.
+	 */
+	godot::PackedStringArray get_scene_configuration_errors() const;
 
 	/**
 	 * Godot hook that shows a warning icon on the node in the editor.
@@ -164,7 +177,7 @@ protected:
 private:
 	friend class ScholaAgent;
 
-	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks) const;
+	godot::PackedStringArray collect_configuration_diagnostics(bool p_include_hooks, bool p_include_spaces = true) const;
 	void on_script_changed();
 	void queue_configuration_refresh();
 	void refresh_configuration_warnings();

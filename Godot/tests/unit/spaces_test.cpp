@@ -79,6 +79,13 @@ TEST_CASE("a malformed definition is rejected with the failing field", "[spaces]
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);
 		CHECK(message_contains(status, "low[1] is NaN"));
 	}
+	SECTION("Box with an infinite bound on the wrong side") {
+		// Python would receive these as unbounded, unlike the Box Godot checks against
+		const Status status = make_box({ 0, INF }, { 1, INF }, { 2 }).check_definition();
+		CHECK(status.get_code() == StatusCode::INVALID_DATA);
+		CHECK(message_contains(status, "low[1] is inf"));
+		CHECK(message_contains(make_box({ -INF }, { -INF }, { 1 }).check_definition(), "high[0] is -inf"));
+	}
 	SECTION("Box with low greater than high") {
 		const Status status = make_box({ 0, 2 }, { 1, 1 }, { 2 }).check_definition();
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);
@@ -154,6 +161,24 @@ TEST_CASE("integer and bool Box dtypes need whole, in-range bounds and values", 
 		CHECK(status.get_code() == StatusCode::INVALID_ARGUMENT);
 		CHECK(message_contains(status, "index 1 is 7.5 but dtype uint8 needs a whole number"));
 	}
+}
+
+TEST_CASE("float16 Box definitions reject finite bounds beyond the dtype range", "[spaces][float16-range]") {
+	const bool low_side = GENERATE(true, false);
+	const float bound = GENERATE(-70000.0f, 70000.0f);
+	const Space space(BoxSpace{ { low_side ? bound : -INF }, { low_side ? INF : bound }, { 1 }, DType::FLOAT16 });
+	const Status status = space.check_definition();
+	CHECK(status.get_code() == StatusCode::INVALID_DATA);
+	CHECK(message_contains(status, low_side ? "low[0]" : "high[0]"));
+	CHECK(message_contains(status, "float16"));
+}
+
+TEST_CASE("float16 Box range checks preserve supported bounds and other dtypes", "[spaces][float16-range]") {
+	CHECK(Space(BoxSpace{ { -65504 }, { 65504 }, { 1 }, DType::FLOAT16 }).check_definition().is_ok());
+	CHECK(Space(BoxSpace{ { -INF }, { INF }, { 1 }, DType::FLOAT16 }).check_definition().is_ok());
+	CHECK(Space(BoxSpace{ { -0.5f }, { 0.5f }, { 1 }, DType::FLOAT16 }).check_definition().is_ok());
+	CHECK(Space(BoxSpace{ { -70000 }, { 70000 }, { 1 }, DType::FLOAT32 }).check_definition().is_ok());
+	CHECK(Space(BoxSpace{ { -70000 }, { 70000 }, { 1 }, DType::FLOAT64 }).check_definition().is_ok());
 }
 
 TEST_CASE("an invalid point is rejected with an error that names the failing index", "[spaces]") {

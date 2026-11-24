@@ -53,6 +53,10 @@ Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
 	if (p_agent == nullptr) {
 		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is null");
 	}
+	// A second entry would act on the agent again each step.
+	if (find_agent(p_agent) >= 0) {
+		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is already in this stepper");
+	}
 
 	InteractionDefinition definition;
 	Status status = p_agent->define(definition);
@@ -77,7 +81,7 @@ Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
 		return Status::error(StatusCode::RUNTIME_FAILURE, "SimpleStepper::add_agent: policy created a null state");
 	}
 
-	entries.push_back({ p_agent, std::move(state) });
+	entries.push_back({ p_agent, std::move(state), observation_space.make_point() });
 	r_index = static_cast<int32_t>(entries.size() - 1);
 	return Status::ok();
 }
@@ -127,6 +131,7 @@ Status SimpleStepper::reset_state(int32_t p_index) {
 	}
 	entries[p_index].state->reset();
 	entries[p_index].agent->reset_observation_history();
+	entries[p_index].observation = observation_space.make_point();
 	return Status::ok();
 }
 
@@ -134,6 +139,7 @@ void SimpleStepper::reset_states() {
 	for (Entry &entry : entries) {
 		entry.state->reset();
 		entry.agent->reset_observation_history();
+		entry.observation = observation_space.make_point();
 	}
 }
 
@@ -165,12 +171,14 @@ Status SimpleStepper::step() {
 
 	Status first_error = Status::ok();
 	for (size_t i = 0; i < count; ++i) {
+		observations[i] = entries[i].observation;
 		Status observe_status = entries[i].agent->observe(observations[i]);
 		// A scene callback can remove itself or another agent. Check before
 		// reading the entry again, since its index and state may no longer exist.
 		if (entries_revision != revision) {
 			return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: agents were removed while observing; the step was interrupted");
 		}
+		entries[i].observation = observations[i];
 		if (!observe_status.is_ok() && first_error.is_ok()) {
 			first_error = Status::error(observe_status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": observe: " + observe_status.get_message());
 		}

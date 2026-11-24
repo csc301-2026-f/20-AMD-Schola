@@ -55,6 +55,12 @@ func test_empty_box_bounds_are_unbounded() -> void:
 	assert_str(space.get_validation_error(PackedFloat32Array([-1e30, 1e30]))).is_empty()
 
 
+func test_box_rejects_an_infinite_bound_on_the_wrong_side() -> void:
+	# Both would reach Python as unbounded, so Godot must not accept them either
+	assert_str(_box(PackedFloat32Array([INF]), PackedFloat32Array([INF])).get_definition_error()).contains("use -inf")
+	assert_str(_box(PackedFloat32Array([-INF]), PackedFloat32Array([-INF])).get_definition_error()).contains("use inf")
+
+
 func test_single_box_bound_applies_to_every_element() -> void:
 	var space := _box(PackedFloat32Array([0.0]), PackedFloat32Array([1.0, 2.0, 3.0]))
 	assert_str(space.get_definition_error()).is_empty()

@@ -115,6 +115,12 @@ const schola::Environment *ScholaEnvironment::get_environment() const {
 	return const_cast<ScholaEnvironment *>(this)->get_environment();
 }
 
+void ScholaEnvironment::release_environment() {
+	if (environment_adapter) {
+		environment_adapter->release();
+	}
+}
+
 godot::TypedArray<ScholaAgent> ScholaEnvironment::get_agents() const {
 	godot::TypedArray<ScholaAgent> agents;
 	collect_agents(this, agents);
@@ -142,7 +148,11 @@ godot::PackedStringArray ScholaEnvironment::get_configuration_errors() const {
 	return collect_configuration_diagnostics(false);
 }
 
-godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks) const {
+godot::PackedStringArray ScholaEnvironment::get_scene_configuration_errors() const {
+	return collect_configuration_diagnostics(false, false);
+}
+
+godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bool p_include_hooks, bool p_include_spaces) const {
 	godot::PackedStringArray errors;
 	if (const auto *ancestor = get_ancestor_environment()) {
 		errors.append("Nested ScholaEnvironment nodes are unsupported: environment ancestor '" + godot::String(ancestor->get_name()) + "'. Move this environment outside that environment's subtree.");
@@ -158,7 +168,10 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 	for (int32_t index = 0; index < agents.size(); ++index) {
 		godot::Object *agent_object = agents[index];
 		ScholaAgent *agent = godot::Object::cast_to<ScholaAgent>(agent_object);
+		// Usually an unassigned slot in an exported templates array. Skipping it
+		// quietly leaves that ID undeclared until a spawn fails mid-training.
 		if (agent == nullptr) {
+			errors.append("Possible agent " + godot::String::num_int64(index) + " is empty. Assign a ScholaAgent or remove the entry.");
 			continue;
 		}
 		const godot::String id = agent->get_resolved_agent_id();
@@ -168,6 +181,9 @@ godot::PackedStringArray ScholaEnvironment::collect_configuration_diagnostics(bo
 			errors.append("Duplicate agent ID '" + id + "' on '" + existing->second + "' and '" + path + "'. Set unique agent IDs or rename nodes that use the name fallback.");
 		} else {
 			agent_paths.emplace(id, path);
+		}
+		if (!p_include_spaces) {
+			continue;
 		}
 		const godot::PackedStringArray agent_errors = p_include_hooks ? agent->_get_configuration_warnings() : agent->get_configuration_errors();
 		if (p_include_hooks) {

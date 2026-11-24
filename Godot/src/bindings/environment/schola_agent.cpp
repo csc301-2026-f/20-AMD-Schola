@@ -210,6 +210,10 @@ godot::Ref<ScholaSpace> ScholaAgent::get_effective_action_space() const {
 	return combined;
 }
 
+bool ScholaAgent::has_code_defined_spaces() const {
+	return schola::configuration::has_hook(this, "_define_spaces");
+}
+
 schola::Agent *ScholaAgent::get_agent() {
 	// Create the adapter the first time someone asks for it. It keeps a
 	// pointer back to this node, which is safe because this node owns it
@@ -228,6 +232,10 @@ const schola::Agent *ScholaAgent::get_agent() const {
 
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	godot::PackedStringArray errors;
+	// Callback results are validated at startup, never during editor queries.
+	if (has_code_defined_spaces()) {
+		return errors;
+	}
 	const auto effective_observation = get_effective_observation_space();
 	const auto effective_action = get_effective_action_space();
 	if (effective_observation.is_null()) {
@@ -274,6 +282,8 @@ void ScholaAgent::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_action_space", "action_space"), &ScholaAgent::set_action_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_action_space"), &ScholaAgent::get_action_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaAgent::get_configuration_errors);
+	godot::ClassDB::bind_method(godot::D_METHOD("has_code_defined_spaces"), &ScholaAgent::has_code_defined_spaces);
+	GDVIRTUAL_BIND(_define_spaces);
 	GDVIRTUAL_BIND(_observe);
 	GDVIRTUAL_BIND(_act, "action");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "agent_id"), "set_agent_id", "get_agent_id");

@@ -8,6 +8,7 @@
 #include "bindings/adapters/schola_observation_adapter.h"
 #include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
+#include "bindings/environment/schola_space_definition.h"
 #include "bindings/lifecycle/schola_training_host.h"
 #include "bindings/schola_runtime_probe.h"
 #include "bindings/spaces/schola_box_space.h"
@@ -16,6 +17,7 @@
 #include "bindings/spaces/schola_multi_binary_space.h"
 #include "bindings/spaces/schola_multi_discrete_space.h"
 #include "bindings/spaces/schola_space.h"
+#include "bindings/spaces/schola_spaces.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
@@ -28,7 +30,7 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaEnvironment);
 	GDREGISTER_ABSTRACT_CLASS(ScholaObservationAdapter);
 	GDREGISTER_CLASS(ScholaStacker);
-	GDREGISTER_CLASS(ScholaAgent);
+
 	GDREGISTER_CLASS(ScholaSensor);
 	GDREGISTER_CLASS(ScholaActuator);
 	GDREGISTER_CLASS(ScholaTrainingHost);
@@ -38,6 +40,9 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaMultiDiscreteSpace);
 	GDREGISTER_CLASS(ScholaMultiBinarySpace);
 	GDREGISTER_CLASS(ScholaDictSpace);
+	GDREGISTER_ABSTRACT_CLASS(ScholaSpaces);
+	GDREGISTER_CLASS(ScholaSpaceDefinition);
+	GDREGISTER_CLASS(ScholaAgent);
 #ifdef SCHOLA_INTEGRATION_TESTS
 	register_schola_environment_test_driver();
 #endif

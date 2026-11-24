@@ -76,6 +76,15 @@ def discrete():
     )
 
 
+def integer_box(element_type):
+    return model(
+        "integer_box",
+        [helper.make_node("Cast", ["obs"], ["action"], to=TensorProto.FLOAT)],
+        [tensor("obs", element_type, [BATCH, 3])],
+        [tensor("action", TensorProto.FLOAT, [BATCH, 3])],
+    )
+
+
 def multi_discrete():
     return model(
         "multi_discrete",
@@ -91,6 +100,21 @@ def multi_binary():
         [helper.make_node("Cast", ["obs"], ["action"], to=TensorProto.BOOL)],
         [tensor("obs", TensorProto.INT8, [BATCH, 3])],
         [tensor("action", TensorProto.BOOL, [BATCH, 3])],
+    )
+
+
+def int64_action(discrete):
+    nodes = [helper.make_node("Cast", ["obs"], ["integers"], to=TensorProto.INT64)]
+    if discrete:
+        nodes.append(helper.make_node("Squeeze", ["integers", "axis_1"], ["action"]))
+    else:
+        nodes.append(helper.make_node("Identity", ["integers"], ["action"]))
+    return model(
+        "int64_action",
+        nodes,
+        [tensor("obs", TensorProto.FLOAT, [BATCH, 1 if discrete else 2])],
+        [tensor("action", TensorProto.INT64, [BATCH] if discrete else [BATCH, 2])],
+        [constant("axis_1", [1], TensorProto.INT64)] if discrete else [],
     )
 
 
@@ -217,6 +241,14 @@ def bad_state_int():
 
 
 MODELS = {
+    "int8_box": lambda: integer_box(TensorProto.INT8),
+    "uint8_box": lambda: integer_box(TensorProto.UINT8),
+    "int16_box": lambda: integer_box(TensorProto.INT16),
+    "uint16_box": lambda: integer_box(TensorProto.UINT16),
+    "int32_box": lambda: integer_box(TensorProto.INT32),
+    "int64_box": lambda: integer_box(TensorProto.INT64),
+    "int64_discrete": lambda: int64_action(True),
+    "int64_multi_discrete": lambda: int64_action(False),
     "camera_components": camera_components,
     "box_scale": box_scale,
     "discrete": discrete,
@@ -252,6 +284,38 @@ def check_outputs():
 
     f32, i64, i8 = np.float32, np.int64, np.int8
     expected = {
+        "int8_box": (
+            {"obs": np.array([[-128, 0, 127]], np.int8)},
+            {"action": np.array([[-128, 0, 127]], f32)},
+        ),
+        "uint8_box": (
+            {"obs": np.array([[0, 1, 255]], np.uint8)},
+            {"action": np.array([[0, 1, 255]], f32)},
+        ),
+        "int16_box": (
+            {"obs": np.array([[-32768, 0, 32767]], np.int16)},
+            {"action": np.array([[-32768, 0, 32767]], f32)},
+        ),
+        "uint16_box": (
+            {"obs": np.array([[0, 1, 65535]], np.uint16)},
+            {"action": np.array([[0, 1, 65535]], f32)},
+        ),
+        "int32_box": (
+            {"obs": np.array([[-2147483648, 0, 2147483520]], np.int32)},
+            {"action": np.array([[-2147483648, 0, 2147483520]], f32)},
+        ),
+        "int64_box": (
+            {"obs": np.array([[-9223372036854775808, 0, 42]], np.int64)},
+            {"action": np.array([[-9223372036854775808, 0, 42]], f32)},
+        ),
+        "int64_discrete": (
+            {"obs": np.array([[4294967296]], f32)},
+            {"action": np.array([4294967296], i64)},
+        ),
+        "int64_multi_discrete": (
+            {"obs": np.array([[4294967296, -4294967296]], f32)},
+            {"action": np.array([[4294967296, -4294967296]], i64)},
+        ),
         "camera_components": (
             {"00000000:camera": np.array([[[[0.25]], [[0.5]], [[0.75]]]], f32)},
             {"00000000:move": np.array([[0.25, 0.5, 0.75]], f32)},

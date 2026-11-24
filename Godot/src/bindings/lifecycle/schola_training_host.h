@@ -11,6 +11,7 @@
 #include <godot_cpp/variant/dictionary.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -91,6 +92,7 @@ private:
 	schola::Status validate_environment_nodes() const;
 	schola::Status fail_session(const schola::Status &p_failure);
 	schola::Status handle_coordinator_result(const schola::Status &p_status);
+	schola::Status run_coordinator(const std::function<schola::Status()> &p_call);
 	schola::Status shutdown_core();
 
 	std::vector<godot::ObjectID> environment_ids;
@@ -98,4 +100,7 @@ private:
 	schola::EnvironmentCoordinator coordinator;
 	std::optional<schola::TrainingDefinition> training_definition;
 	SessionState session_state = SessionState::CONFIGURING;
+	// Set while the coordinator runs gameplay callbacks, which may call back into the host.
+	bool in_coordinator = false;
+	bool close_requested = false;
 };

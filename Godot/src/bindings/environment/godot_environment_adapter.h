@@ -47,8 +47,9 @@ public:
 
 	/** Applies actions to the prior active roster, then discovers births and departures.
 	 * Departures retain any result already collected; otherwise they terminate with zero reward.
-	 * Births and resumes receive an observation and zero reward, and act on the next call.
-	 * Paused agents retain snapshots without callbacks; serializers omit them.
+	 * Births receive an observation with zero reward and act on the next call.
+	 * A pause withholds the last action's result until resume or departure.
+	 * Paused agents receive no new actions; serializers omit their held states.
 	 * Definitions must match the initialized possible roster. Finished IDs retire until reset.
 	 */
 	schola::Status step(const std::map<schola::AgentId, schola::Point> &p_actions,
@@ -74,6 +75,15 @@ public:
 	 *         calls that returned OK since then.
 	 */
 	int64_t get_episode_step() const;
+
+	/**
+	 * Forgets the agent set and any episode, as if initialize() had never
+	 * been called, so the next training session can initialize this
+	 * adapter again. ScholaTrainingHost calls it when its session closes:
+	 * Python's RLlib trainer opens one session to discover the agents and
+	 * another to train, as with Unreal Schola.
+	 */
+	void release();
 
 private:
 	// A live agent found during the latest scene-tree scan.

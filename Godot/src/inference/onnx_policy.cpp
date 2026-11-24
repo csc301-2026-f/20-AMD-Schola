@@ -9,7 +9,9 @@
 #include <onnxruntime_c_api.h>
 
 #include <charconv>
+#include <cmath>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -281,6 +283,33 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 	return true;
 }
 
+template <typename T>
+bool fits_integer_tensor(double p_value) {
+	// C++ truncates fractions before converting; preserve every safe cast.
+	const double truncated = std::trunc(p_value);
+	return std::isfinite(truncated) && truncated >= static_cast<double>(std::numeric_limits<T>::min()) &&
+			truncated < std::ldexp(1.0, std::numeric_limits<T>::digits);
+}
+
+bool fits_tensor(ONNXTensorElementDataType p_type, double p_value) {
+	switch (p_type) {
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
+			return fits_integer_tensor<int8_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
+			return fits_integer_tensor<uint8_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
+			return fits_integer_tensor<int16_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
+			return fits_integer_tensor<uint16_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
+			return fits_integer_tensor<int32_t>(p_value);
+		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
+			return fits_integer_tensor<int64_t>(p_value);
+		default:
+			return true;
+	}
+}
+
 Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p_values) {
 	for (size_t i = 0; i < p_values.size(); ++i) {
 		if (p_values[i] < 0 || p_values[i] >= p_binding.bounds[i]) {
@@ -293,6 +322,12 @@ Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p
 Status write_observation(Binding &r_binding, const Point &p_point) {
 	bool written = false;
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX) {
+		for (size_t i = 0; i < box->values.size(); ++i) {
+			if (!fits_tensor(r_binding.element_type, box->values[i])) {
+				return Status::error(StatusCode::INVALID_ARGUMENT,
+						r_binding.label("observation") + " value at index " + std::to_string(i) + " cannot be represented by the model's integer tensor");
+			}
+		}
 		written = write_values(r_binding, box->values);
 	} else if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>(); discrete && r_binding.kind == SpaceKind::DISCRETE) {
 		Status status = check_observation(r_binding, { discrete->value });
@@ -318,8 +353,15 @@ Status write_observation(Binding &r_binding, const Point &p_point) {
 	return Status::ok();
 }
 
-int32_t read_integer(const Binding &p_binding, size_t p_index) {
-	return static_cast<int32_t>(static_cast<int64_t>(load(p_binding.element_type, p_binding.buffer, p_index)));
+Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) {
+	const int64_t value = p_binding.element_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64
+			? get<int64_t>(p_binding.buffer, p_index)
+			: get<int32_t>(p_binding.buffer, p_index);
+	if (value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max()) {
+		return Status::error(StatusCode::INVALID_DATA, p_binding.label("action") + " value " + std::to_string(value) + " does not fit int32");
+	}
+	r_value = static_cast<int32_t>(value);
+	return Status::ok();
 }
 
 Status read_action(const Binding &p_binding, Point &r_point) {
@@ -331,12 +373,14 @@ Status read_action(const Binding &p_binding, Point &r_point) {
 		return Status::ok();
 	}
 	if (DiscretePoint *discrete = r_point.get_if<DiscretePoint>(); discrete && p_binding.kind == SpaceKind::DISCRETE) {
-		discrete->value = read_integer(p_binding, 0);
-		return Status::ok();
+		return read_integer(p_binding, 0, discrete->value);
 	}
 	if (MultiDiscretePoint *multi_discrete = r_point.get_if<MultiDiscretePoint>(); multi_discrete && p_binding.kind == SpaceKind::MULTI_DISCRETE && multi_discrete->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < multi_discrete->values.size(); ++i) {
-			multi_discrete->values[i] = read_integer(p_binding, i);
+			Status status = read_integer(p_binding, i, multi_discrete->values[i]);
+			if (!status.is_ok()) {
+				return status;
+			}
 		}
 		return Status::ok();
 	}
