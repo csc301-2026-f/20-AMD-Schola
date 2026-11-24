@@ -20,6 +20,7 @@ var _active: bool = false
 var _step_limit: int = 0
 var _history: Array[float] = []
 var _last_rewards: Dictionary = {}
+var _warning: String = ""
 var _heading: Label
 var _status: Label
 var _episode_value: Label
@@ -27,12 +28,21 @@ var _step_value: Label
 var _return_value: Label
 var _progress: ProgressBar
 var _agents: Tree
+# One Tree row per agent. record_step() runs every frame, so it edits these in
+# place; only begin_episode() changes the roster and rebuilds them.
+var _rows: Dictionary = {}
+var _rows_stale: bool = true
 var _chart: Control
 var _empty: Label
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(300, 380)
+	# A size set in code or saved from the Inspector is already applied by now,
+	# so only fill in the axes nobody chose.
+	if custom_minimum_size.x == 0.0:
+		custom_minimum_size.x = 300.0
+	if custom_minimum_size.y == 0.0:
+		custom_minimum_size.y = 380.0
 	var surface := StyleBoxFlat.new()
 	surface.bg_color = Color("171d28")
 	surface.border_color = Color("ed1c24")
@@ -43,9 +53,16 @@ func _ready() -> void:
 	surface.content_margin_top = 18
 	surface.content_margin_bottom = 18
 	add_theme_stylebox_override("panel", surface)
-	add_theme_color_override("font_color", Color("eef2fa"))
 	var layout := VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 12)
+	# Color overrides only apply to the node they're set on, so the light text
+	# for the dark panel comes from a small theme that the labels inherit.
+	# Labels with their own color still win.
+	var text_theme := Theme.new()
+	text_theme.set_color("font_color", "Label", Color("eef2fa"))
+	text_theme.set_color("font_color", "Tree", Color("eef2fa"))
+	text_theme.set_color("title_button_color", "Tree", Color("eef2fa"))
+	layout.theme = text_theme
 	add_child(layout)
 	var brand := Label.new()
 	brand.text = "AMD  /  SCHOLA"
@@ -115,8 +132,10 @@ func begin_episode(number: int, agent_ids: PackedStringArray, step_limit: int = 
 	agent_returns.clear()
 	_last_rewards.clear()
 	_history.assign([0.0])
+	_warning = ""
 	for agent_id in agent_ids:
 		agent_returns[agent_id] = 0.0
+	_rows_stale = true
 	_refresh()
 
 
@@ -126,11 +145,12 @@ func record_step(rewards: Dictionary) -> void:
 		return
 	# Validate the whole batch before changing any displayed totals.
 	for agent_id in rewards:
-		if not agent_returns.has(agent_id) or not (rewards[agent_id] is float or rewards[agent_id] is int):
-			push_warning("ScholaMonitor: reward batch contains an unknown agent or nonnumeric reward.")
+		var reward: Variant = rewards[agent_id]
+		if not agent_returns.has(agent_id):
+			_reject("agent '%s' was not declared in begin_episode()" % [agent_id])
 			return
-		if not is_finite(float(rewards[agent_id])):
-			push_warning("ScholaMonitor: rewards must be finite.")
+		if not (reward is float or reward is int) or not is_finite(float(reward)):
+			_reject("the reward for agent '%s' must be a finite number" % [agent_id])
 			return
 	step += 1
 	_last_rewards = rewards.duplicate()
@@ -141,6 +161,14 @@ func record_step(rewards: Dictionary) -> void:
 	while _history.size() > maxi(8, history_limit):
 		_history.pop_front()
 	_refresh()
+
+
+# record_step() runs every frame, so a problem that persists is reported once
+# per episode instead of flooding the log.
+func _reject(reason: String) -> void:
+	if _warning.is_empty():
+		_warning = "ScholaMonitor: reward batch rejected; %s." % reason
+		push_warning(_warning)
 
 
 ## Use terminated for natural episode endings, truncated for external limits.
@@ -177,15 +205,26 @@ func _refresh() -> void:
 	_progress.value = step if _step_limit > 0 else 0
 	_progress.tooltip_text = "Episode step limit" if _step_limit > 0 else "No configured step limit"
 	_empty.visible = agent_returns.is_empty()
+	# agent_returns is public, so also catch a roster changed from outside.
+	if _rows_stale or _rows.size() != agent_returns.size() or not _rows.has_all(agent_returns.keys()):
+		_rebuild_rows()
+	for agent_id in agent_returns:
+		var row: TreeItem = _rows[agent_id]
+		row.set_text(1, "%+.3f" % float(_last_rewards[agent_id]) if _last_rewards.has(agent_id) else "—")
+		row.set_text(2, "%+.3f" % float(agent_returns[agent_id]))
+		row.set_text(3, "Active" if _active else "Ended")
+	_chart.queue_redraw()
+
+
+func _rebuild_rows() -> void:
+	_rows_stale = false
+	_rows.clear()
 	_agents.clear()
 	var root := _agents.create_item()
 	for agent_id in agent_returns:
 		var row := _agents.create_item(root)
 		row.set_text(0, str(agent_id))
-		row.set_text(1, "%+.3f" % float(_last_rewards[agent_id]) if _last_rewards.has(agent_id) else "—")
-		row.set_text(2, "%+.3f" % float(agent_returns[agent_id]))
-		row.set_text(3, "Active" if _active else "Ended")
-	_chart.queue_redraw()
+		_rows[agent_id] = row
 
 
 func _draw_history() -> void:

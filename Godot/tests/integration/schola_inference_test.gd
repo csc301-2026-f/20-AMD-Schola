@@ -602,6 +602,26 @@ func test_stepper_warns_about_missing_configuration() -> void:
 	assert_str(errors[0]).contains("policy")
 	assert_str(errors[1]).contains("missing")
 
+
+func test_stepper_follows_edits_to_its_policy() -> void:
+	var policy := ScholaOnnxPolicy.new()
+	var changes := [0]
+	policy.changed.connect(func() -> void: changes[0] += 1)
+	policy.model_path = FIXTURES + "box_scale.onnx"
+	policy.model_path = FIXTURES + "box_scale.onnx"
+	assert_int(changes[0]).is_equal(1)
+
+	# The stepper listens to its current policy only, so its warnings refresh on edits
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = policy
+	assert_bool(_listeners(policy).has(stepper)).is_true()
+	stepper.policy = null
+	assert_bool(_listeners(policy).has(stepper)).is_false()
+
+
+func _listeners(policy: ScholaOnnxPolicy) -> Array:
+	return policy.changed.get_connections().map(func(connection: Dictionary) -> Object: return connection["callable"].get_object())
+
 func test_stepper_uses_stacked_space_and_resets_observation_history() -> void:
 	var agent := _agent(1, 3, PackedFloat32Array([1.0]))
 	var stacker := ScholaStacker.new()

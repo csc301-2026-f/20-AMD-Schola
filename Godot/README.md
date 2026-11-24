@@ -185,8 +185,8 @@ and `get_effective_action_space()` report explicit or component-composed resourc
 without executing `_define_spaces()` or exposing its saved result. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
-at zero and require a positive value; their Inspector fields provide positive-size
-range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
+at zero and require a positive value; their Inspector fields show that unset zero
+until you enter a size. Box dtype defaults to float32, and omitted bounds are unbounded.
 
 Inherited `_define_spaces()` callbacks also take precedence. Invalid callback
 results fail at startup without falling back to Inspector assignments. Inspector

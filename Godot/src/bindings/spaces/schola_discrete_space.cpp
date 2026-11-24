@@ -23,5 +23,7 @@ void ScholaDiscreteSpace::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_n", "n"), &ScholaDiscreteSpace::set_n);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_n"), &ScholaDiscreteSpace::get_n);
 
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "n", godot::PROPERTY_HINT_RANGE, "1,2147483647,1"), "set_n", "get_n");
+	// The range starts at the unset 0. Starting at 1 makes the Inspector show 1
+	// while n is still 0, and typing 1 then changes nothing.
+	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "n", godot::PROPERTY_HINT_RANGE, "0,2147483647,1"), "set_n", "get_n");
 }
