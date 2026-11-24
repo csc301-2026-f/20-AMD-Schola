@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -71,6 +72,46 @@ TEST_CASE("think runs a Box model", "[inference]") {
 
 	REQUIRE(fixture.think(Point(BoxPoint{ { 1.0f, 2.0f, 3.0f } })).is_ok());
 	REQUIRE(box_values(fixture.action) == std::vector<float>{ 2.0f, 4.0f, 6.0f });
+}
+
+TEST_CASE("integer ONNX inputs reject Box observations outside their numeric range", "[inference][integer-input]") {
+	const int type = GENERATE(0, 1, 2, 3, 4, 5);
+	const char *models[] = { "int8_box.onnx", "uint8_box.onnx", "int16_box.onnx", "uint16_box.onnx", "int32_box.onnx", "int64_box.onnx" };
+	const int digits[] = { 7, 8, 15, 16, 31, 63 };
+	const float upper = std::ldexp(1.0f, digits[type]);
+	const bool is_unsigned = type == 1 || type == 3;
+	const float lower = is_unsigned ? 0.0f : -upper;
+	const float bad = GENERATE_COPY(upper, is_unsigned ? -1.0f : std::floor(std::nextafter(lower, -INFINITY)), INFINITY, -INFINITY, std::nanf(""));
+	Fixture fixture(models[type], definition(box(3, INFINITY), box(3, INFINITY)));
+	const Status status = fixture.think(Point(BoxPoint{ { 0.0f, bad, 1.0f } }));
+	INFO(models[type]);
+	INFO(bad);
+	CHECK(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK_THAT(status.get_message(), ContainsSubstring("observation"));
+	CHECK_THAT(status.get_message(), ContainsSubstring("index 1"));
+	CHECK_THAT(status.get_message(), ContainsSubstring("integer tensor"));
+	// A rejected call must leave the model usable for the next observation.
+	REQUIRE(fixture.think(Point(BoxPoint{ { lower, 0.0f, std::floor(std::nextafter(upper, 0.0f)) } })).is_ok());
+}
+
+TEST_CASE("integer ONNX inputs preserve representable Box observations", "[inference][integer-input]") {
+	const char *name = GENERATE("int8_box.onnx", "uint8_box.onnx", "int16_box.onnx", "uint16_box.onnx", "int32_box.onnx", "int64_box.onnx");
+	Fixture fixture(name, definition(box(3, INFINITY), box(3, INFINITY)));
+	REQUIRE(fixture.think(Point(BoxPoint{ { 0.0f, 1.0f, 42.0f } })).is_ok());
+	CHECK(box_values(fixture.action) == std::vector<float>{ 0.0f, 1.0f, 42.0f });
+}
+
+TEST_CASE("integer ONNX inputs preserve safe fractional truncation", "[inference][integer-input]") {
+	SECTION("signed values near both limits") {
+		Fixture fixture("int8_box.onnx", definition(box(3, INFINITY), box(3, INFINITY)));
+		REQUIRE(fixture.think(Point(BoxPoint{ { -128.5f, 127.5f, 1.75f } })).is_ok());
+		CHECK(box_values(fixture.action) == std::vector<float>{ -128.0f, 127.0f, 1.0f });
+	}
+	SECTION("negative fractions that truncate to unsigned zero") {
+		Fixture fixture("uint8_box.onnx", definition(box(3, INFINITY), box(3, INFINITY)));
+		REQUIRE(fixture.think(Point(BoxPoint{ { -0.5f, 255.5f, 1.75f } })).is_ok());
+		CHECK(box_values(fixture.action) == std::vector<float>{ 0.0f, 255.0f, 1.0f });
+	}
 }
 
 TEST_CASE("think returns Discrete, MultiDiscrete, and MultiBinary actions", "[inference]") {
