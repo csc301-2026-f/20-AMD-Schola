@@ -74,6 +74,15 @@ TEST_CASE("think runs a Box model", "[inference]") {
 	REQUIRE(box_values(fixture.action) == std::vector<float>{ 2.0f, 4.0f, 6.0f });
 }
 
+TEST_CASE("think rejects a Box observation with the wrong number of values", "[inference]") {
+	Fixture fixture("box_scale.onnx", definition(box(3), box(3)));
+	const std::vector<float> values = GENERATE(std::vector<float>{ 1.0f, 2.0f }, std::vector<float>{ 1.0f, 2.0f, 3.0f, 4.0f });
+
+	Status status = fixture.think(Point(BoxPoint{ values }));
+	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("observation does not match its Box space with 3 values"));
+}
+
 TEST_CASE("integer ONNX inputs reject Box observations outside their numeric range", "[inference][integer-input]") {
 	const int type = GENERATE(0, 1, 2, 3, 4, 5);
 	const char *models[] = { "int8_box.onnx", "uint8_box.onnx", "int16_box.onnx", "uint16_box.onnx", "int32_box.onnx", "int64_box.onnx" };
