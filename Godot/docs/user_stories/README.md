@@ -13,7 +13,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US8](US8.md) | Compose agents from reusable sensors and actuators | Guneev | Implemented on feature branch; PR open |
 | [US9](US9.md) | Test an environment without Python | Shahyar | Implemented in PR #57; review in progress |
 | [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Implemented and tested on feature branch; PR open |
-| [US11](US11.md) | Observe the environment through a camera sensor | Unassigned | Approved; Godot implementation pending |
+| [US11](US11.md) | Observe the environment through a camera sensor | Bohdan and Vansh | In progress |
 | [US12](US12.md) | Train multiple agents simultaneously | Unassigned | Multi-agent routing tested; Python training proof pending |
 | [US13](US13.md) | Train and deploy through a production example | Bohdan | RaceTrack draft on feature branch; end-to-end proof pending |
 | [US14](US14.md) | Read the state sequence length from the model | Jimmy | Implemented on feature branch; real-trainer fixture blocked upstream |

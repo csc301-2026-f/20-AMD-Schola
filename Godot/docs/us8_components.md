@@ -110,11 +110,15 @@ must be finite and in `[0,1]`.
 The Box space is float32 `[channels, height, width]`, with bounds `[0,1]`. Each
 plane is row-major (top to bottom, left to right); there is no resizing or automatic
 color-space conversion. Source viewports must exactly match the configured size.
-Use dimensions 1..2048, with at most 4,194,304 output values. Out-of-range HDR
-pixels fail observation validation; configure an LDR source for normalized color.
+Use dimensions 1..2048, with at most 4,194,304 output values. The real camera
+needs at least 2×2, because Godot never makes a SubViewport smaller. Viewports
+with HDR 2D enabled are rejected because they produce linear values above 1; use
+an LDR source for normalized color.
 
 The lifecycle owner configures the viewport, Camera3D, world and update mode.
 Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
+Viewports set to Disabled or When Visible are rejected: they draw nothing unless
+shown on screen, so the image would stay black.
 Await `RenderingServer.frame_post_draw` before the first reset/readback. Observations
 use the most recent completed render, which can precede the current physics action.
 For action-to-image synchronization, render after applying the action before
@@ -165,3 +169,9 @@ Run the same command with `--rendering-method mobile` for the Vulkan path.
 The camera suite skips on a headless display. It verifies real color pixels,
 selected channels, CHW ordering, rendered normalized depth, native dispatch and
 viewport-size validation. Frozen milestone demos are not required or modified.
+
+US11 adds two camera suites. `camera_sensor_test.gd` checks image spaces, channel
+selection and configuration errors without rendering, so it runs headless.
+`camera_capture_test.gd` checks rendered 8-bit normalization, non-square layout,
+channel selection, repeated captures and frame timing; run it like the camera
+suite above, with its path after `-a`.
