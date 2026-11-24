@@ -576,10 +576,32 @@ func test_reset_accepts_string_name_setting_keys() -> void:
 	assert_int(_status_code(result)).is_equal(STATUS_OK)
 	assert_int(environment.last_seed).is_equal(42)
 	assert_dict(environment.last_options).is_equal({"track": "hard"})
+	# Option keys and values may be StringNames too.
+	result = host.reset({0: {"options": {&"track": &"easy"}}})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_dict(environment.last_options).is_equal({"track": "easy"})
 	result = host.reset({0: {&"Seed": 42}})
 	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
 	assert_str(_status_message(result)).contains("unknown key")
-	assert_int(environment.reset_count).is_equal(1)
+	assert_int(environment.reset_count).is_equal(2)
+	# Anything that is not text is still rejected.
+	result = host.reset({0: {"options": {"track": 3}}})
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(result)).contains("must be strings")
+
+
+func test_step_accepts_string_name_agent_ids() -> void:
+	var root := _test_root()
+	var environment := _add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+
+	assert_int(_status_code(host.step({"actions": [{&"agent": 1}]}))).is_equal(STATUS_OK)
+	assert_int(environment.get_node("agent").last_action).is_equal(1)
+	var numeric := host.step({"actions": [{7: 1}]})
+	assert_int(_status_code(numeric)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(numeric)).contains("agent IDs must be strings")
 
 
 func test_multiple_environments_run_repeated_episodes_without_state_leakage() -> void:

@@ -27,6 +27,12 @@ std::string to_std_string(const godot::String &p_string) {
 	return p_string.utf8().get_data();
 }
 
+// GDScript writes &"name" as a StringName, and Godot treats it as the same
+// text as "name", so every string the host reads accepts both.
+bool is_string(const godot::Variant &p_value) {
+	return p_value.get_type() == godot::Variant::STRING || p_value.get_type() == godot::Variant::STRING_NAME;
+}
+
 std::string describe_node(const godot::Node *p_node) {
 	return "'" + to_std_string(godot::String(p_node->get_path())) + "'";
 }
@@ -225,7 +231,7 @@ schola::Status decode_step_request(const godot::Dictionary &dict,
 		godot::Array agent_ids = environment_actions.keys();
 		for (int64_t agent_index = 0; agent_index < agent_ids.size(); ++agent_index) {
 			godot::Variant agent_id_value = agent_ids[agent_index];
-			if (agent_id_value.get_type() != godot::Variant::STRING) {
+			if (!is_string(agent_id_value)) {
 				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
 						"step request agent IDs must be strings");
 			}
@@ -280,8 +286,7 @@ schola::Status decode_reset_request(const godot::Dictionary &dict, schola::Reset
 		const godot::Array setting_keys = entry.keys();
 		for (int64_t j = 0; j < setting_keys.size(); ++j) {
 			const godot::Variant setting = setting_keys[j];
-			const bool string_key = setting.get_type() == godot::Variant::STRING || setting.get_type() == godot::Variant::STRING_NAME;
-			if (!string_key || (godot::String(setting) != "seed" && godot::String(setting) != "options")) {
+			if (!is_string(setting) || (godot::String(setting) != "seed" && godot::String(setting) != "options")) {
 				return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
 						"reset settings for environment " + std::to_string(environment_id) + " have unknown key " +
 								to_std_string(setting.stringify()) + "; only \"seed\" and \"options\" are allowed");
@@ -310,7 +315,7 @@ schola::Status decode_reset_request(const godot::Dictionary &dict, schola::Reset
 			for (int64_t j = 0; j < option_keys.size(); ++j) {
 				const godot::Variant option_key = option_keys[j];
 				const godot::Variant value = options[option_key];
-				if (option_key.get_type() != godot::Variant::STRING || value.get_type() != godot::Variant::STRING) {
+				if (!is_string(option_key) || !is_string(value)) {
 					return schola::Status::error(schola::StatusCode::INVALID_ARGUMENT,
 							"reset option keys and values must be strings");
 				}
