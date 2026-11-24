@@ -121,6 +121,13 @@ func _add_agent(environment: Node, node_name: String, agent_id: String) -> Schol
 	return agent
 
 
+func _add_stacker(agent: ScholaAgent) -> void:
+	var stacker := ScholaStacker.new()
+	stacker.output_kind = 1 # Dict: Point_0 is the newest observation.
+	stacker.stack_size = 3
+	agent.observation_adapters = [stacker]
+
+
 func _add_host(root: Node) -> ScholaTrainingHost:
 	var host := ScholaTrainingHost.new()
 	host.name = "TrainingHost"
@@ -594,6 +601,23 @@ func test_multiple_environments_run_repeated_episodes_without_state_leakage() ->
 	assert_bool(next_episode_step["value"]["state"][0]["first_agent"]["terminated"]).is_false()
 	assert_int(first.reset_count).is_equal(2)
 	assert_int(second.reset_count).is_equal(2)
+
+
+func test_missing_action_in_later_environment_prevents_all_actions() -> void:
+	var root := _test_root()
+	var first := _add_environment(root, "FirstEnvironment", "first")
+	_add_environment(root, "SecondEnvironment", "second")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+
+	var result := host.step({"actions": [{"first": 1}, {}]})
+
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(result)).contains("environment 1: missing action for unfinished agent second")
+	assert_object(result["value"]).is_null()
+	assert_bool(first.get_node("first").last_action == null).is_true()
+	assert_bool(host.is_session_active()).is_false()
 
 
 func test_next_step_autoreset_consumes_the_following_step() -> void:
@@ -1237,6 +1261,45 @@ func test_birth_pausing_during_observation_is_announced_on_resume() -> void:
 	assert_bool(resumed["value"]["state"][0]["b"]["terminated"]).is_false()
 	assert_float(resumed["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
 	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+
+
+func test_agents_joining_after_reset_start_with_fresh_observation_history() -> void:
+	for join in ["resume", "readd"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		_add_stacker(environment.definitions[1])
+		var second = _add_agent(environment, "b", "b")
+		_add_stacker(second)
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var first_episode := host.step({"actions": [{"a": 1, "b": 2}]})
+		assert_dict(first_episode["value"]["state"][0]["b"]["observation"]).is_equal({"Point_0": 2, "Point_1": 0, "Point_2": 0})
+
+		# b misses the next reset: paused through it, or removed and added back afterwards.
+		if join == "resume":
+			second.training_paused = true
+		else:
+			environment.remove_child(second)
+			assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 1}]}))).is_equal(STATUS_OK)
+		var initial := host.reset({})
+		assert_array(initial["value"][0].keys()).contains_exactly(["a"])
+		if join == "resume":
+			second.training_paused = false
+		else:
+			second.observation = 0
+			environment.add_child(second)
+		var joined := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(joined)).is_equal(STATUS_OK)
+		assert_dict(joined["value"]["state"][0]["b"]["observation"]).is_equal({"Point_0": 0, "Point_1": 0, "Point_2": 0})
+
+		# Pausing within the episode keeps the history built since joining.
+		second.training_paused = true
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+		second.training_paused = false
+		var resumed := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(resumed)).is_equal(STATUS_OK)
+		assert_dict(resumed["value"]["state"][0]["b"]["observation"]).is_equal({"Point_0": 2, "Point_1": 2, "Point_2": 0})
 
 
 func test_session_activity_tracks_initialization_recoverable_errors_and_close() -> void:
