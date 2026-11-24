@@ -89,6 +89,12 @@ func test_preview_controls_drive_only_sample_telemetry() -> void:
 
 func test_monitor_text_is_light_on_its_dark_panel() -> void:
 	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	var inherited_theme := Theme.new()
+	inherited_theme.set_color("font_color", "Tree", Color.BLACK)
+	inherited_theme.set_color("title_button_color", "Tree", Color.BLACK)
+	monitor.theme = inherited_theme
 	add_child(monitor)
 	assert_that(monitor._heading.get_theme_color("font_color")).is_equal(Color("eef2fa"))
 	assert_that(monitor._episode_value.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._agents.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._agents.get_theme_color("title_button_color")).is_equal(Color("eef2fa"))

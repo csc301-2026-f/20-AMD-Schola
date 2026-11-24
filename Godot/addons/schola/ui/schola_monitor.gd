@@ -56,6 +56,8 @@ func _ready() -> void:
 	# Labels with their own color still win.
 	var text_theme := Theme.new()
 	text_theme.set_color("font_color", "Label", Color("eef2fa"))
+	text_theme.set_color("font_color", "Tree", Color("eef2fa"))
+	text_theme.set_color("title_button_color", "Tree", Color("eef2fa"))
 	layout.theme = text_theme
 	add_child(layout)
 	var brand := Label.new()
