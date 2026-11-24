@@ -2,7 +2,7 @@
 
 - **Owner:** Jimmy
 - **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 24, 2026
 
 ## Story
 
@@ -24,4 +24,4 @@ As a Godot developer, I want to define observation and action spaces using reusa
 - The team confirmed the union-type approach because it avoids unnecessary complexity.
 - Core spaces, points, and Inspector resources are implemented and merged in #30, including Box, Discrete, MultiDiscrete, MultiBinary, and Dict.
 - Passing core and Godot integration tests cover definitions, shape and bounds validation, unbounded Box dimensions, invalid values, and nested Dict resources.
-- Protobuf conversion code and round-trip tests exist for spaces, points, interaction definitions, and agent states. PR #35 supplies generated bindings through SCons and includes these tests in `transport_tests`, which CI runs. Check the Actions result for the submitted revision before claiming a passing final run. Production Python-client integration still depends on US3's concrete connector.
+- Protobuf conversion code and round-trip tests exist for spaces, points, interaction definitions, and agent states. SCons supplies generated bindings and includes these tests in `transport_tests`, which CI runs. The production scene connector subsequently merged in [PR #59](https://github.com/csc301-2026-f/20-AMD-Schola/pull/59); see [US3](US3.md) for the remaining trainer-run evidence.
