@@ -303,6 +303,22 @@ TEST_CASE("an observe failure reuses the last observation and every agent still 
 	REQUIRE(count_at(stepper, 1) == 2);
 }
 
+TEST_CASE("an observe failure reuses the newest observation after several steps", "[stepper][regression]") {
+	FakeAgent agent = make_agent(1.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &agent }, &policy).is_ok());
+	for (float value : { 0.25f, 0.5f, 0.75f }) {
+		agent.observation = Point(BoxPoint{ { value } });
+		REQUIRE(stepper.step().is_ok());
+	}
+
+	agent.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor broke");
+	REQUIRE(stepper.step().get_code() == StatusCode::RUNTIME_FAILURE);
+	REQUIRE(policy.observations.size() == 4);
+	CHECK(box_value(policy.observations[3]) == 0.75f);
+}
+
 TEST_CASE("removing an agent preserves the remaining agents cached observations", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);

@@ -44,6 +44,8 @@ private:
 	std::vector<Entry> entries;
 	Space observation_space;
 	Space action_space;
+	// Scratch points that observe() fills. Unlike entries, they stay valid if a
+	// callback removes an agent mid-observe.
 	std::vector<Point> observations;
 	std::vector<Point> actions;
 	std::vector<const Point *> observation_ptrs;
