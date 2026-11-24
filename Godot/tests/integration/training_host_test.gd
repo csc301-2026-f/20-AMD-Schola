@@ -567,6 +567,21 @@ func test_reset_forwards_seed_boundaries_and_options() -> void:
 	assert_dict(environment.last_options).is_empty()
 
 
+func test_reset_accepts_string_name_setting_keys() -> void:
+	var root := _test_root()
+	var environment := _add_environment(root, "Environment", "agent") as TestEnvironment
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var result := host.reset({0: {&"seed": 42, &"options": {"track": "hard"}}})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_int(environment.last_seed).is_equal(42)
+	assert_dict(environment.last_options).is_equal({"track": "hard"})
+	result = host.reset({0: {&"Seed": 42}})
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(result)).contains("unknown key")
+	assert_int(environment.reset_count).is_equal(1)
+
+
 func test_multiple_environments_run_repeated_episodes_without_state_leakage() -> void:
 	var root := _test_root()
 	var first := _add_environment(root, "FirstEnvironment", "first_agent") as TestEnvironment
