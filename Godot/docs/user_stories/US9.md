@@ -3,7 +3,7 @@
 - **Owner:** Shahyar
 - **Status:** Complete
 - **Priority:** Stretch goal
-- **Last updated:** Nov. 18, 2026
+- **Last updated:** Nov. 24, 2026
 
 ## Story
 
@@ -24,6 +24,9 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 - Tests demonstrate at least one complete episode, including reset and terminal-state handling.
 
 ## Progress
+
+The manual debugging example merged in [PR #57](https://github.com/csc301-2026-f/20-AMD-Schola/pull/57).
+
 
 The nine focused tests and 14 host tests passed together headlessly
 on Windows after rebuilding the native runtime extension. The original five
