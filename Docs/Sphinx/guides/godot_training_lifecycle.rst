@@ -139,12 +139,13 @@ an explicit reset are not reused for later automatic resets.
 Failure and shutdown behavior
 -----------------------------
 
-The session is atomic. A failure after an environment may have mutated faults
-and closes the complete session. Validation failures detected before environment
-execution return an error without publishing output. Schola does not continue
-with a smaller environment set because doing so would change the IDs observed
-by Python. ``close()`` is idempotent and is safe after normal work, partial
-startup, or a previous failure.
+Schola validates the action roster for every active environment before stepping
+or autoresetting any environment. A missing action for an active agent or an
+action for a paused or finished agent closes the session before gameplay
+callbacks run. A failure during execution also closes the session and discards
+the partial result. Changes already made by gameplay callbacks remain in the
+scene. Environment IDs stay fixed for the session. ``close()`` is idempotent and
+is safe after normal work, partial startup, or a previous failure.
 
 All scene-tree access and environment callbacks run on Godot's main thread.
 Transport, gRPC scheduling, and graceful failure notification to Python belong

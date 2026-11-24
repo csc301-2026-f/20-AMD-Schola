@@ -477,15 +477,24 @@ TEST_CASE("failed autoreset preserves output and faults the coordinator", "[coor
 	check_faulted(session);
 }
 
-TEST_CASE("lifecycle validation failure after earlier work faults the entire batch", "[coordinator][failure]") {
+TEST_CASE("an invalid action roster faults the batch before any environment runs", "[coordinator][failure]") {
 	Session session;
-	session.start();
+	session.start(AutoResetMode::NEXT_STEP);
+	SECTION("an earlier environment is active") {}
+	SECTION("an earlier environment is waiting to autoreset") {
+		session.environments[0].step_states.at("agent") = agent_state(4, true);
+		StepResult terminal;
+		REQUIRE(session.coordinator.step(session.actions(), terminal).is_ok());
+	}
+
+	const auto calls = session.calls;
 	auto request = session.actions();
 	request.actions[1].clear();
 	StepResult output = sentinel_result();
-	CHECK_FALSE(session.coordinator.step(request, output).is_ok());
-	CHECK(session.environments[0].step_calls == 1);
-	CHECK(session.environments[1].step_calls == 0);
+	const Status status = session.coordinator.step(request, output);
+	CHECK(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(status.get_message() == "environment 1: missing action for unfinished agent agent");
+	CHECK(session.calls == calls);
 	check_sentinel(output);
 	check_faulted(session);
 }
