@@ -49,7 +49,7 @@ func _enter_tree() -> void:
 	_dock_content.add_child(_nodes)
 	_button("Refresh scene & capabilities", _refresh)
 	var note := Label.new()
-	note.text = "Configure selected nodes in the Inspector.\nThe monitor accepts telemetry from your lifecycle code. Training and inference controls become available when their native APIs are implemented."
+	note.text = "Configure selected nodes in the Inspector.\nFeed the monitor from your lifecycle code. Use ScholaTrainingConnector for Python training and ScholaInferenceStepper for ONNX playback when those native classes are available."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dock_content.add_child(note)
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)

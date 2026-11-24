@@ -23,6 +23,11 @@ If rebuilding is needed, close Godot first (native extension reload is disabled)
 scons -C Godot schola platform=linux target=template_debug
 ```
 
+The commands assume `godot` and `scons` are on your `PATH`. Replace
+`platform=linux` with `platform=windows` on Windows, or `platform=macos arch=arm64`
+on supported Apple Silicon Macs. For dependencies and first-time setup, follow
+the [Godot development guide](../../README.md#build-and-run).
+
 ## Try it
 
 - **WASD / arrow keys** move the green body around orange obstacles.
