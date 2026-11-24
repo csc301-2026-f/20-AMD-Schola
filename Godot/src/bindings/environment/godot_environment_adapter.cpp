@@ -488,7 +488,11 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 					state.reward = previous->second.reward;
 					state.info = previous->second.info;
 				}
-				episode_nodes.emplace(entry.id, entry.node_id);
+				// An agent joining after reset (paused through it, or a node added back
+				// later) may still hold observation history from an earlier episode.
+				if (episode_nodes.emplace(entry.id, entry.node_id).second) {
+					agent->get_agent()->reset_observation_history();
+				}
 				status = agent->get_agent()->observe(state.observation);
 				if (!status.is_ok()) {
 					return status;
