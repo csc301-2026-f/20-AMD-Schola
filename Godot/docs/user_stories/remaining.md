@@ -26,6 +26,7 @@ These capabilities already exist in Unreal Schola or have a clear equivalent, bu
 - Further observation adapters beyond Box and Dict stacking.
 - Additional manual-connector diagnostics built on US9.
 - Broader packaged-platform and renderer coverage for camera observations.
+- **Optional render-synchronized lifecycle:** Preserve latest-completed-frame capture as a selectable mode, and add a mode that applies actions or resets, advances a defined amount of simulation, waits for the required camera viewports to render, and then collects observations and matching reward/state before replying. Define terminal/autoreset handling, frame freshness, and unavailable-render behavior across training and inference. This is deferred beyond US11 and requires its own user story.
 
 ## Framework and tooling breadth
 

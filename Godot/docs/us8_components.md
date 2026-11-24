@@ -127,9 +127,13 @@ the next host call can provide a newer completed frame, but does not guarantee a
 image of the action submitted in that same call. Likewise, waiting before
 `reset()` does not guarantee that its observation reflects changes made inside
 `_reset_episode()`: the reset hook and observation run in one synchronous call.
-Do not carry a prior episode's image into a reset observation and describe it as
-fresh reset data. Rendering/connector scheduling for the real-camera training
-example remains an [open US11 integration decision](us11_implementation.md#renderingconnector-scheduling-experiment).
+US11 deliberately retains this latest-completed-frame behavior for training and
+inference. Multiple steps can read the same frame, and the delay is not guaranteed
+to be exactly one physics tick. A reset observation can still show the previous
+episode; it must not be described as a fresh image of the reset scene.
+An optional lifecycle that applies actions or resets, advances simulation, waits
+for rendering, and only then collects observations is deferred to a future user
+story (see [future opportunities](user_stories/remaining.md)).
 Rendering is not forced inside the synchronous sensor callback. Empty/unavailable readback fails; headless display mode reports
 a configuration error. Use the fake camera for headless tests or run a real
 rendering display, including a GPU-capable virtual display for training.

@@ -24,8 +24,11 @@ custom sensor or actuator code.
 - **Reward**: how directly the agent faces the ball, from -1 to 1. Episodes are
   truncated after 100 steps.
 
-The camera returns the most recently drawn frame, so an observation can trail the
-latest action by one frame, as with Unreal's camera sensor. The camera needs a
+The camera returns the most recently drawn frame. An observation can precede the
+latest action, multiple steps can reuse a frame, and the delay is not fixed to one
+physics tick. Reset observations can still show the previous episode. US11 keeps
+this behavior; an optional render-synchronized lifecycle is future work.
+The camera needs a
 rendering display: in headless mode it reports a configuration error, and while
 the window is minimized no frames are drawn and the image stays black.
 
