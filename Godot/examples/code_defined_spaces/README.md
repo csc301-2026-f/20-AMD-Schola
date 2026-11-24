@@ -18,8 +18,8 @@ CodeDefinedSpaces (Node)              main.gd: runs the local session
 └── Status (Label)
 ```
 
-The agent leaves both Inspector space fields empty. Its `_define_spaces()` returns
-`ScholaSpaceDefinition.create(observation, action)` with typed space properties and builds:
+The agent leaves both Inspector space fields empty. Its `_define_observation_space()` and
+`_define_action_space()` each return a typed `ScholaSpace` resource and build:
 
 ```text
 observation: Dict
@@ -46,7 +46,7 @@ across the declared shape. Dict keys use the existing canonical sorted ordering.
 
 ## Declaration versus sensor data
 
-`_define_spaces()` declares expected structure, dimensions, dtype, and bounds.
+`_define_observation_space()` and `_define_action_space()` declare expected structure, dimensions, dtype, and bounds.
 `_observe()` separately supplies a synthetic orange RGB buffer and changing joint
 values. The flat camera buffer uses HWC order (R, G, B for each pixel) and
 `PackedFloat32Array`, matching the current native Box value representation even
@@ -66,7 +66,7 @@ never run the callback; malformed definitions fail during initialization.
 Stop the scene, edit camera dimensions or limb/joint counts in the Inspector,
 then press F6 to create a fresh session. Do not change the structure while the
 session is running. Successful definitions remain cached across resets and
-repeated consumers; the example verifies one callback invocation across both
+repeated consumers; the example verifies one invocation of each hook across both
 episodes. See the [API guide](../../docs/us15_space_definition_api.md) for the full
 contract, constructors, inherited callbacks, retry rules, and Inspector fallback.
 

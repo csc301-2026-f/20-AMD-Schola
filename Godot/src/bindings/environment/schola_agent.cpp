@@ -211,7 +211,15 @@ godot::Ref<ScholaSpace> ScholaAgent::get_effective_action_space() const {
 }
 
 bool ScholaAgent::has_code_defined_spaces() const {
-	return schola::configuration::has_hook(this, "_define_spaces");
+	return has_code_defined_observation_space() || has_code_defined_action_space();
+}
+
+bool ScholaAgent::has_code_defined_observation_space() const {
+	return schola::configuration::has_hook(this, "_define_observation_space");
+}
+
+bool ScholaAgent::has_code_defined_action_space() const {
+	return schola::configuration::has_hook(this, "_define_action_space");
 }
 
 schola::Agent *ScholaAgent::get_agent() {
@@ -233,25 +241,26 @@ const schola::Agent *ScholaAgent::get_agent() const {
 godot::PackedStringArray ScholaAgent::get_configuration_errors() const {
 	godot::PackedStringArray errors;
 	// Callback results are validated at startup, never during editor queries.
-	if (has_code_defined_spaces()) {
-		return errors;
-	}
-	const auto effective_observation = get_effective_observation_space();
-	const auto effective_action = get_effective_action_space();
-	if (effective_observation.is_null()) {
-		errors.append("observation_space is not set");
-	} else {
-		const godot::String error = effective_observation->get_definition_error();
-		if (!error.is_empty()) {
-			errors.append("observation_space: " + error);
+	if (!has_code_defined_observation_space()) {
+		const auto effective_observation = get_effective_observation_space();
+		if (effective_observation.is_null()) {
+			errors.append("observation_space is not set");
+		} else {
+			const godot::String error = effective_observation->get_definition_error();
+			if (!error.is_empty()) {
+				errors.append("observation_space: " + error);
+			}
 		}
 	}
-	if (effective_action.is_null()) {
-		errors.append("action_space is not set");
-	} else {
-		const godot::String error = effective_action->get_definition_error();
-		if (!error.is_empty()) {
-			errors.append("action_space: " + error);
+	if (!has_code_defined_action_space()) {
+		const auto effective_action = get_effective_action_space();
+		if (effective_action.is_null()) {
+			errors.append("action_space is not set");
+		} else {
+			const godot::String error = effective_action->get_definition_error();
+			if (!error.is_empty()) {
+				errors.append("action_space: " + error);
+			}
 		}
 	}
 	return errors;
@@ -283,7 +292,10 @@ void ScholaAgent::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("get_action_space"), &ScholaAgent::get_action_space);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_configuration_errors"), &ScholaAgent::get_configuration_errors);
 	godot::ClassDB::bind_method(godot::D_METHOD("has_code_defined_spaces"), &ScholaAgent::has_code_defined_spaces);
-	GDVIRTUAL_BIND(_define_spaces);
+	godot::ClassDB::bind_method(godot::D_METHOD("has_code_defined_observation_space"), &ScholaAgent::has_code_defined_observation_space);
+	godot::ClassDB::bind_method(godot::D_METHOD("has_code_defined_action_space"), &ScholaAgent::has_code_defined_action_space);
+	GDVIRTUAL_BIND(_define_observation_space);
+	GDVIRTUAL_BIND(_define_action_space);
 	GDVIRTUAL_BIND(_observe);
 	GDVIRTUAL_BIND(_act, "action");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "agent_id"), "set_agent_id", "get_agent_id");

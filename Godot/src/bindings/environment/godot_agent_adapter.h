@@ -34,8 +34,8 @@ public:
 	/**
 	 * Returns the agent's spaces and agent_type.
 	 *
-	 * The first successful call works out the spaces: from _define_spaces()
-	 * if the script has it, otherwise from Inspector fields or components. Later calls
+	 * The first successful call resolves each space from its script hook when
+	 * present, otherwise from Inspector fields or components. Later calls
 	 * return that same saved copy, so training, inference and every step
 	 * agree on one definition. A failed call saves nothing and can be retried
 	 * once the problem is fixed. To use different explicit or callback spaces,
@@ -79,7 +79,7 @@ private:
 	schola::Space action_space;
 	// True once the spaces above are saved.
 	bool defined = false;
-	// True while _define_spaces() is running, so it can't loop back into define().
+	// True while the space-definition hooks is running, so it can't loop back into define().
 	bool resolving = false;
 	std::vector<godot::ObjectID> sensors;
 	std::vector<godot::ObjectID> actuators;

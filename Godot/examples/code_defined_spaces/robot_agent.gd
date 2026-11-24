@@ -7,6 +7,7 @@ extends ScholaAgent
 @export_range(1, 8) var joints_per_limb := 3
 
 var definition_calls := 0
+var action_definition_calls := 0
 var action_count := 0
 var last_action: Dictionary = {}
 var _pixels := PackedFloat32Array()
@@ -36,26 +37,28 @@ func _limb_action_space() -> ScholaDictSpace:
 	})
 
 
-func _define_spaces() -> ScholaSpaceDefinition:
+func _define_observation_space() -> ScholaSpace:
 	definition_calls += 1
 	var observations := {}
+	for limb in range(limb_count):
+		observations["limb_%d" % limb] = _limb_observation_space()
+	return ScholaSpaces.dict({
+		"camera": ScholaSpaces.box(
+			[camera_height, camera_width, 3], 0, 255, ScholaSpaces.UINT8
+		),
+		"limbs": ScholaSpaces.dict(observations),
+	})
+
+
+func _define_action_space() -> ScholaSpace:
+	action_definition_calls += 1
 	var actions := {}
 	for limb in range(limb_count):
-		var key := "limb_%d" % limb
-		observations[key] = _limb_observation_space()
-		actions[key] = _limb_action_space()
-	return ScholaSpaceDefinition.create(
-		ScholaSpaces.dict({
-			"camera": ScholaSpaces.box(
-				[camera_height, camera_width, 3], 0, 255, ScholaSpaces.UINT8
-			),
-			"limbs": ScholaSpaces.dict(observations),
-		}),
-		ScholaSpaces.dict({
-			"movement": ScholaSpaces.box([3], -1, 1),
-			"limbs": ScholaSpaces.dict(actions),
-		}),
-	)
+		actions["limb_%d" % limb] = _limb_action_space()
+	return ScholaSpaces.dict({
+		"movement": ScholaSpaces.box([3], -1, 1),
+		"limbs": ScholaSpaces.dict(actions),
+	})
 
 
 func _observe() -> Variant:

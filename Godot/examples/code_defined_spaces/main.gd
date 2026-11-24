@@ -19,7 +19,7 @@ func _run() -> void:
 	if not _check("Close", _host.close()):
 		succeeded = false
 	if succeeded:
-		_log("Passed: two episodes, %d actions, one space-definition callback." % (
+		_log("Passed: two episodes, %d actions, each space-definition hook called once." % (
 			2 * _environment.episode_steps
 		))
 	if "--us15-smoke-test" in OS.get_cmdline_user_args():
@@ -52,7 +52,9 @@ func _run_episodes() -> bool:
 		if _agent.action_count != _environment.episode_steps:
 			return _fail("The agent did not receive every action.")
 	if _agent.definition_calls != 1:
-		return _fail("Expected one space-definition callback, got %d." % _agent.definition_calls)
+		return _fail("Expected one observation-space callback, got %d." % _agent.definition_calls)
+	if _agent.action_definition_calls != 1:
+		return _fail("Expected one action-space callback, got %d." % _agent.action_definition_calls)
 	return true
 
 

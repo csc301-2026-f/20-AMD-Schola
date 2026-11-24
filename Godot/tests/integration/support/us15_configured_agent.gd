@@ -6,14 +6,15 @@ extends ScholaAgent
 @export var joint_count := 3
 
 var definition_calls := 0
-var last_spaces: ScholaSpaceDefinition
+var action_definition_calls := 0
+var last_spaces: Dictionary
 var observation: Variant = 0
 var last_action: Variant
 
 
-func make_spaces() -> ScholaSpaceDefinition:
+func make_spaces() -> Dictionary:
 	if not nested:
-		return ScholaSpaceDefinition.create(
+		return _spaces(
 			ScholaSpaces.discrete(choice_count),
 			ScholaSpaces.discrete(choice_count),
 		)
@@ -23,7 +24,7 @@ func make_spaces() -> ScholaSpaceDefinition:
 			"angle": ScholaSpaces.box_bounds([2], [-PI, -1], [PI, 1]),
 			"contact": ScholaSpaces.multi_binary(2),
 		})
-	return ScholaSpaceDefinition.create(
+	return _spaces(
 		ScholaSpaces.dict({
 			"camera": ScholaSpaces.box([24, 32, 3], 0, 255, ScholaSpaces.UINT8),
 			"joints": ScholaSpaces.dict(joints),
@@ -39,10 +40,15 @@ func make_spaces() -> ScholaSpaceDefinition:
 	)
 
 
-func _define_spaces() -> ScholaSpaceDefinition:
+func _define_observation_space() -> ScholaSpace:
 	definition_calls += 1
 	last_spaces = make_spaces()
-	return last_spaces
+	return last_spaces.observation
+
+
+func _define_action_space() -> ScholaSpace:
+	action_definition_calls += 1
+	return last_spaces.action
 
 
 func _observe() -> Variant:
@@ -51,3 +57,7 @@ func _observe() -> Variant:
 
 func _act(action: Variant) -> void:
 	last_action = action
+
+
+func _spaces(observation: ScholaSpace, action: ScholaSpace) -> Dictionary:
+	return {"observation": observation, "action": action}

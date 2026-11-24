@@ -186,7 +186,7 @@ schola::Status GodotEnvironmentAdapter::initialize(std::map<schola::AgentId, sch
 			return agent_error(id, schola::StatusCode::FAILED_PRECONDITION, "agent_id is used by more than one agent");
 		}
 
-		// Each agent works out its own spaces, from _define_spaces() or the
+		// Each agent works out its own spaces, from the space-definition hooks or the
 		// Inspector. If the training host already did this, define() just
 		// returns the saved copy. Its error names the agent, so pass it on.
 		schola::InteractionDefinition definition;

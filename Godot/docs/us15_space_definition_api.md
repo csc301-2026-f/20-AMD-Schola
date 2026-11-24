@@ -7,7 +7,8 @@ review remains pending. The [story verification record](user_stories/US15.md#ste
 records build, formatting, integration-test, example, and scope checks, along with
 their platform and interactive-editor limitations.
 
-Steps 1-2 expose the optional `_define_spaces()` virtual hook, the metadata-only
+Steps 1-2 expose the optional `_define_observation_space()` and
+`_define_action_space()` virtual hooks, the metadata-only
 `has_code_defined_spaces()` query on `ScholaAgent`, and the static `ScholaSpaces`
 resource constructors.
 
@@ -19,9 +20,9 @@ stepper, already use code-defined spaces.
 
 Step 4 connects startup:
 
-- `ScholaAgent.get_configuration_errors()` skips the space checks when the script
-  implements `_define_spaces()`, because the Inspector fields are unused. It still
-  never runs the callback. `ScholaEnvironment.get_configuration_errors()` also
+- `ScholaAgent.get_configuration_errors()` skips each space check when the script
+  implements the corresponding space hook, because that Inspector field is unused.
+  It never runs the callbacks. `ScholaEnvironment.get_configuration_errors()` also
   accepts callback-only agents and retains authored-resource diagnostics for
   Inspector agents. Runtime startup uses separate scene-structure checks and
   validates spaces through `define()`, so mutable authored resources cannot
@@ -53,61 +54,38 @@ in the [Godot guide](../README.md#code-defined-spaces-example).
 
 ## Callback return value and precedence
 
-A script attached to `ScholaAgent` may implement `_define_spaces()`. An inherited
-implementation also counts as an override. The callback takes no arguments and
-must return a non-null `ScholaSpaceDefinition` with these typed properties:
-
-| Property | Required value |
-| --- | --- |
-| `observation` | A non-null `ScholaSpace` resource |
-| `action` | A non-null `ScholaSpace` resource |
-
-`ScholaSpaceDefinition` is a registered `RefCounted` class, not a plain C++
-struct or a serialized Resource. Its static `create(observation, action)` factory
-requires both arguments, each typed as `ScholaSpace`, and returns a new definition.
-The writable properties retain references to their resources; they do not copy them.
-Resources use existing space types,
-validation, bounds broadcasting, nested Dict ordering, and serialization semantics.
-
-For example:
+A script attached to `ScholaAgent` may implement either or both optional hooks.
+Inherited implementations count as overrides. Each hook takes no arguments and
+returns a non-null `ScholaSpace` resource:
 
 ```gdscript
 extends ScholaAgent
 
-func _define_spaces() -> ScholaSpaceDefinition:
-    return ScholaSpaceDefinition.create(
-        ScholaSpaces.box([1, 30, 32], 0.0, 1.0),
-        ScholaSpaces.discrete(5)
-    )
+func _define_observation_space() -> ScholaSpace:
+    return ScholaSpaces.box([1, 30, 32], 0.0, 1.0)
+
+func _define_action_space() -> ScholaSpace:
+    return ScholaSpaces.discrete(5)
 ```
 
-The native virtual hook also declares `ScholaSpaceDefinition` as its return type.
-Godot exposes the factory argument types, property types, and callback return type
-to GDScript tooling, allowing incompatible return declarations, missing factory
-arguments, and statically known wrong argument types to be caught before startup.
-Dynamic values can still require runtime type checks. Null definitions, null fields,
-and invalid resource definitions remain runtime errors. The resolver validates both
-resources before saving either space. Errors start with `Agent '<id>':` and name
-the property, for example `_define_spaces().action is null`.
+Each hook overrides only its corresponding Inspector or component-composed space.
+An absent hook uses the existing authored configuration for that side. A present
+hook returning null or an invalid resource fails without falling back. Both spaces
+are validated before either snapshot is saved; failures allow a corrected retry.
+Errors name the agent and hook, for example
+`Agent 'robot': _define_action_space() returned null; return a ScholaSpace`.
 
-This replaces the previous Dictionary callback contract; there is no Dictionary
-fallback. To migrate, change the return annotation and replace the outer
-`{"observation": obs, "action": act}` with `ScholaSpaceDefinition.create(obs, act)`.
-Nested `ScholaSpaces.dict(...)` definitions and observation/action values keep
-their existing representations. Rebuild the runtime extension before loading
-scripts that use the new class.
+The native virtuals expose `ScholaSpace` return types to GDScript tooling.
+Incompatible return declarations are rejected before startup. Resources keep their
+existing validation, sharing, serialization, and nested Dict ordering semantics.
+Inspector properties continue to expose authored assignments and are never
+overwritten with callback results.
 
-`ScholaSpaceDefinition.new()` is also available for explicit property assignment.
-Its fields start null, so both must be assigned before initialization. The factory
-does not validate bounds or reject null arguments; initialization supplies the
-agent-specific diagnostics. After successful resolution, edits to either property
-or its referenced resources do not change the agent's saved core snapshot.
-
-When the hook is absent, Inspector assignments supply both spaces. When present,
-the hook supplies both spaces and takes precedence over both assignments. An
-invalid result is an error; it never falls back to Inspector values or mixes
-sources. Inspector properties and their getters continue to expose the authored
-assignments. Resolution must not overwrite them or change saved scenes.
+This replaces `_define_spaces()` and removes `ScholaSpaceDefinition`. To migrate,
+move the former observation expression into `_define_observation_space()` and the
+action expression into `_define_action_space()`, returning each resource directly.
+Rebuild the runtime extension before loading migrated scripts. Nested Dict spaces,
+observation/action values, and wire formats retain their existing representations.
 
 ## Space constructors
 
@@ -171,7 +149,7 @@ without rebuilding definitions. Training startup resolves `get_possible_agents()
 including detached prototypes declared by dynamic environments; live instances
 resolve their own definitions when they join and must match the prototype.
 
-Without the callback, US8 sensors and actuators may supply composed spaces instead
+On a side without a callback, US8 sensors and actuators may supply composed spaces instead
 of explicit Inspector assignments. Their live component layout checks remain in
 effect. Component-authored sides retain US8's explicit redefinition behavior when
 a new environment initializes the same agent; uncomposed Inspector sides retain
@@ -209,7 +187,7 @@ resource still produces editor diagnostics, but does not block runtime startup,
 definition, or value validation using the saved snapshot. With no snapshot yet,
 invalid Inspector definitions fail through the same resolver as usual.
 
-A `define()` call made while `_define_spaces()` is still running fails instead of
+A `define()` call made while either space hook is still running fails instead of
 recursing.
 
 Callbacks must construct definitions deterministically from configuration available
@@ -219,14 +197,16 @@ or gameplay side effects. Loops and helper functions are permitted.
 ## Editor and tooling boundary
 
 `has_code_defined_spaces()` inspects script metadata, including base scripts, and
-does not execute the hook. Ordinary Inspector warning queries must also remain
-metadata-only, including for tool scripts. Since step 4, the configuration check
-behind those warnings uses this query to skip the space checks for callback agents,
+returns true when either hook exists. The side-specific queries
+`has_code_defined_observation_space()` and `has_code_defined_action_space()`
+identify which side is overridden. None executes the hooks. Ordinary Inspector
+warning queries must also remain metadata-only, including for tool scripts. The configuration check
+behind those warnings uses this query to skip only the checks for code-defined sides,
 so unused Inspector fields are not reported as missing spaces.
 
 Inspector help on both space properties explains callback precedence, runtime
 validation, and why saved fields can remain empty. When a direct or inherited
-`_define_spaces()` callback is detected, a "Spaces defined in code" notice appears
+space hook is detected, a "Spaces defined in code" notice appears
 at the top of the Inspector. Detection uses script metadata without running the
 callback. Missing `_observe()` and
 `_act()` hooks still produce warnings independently of space authorship. Attaching
