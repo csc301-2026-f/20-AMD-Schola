@@ -241,11 +241,19 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	}
 	if (const MultiBinarySpace *multi_binary = p_space.get_if<MultiBinarySpace>()) {
 		std::vector<int64_t> values;
-		if (!read_ints(p_value, godot::Variant::PACKED_BYTE_ARRAY, 0, 255, values, error)) {
+		// Read any int here and check for 0 or 1 below. A [0, 255] range check would
+		// give -1 a different message than 2, as if 255 were allowed.
+		if (!read_ints(p_value, godot::Variant::PACKED_BYTE_ARRAY, std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max(), values, error)) {
 			return error.empty() ? wrong_value(p_path, "PackedByteArray", multi_binary->n, p_space, p_value) : invalid(p_path, error);
 		}
 		if (static_cast<int64_t>(values.size()) != multi_binary->n) {
 			return wrong_value(p_path, "PackedByteArray", multi_binary->n, p_space, p_value);
+		}
+		// Check before narrowing to uint8, which would turn 256 into a valid 0
+		for (size_t i = 0; i < values.size(); ++i) {
+			if (values[i] != 0 && values[i] != 1) {
+				return invalid(p_path, "MultiBinary value at index " + std::to_string(i) + " is " + std::to_string(values[i]) + " but must be 0 or 1");
+			}
 		}
 		r_point = Point(MultiBinaryPoint{ std::vector<uint8_t>(values.begin(), values.end()) });
 		return Status::ok();

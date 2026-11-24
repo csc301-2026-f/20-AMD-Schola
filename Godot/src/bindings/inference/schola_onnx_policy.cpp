@@ -156,6 +156,12 @@ godot::Variant ScholaOnnxPolicy::infer(const godot::Variant &p_observation, cons
 		report_failure("ScholaOnnxPolicy.infer: call initialize() first", godot::ERR_UNCONFIGURED, &last_error);
 		return godot::Variant();
 	}
+	// ScholaPolicyState.new() has no native state behind it. Say so, rather than
+	// falling through to the "has memory" message, which may not even be true.
+	if (p_state.is_valid() && p_state->get_state() == nullptr) {
+		report_failure("ScholaOnnxPolicy.infer: the state must come from create_state()", godot::ERR_INVALID_PARAMETER, &last_error);
+		return godot::Variant();
+	}
 	schola::PolicyState *state = p_state.is_valid() ? p_state->get_state() : stateless_state.get();
 	if (state == nullptr) {
 		report_failure("ScholaOnnxPolicy.infer: this model has memory; pass a state from create_state()", godot::ERR_INVALID_PARAMETER, &last_error);

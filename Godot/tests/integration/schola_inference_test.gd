@@ -78,6 +78,16 @@ func test_infer_needs_a_state_for_a_model_with_memory() -> void:
 	assert_str(policy.get_last_error()).contains("create_state()")
 
 
+func test_infer_rejects_a_state_that_did_not_come_from_create_state() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+
+	# A stateless model, so the error must not claim it has memory
+	assert_that(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0]), ScholaPolicyState.new())).is_null()
+	assert_str(policy.get_last_error()).contains("must come from create_state()")
+	assert_str(policy.get_last_error()).not_contains("memory")
+
+
 func test_last_error_is_cleared_by_the_next_call() -> void:
 	var policy := _policy("box_scale.onnx")
 	assert_int(policy.load()).is_equal(OK)

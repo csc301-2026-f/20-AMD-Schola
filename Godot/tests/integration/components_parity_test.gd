@@ -339,3 +339,10 @@ func test_teleport_rejects_world_position_overflow() -> void:
 	teleport.step.x = 2.5e38
 	_component(teleport)
 	assert_bool(driver.call("initialize", environment).ok).is_false()
+
+func test_teleport_explains_when_no_axis_has_two_directions() -> void:
+	var teleport: ScholaTeleportActuator3D = auto_free(ScholaTeleportActuator3D.new())
+	teleport.x_directions = teleport.POSITIVE
+	assert_str("\n".join(teleport._get_component_errors())).contains("Enable at least two of Wait, Positive and Negative")
+	teleport.x_directions = teleport.WAIT | teleport.POSITIVE
+	assert_str("\n".join(teleport._get_component_errors())).not_contains("Enable at least two")
