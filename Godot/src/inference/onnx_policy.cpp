@@ -321,7 +321,13 @@ Status check_observation(const Binding &p_binding, const std::vector<int32_t> &p
 
 Status write_observation(Binding &r_binding, const Point &p_point) {
 	bool written = false;
-	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX) {
+	if (const BoxPoint *box = p_point.get_if<BoxPoint>(); box && r_binding.kind == SpaceKind::BOX && r_binding.element_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT) {
+		// Box values are already float32, so there is no range to check and nothing to convert.
+		written = box->values.size() == r_binding.element_count;
+		if (written) {
+			std::memcpy(r_binding.buffer.data(), box->values.data(), box->values.size() * sizeof(float));
+		}
+	} else if (box && r_binding.kind == SpaceKind::BOX) {
 		for (size_t i = 0; i < box->values.size(); ++i) {
 			if (!fits_tensor(r_binding.element_type, box->values[i])) {
 				return Status::error(StatusCode::INVALID_ARGUMENT,
