@@ -14,10 +14,14 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <iomanip>
 #include <limits>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -102,6 +106,20 @@ Status wrong_value(const std::string &p_path, const char *p_expected, int64_t p_
 	return invalid(p_path, message);
 }
 
+// Same idea as the core's float formatting, for the double a script passed in.
+// Godot's String::num() keeps 14 digits, so 0.1 * 30 would print as "3".
+std::string format_double(double p_value) {
+	std::ostringstream stream;
+	for (int digits = 15; digits <= std::numeric_limits<double>::max_digits10; ++digits) {
+		stream.str("");
+		stream << std::setprecision(digits) << p_value;
+		if (std::strtod(stream.str().c_str(), nullptr) == p_value) {
+			break;
+		}
+	}
+	return stream.str();
+}
+
 std::string narrowing_error(int64_t p_index, const std::string &p_value, bool p_whole, DType p_dtype) {
 	const std::string prefix = "Box value at index " + std::to_string(p_index) + " is " + p_value;
 	return p_whole ? prefix + ", which float32 cannot represent exactly" : prefix + " but dtype " + dtype_name(p_dtype) + " needs a whole number";
@@ -112,7 +130,7 @@ std::string narrowing_error(int64_t p_index, const std::string &p_value, bool p_
 bool push_float(double p_value, int64_t p_index, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
 	const float value = static_cast<float>(p_value);
 	if (is_whole_dtype(p_dtype) && !std::isnan(p_value) && static_cast<double>(value) != p_value) {
-		r_error = narrowing_error(p_index, to_std_string(godot::String::num(p_value)), std::floor(p_value) == p_value, p_dtype);
+		r_error = narrowing_error(p_index, format_double(p_value), std::floor(p_value) == p_value, p_dtype);
 		return false;
 	}
 	r_values.push_back(value);
@@ -241,11 +259,19 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	}
 	if (const MultiBinarySpace *multi_binary = p_space.get_if<MultiBinarySpace>()) {
 		std::vector<int64_t> values;
-		if (!read_ints(p_value, godot::Variant::PACKED_BYTE_ARRAY, 0, 255, values, error)) {
+		// Read any int here and check for 0 or 1 below. A [0, 255] range check would
+		// give -1 a different message than 2, as if 255 were allowed.
+		if (!read_ints(p_value, godot::Variant::PACKED_BYTE_ARRAY, std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max(), values, error)) {
 			return error.empty() ? wrong_value(p_path, "PackedByteArray", multi_binary->n, p_space, p_value) : invalid(p_path, error);
 		}
 		if (static_cast<int64_t>(values.size()) != multi_binary->n) {
 			return wrong_value(p_path, "PackedByteArray", multi_binary->n, p_space, p_value);
+		}
+		// Check before narrowing to uint8, which would turn 256 into a valid 0
+		for (size_t i = 0; i < values.size(); ++i) {
+			if (values[i] != 0 && values[i] != 1) {
+				return invalid(p_path, "MultiBinary value at index " + std::to_string(i) + " is " + std::to_string(values[i]) + " but must be 0 or 1");
+			}
 		}
 		r_point = Point(MultiBinaryPoint{ std::vector<uint8_t>(values.begin(), values.end()) });
 		return Status::ok();
@@ -288,21 +314,17 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	return Status::ok();
 }
 
-godot::PackedFloat32Array to_packed_floats(const std::vector<float> &p_values) {
-	godot::PackedFloat32Array result;
-	result.resize(static_cast<int64_t>(p_values.size()));
-	for (size_t i = 0; i < p_values.size(); ++i) {
-		result.set(static_cast<int64_t>(i), p_values[i]);
+// Copies a whole vector into a packed array through its write pointer. Each
+// set() is a separate call into the engine, so a camera image would make
+// hundreds of thousands of them per step.
+template <typename Packed, typename Value>
+Packed to_packed(const std::vector<Value> &p_values) {
+	Packed result;
+	if (p_values.empty()) {
+		return result;
 	}
-	return result;
-}
-
-godot::PackedInt32Array to_packed_ints(const std::vector<int32_t> &p_values) {
-	godot::PackedInt32Array result;
 	result.resize(static_cast<int64_t>(p_values.size()));
-	for (size_t i = 0; i < p_values.size(); ++i) {
-		result.set(static_cast<int64_t>(i), p_values[i]);
-	}
+	std::copy(p_values.begin(), p_values.end(), result.ptrw());
 	return result;
 }
 
@@ -322,21 +344,16 @@ Status variant_to_point(const godot::Variant &p_value, const Space &p_space, Poi
 
 godot::Variant point_to_variant(const Point &p_point) {
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>()) {
-		return to_packed_floats(box->values);
+		return to_packed<godot::PackedFloat32Array>(box->values);
 	}
 	if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>()) {
 		return static_cast<int64_t>(discrete->value);
 	}
 	if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>()) {
-		return to_packed_ints(multi_discrete->values);
+		return to_packed<godot::PackedInt32Array>(multi_discrete->values);
 	}
 	if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>()) {
-		godot::PackedByteArray values;
-		values.resize(static_cast<int64_t>(multi_binary->values.size()));
-		for (size_t i = 0; i < multi_binary->values.size(); ++i) {
-			values.set(static_cast<int64_t>(i), multi_binary->values[i]);
-		}
-		return values;
+		return to_packed<godot::PackedByteArray>(multi_binary->values);
 	}
 	godot::Dictionary values;
 	for (const auto &entry : p_point.get_if<DictPoint>()->entries) {

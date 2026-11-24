@@ -35,7 +35,9 @@ schola::Status ScholaStacker::create(const schola::Space &p_space, std::unique_p
 void ScholaStacker::_bind_methods() {
 	godot::ClassDB::bind_method(godot::D_METHOD("set_stack_size", "stack_size"), &ScholaStacker::set_stack_size);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_stack_size"), &ScholaStacker::get_stack_size);
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "stack_size"), "set_stack_size", "get_stack_size");
+	// Same limits the stackers enforce at runtime (and Unreal clamps to), so the
+	// Inspector cannot take a value that only fails once training starts.
+	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "stack_size", godot::PROPERTY_HINT_RANGE, "1,2147483647,1"), "set_stack_size", "get_stack_size");
 
 	godot::ClassDB::bind_method(godot::D_METHOD("set_default_point", "default_point"), &ScholaStacker::set_default_point);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_default_point"), &ScholaStacker::get_default_point);
@@ -43,7 +45,7 @@ void ScholaStacker::_bind_methods() {
 
 	godot::ClassDB::bind_method(godot::D_METHOD("set_stack_dimension", "stack_dimension"), &ScholaStacker::set_stack_dimension);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_stack_dimension"), &ScholaStacker::get_stack_dimension);
-	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "stack_dimension"), "set_stack_dimension", "get_stack_dimension");
+	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "stack_dimension", godot::PROPERTY_HINT_RANGE, "0,2147483647,1"), "set_stack_dimension", "get_stack_dimension");
 
 	godot::ClassDB::bind_method(godot::D_METHOD("set_add_new_dimension", "add_new_dimension"), &ScholaStacker::set_add_new_dimension);
 	godot::ClassDB::bind_method(godot::D_METHOD("get_add_new_dimension"), &ScholaStacker::get_add_new_dimension);

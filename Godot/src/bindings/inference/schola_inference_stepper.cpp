@@ -30,7 +30,12 @@ bool fits_policy(ScholaAgent *p_agent, const ScholaOnnxPolicy &p_policy) {
 
 ScholaInferenceStepper::ScholaInferenceStepper() = default;
 
-ScholaInferenceStepper::~ScholaInferenceStepper() = default;
+ScholaInferenceStepper::~ScholaInferenceStepper() {
+	const godot::Callable callback = callable_mp(this, &ScholaInferenceStepper::refresh_warnings);
+	if (policy.is_valid() && policy->is_connected("changed", callback)) {
+		policy->disconnect("changed", callback);
+	}
+}
 
 void ScholaInferenceStepper::set_policy(const godot::Ref<ScholaOnnxPolicy> &p_policy) {
 	if (p_policy == policy) {
@@ -40,9 +45,21 @@ void ScholaInferenceStepper::set_policy(const godot::Ref<ScholaOnnxPolicy> &p_po
 		(void)report("ScholaInferenceStepper.policy: cannot change the policy during a step; use set_deferred(\"policy\", value)", godot::ERR_BUSY);
 		return;
 	}
+	// Follow the policy's own edits too, so picking a model_path clears the
+	// "no model_path" warning without reassigning the policy.
+	const godot::Callable callback = callable_mp(this, &ScholaInferenceStepper::refresh_warnings);
+	if (policy.is_valid() && policy->is_connected("changed", callback)) {
+		policy->disconnect("changed", callback);
+	}
 	policy = p_policy;
+	if (policy.is_valid()) {
+		policy->connect("changed", callback);
+	}
 	if (stepper != nullptr) {
 		stepper.reset();
+		// The old agents are gone, so forget their last failure. Otherwise the
+		// same failure from the re-added agents looks like a repeat and stays quiet.
+		last_step_error = godot::String();
 		(void)report("ScholaInferenceStepper.policy: the policy was changed, so its agents were removed; add them again", godot::ERR_UNCONFIGURED);
 	}
 	update_configuration_warnings();
@@ -209,6 +226,10 @@ godot::Error ScholaInferenceStepper::prepare(ScholaAgent *p_agent) {
 		}
 	}
 	return godot::OK;
+}
+
+void ScholaInferenceStepper::refresh_warnings() {
+	update_configuration_warnings();
 }
 
 void ScholaInferenceStepper::on_agent_exiting(godot::Object *p_agent) {

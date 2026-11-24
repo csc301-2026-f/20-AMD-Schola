@@ -215,6 +215,50 @@ func test_generated_ray_fan_circle_tags_and_exclusions() -> void:
 	assert_vector(endpoints[1]).is_equal(Vector3(0, 0, -10))
 	assert_float(endpoints[2].x).is_greater(0)
 
+func test_generated_rays_observe_the_same_with_and_without_debug_lines() -> void:
+	# The ray query is built once per observation, and debug segments are only
+	# collected when drawn. Neither may change what the agent observes.
+	var origin := Node3D.new()
+	origin.name = "Origin"
+	origin.position = Vector3(1, 0, 0)
+	agent.add_child(origin)
+	var obstacle := StaticBody3D.new()
+	obstacle.position = Vector3(1, 0, -4)
+	var shape := CollisionShape3D.new()
+	shape.shape = BoxShape3D.new()
+	obstacle.add_child(shape)
+	agent.add_child(obstacle)
+	var sensor := ScholaRayCastSensor3D.new()
+	sensor.use_generated_rays = true
+	sensor.origin_path = NodePath("../Origin")
+	sensor.num_rays = 5
+	sensor.ray_degrees = 60
+	sensor.ray_length = 10
+	_component(sensor)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_initialize()
+
+	sensor.draw_debug = false
+	var hidden: PackedFloat32Array = driver.call("reset", environment).states.A.observation["00000000:c"]
+	sensor.draw_debug = true
+	var drawn: PackedFloat32Array = driver.call("reset", environment).states.A.observation["00000000:c"]
+	assert_array(Array(drawn)).is_equal(Array(hidden))
+	# Only the middle ray points straight at the box, so the fan must not
+	# reuse one ray's end point for every ray.
+	assert_float(hidden[4]).is_equal(1.0)
+	assert_float(hidden[5]).is_equal_approx(0.35, 0.001)
+	assert_float(hidden[0]).is_equal(0.0)
+	assert_float(hidden[8]).is_equal(0.0)
+
+	# Each observation starts its rays from where the origin is now.
+	origin.position = Vector3(1, 0, -2)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var closer: PackedFloat32Array = driver.call("reset", environment).states.A.observation["00000000:c"]
+	assert_float(closer[5]).is_equal_approx(0.15, 0.001)
+
+
 func test_invalid_component_parameters_are_rejected() -> void:
 	var rotation := ScholaRotationActuator3D.new()
 	_component(rotation)
@@ -339,3 +383,10 @@ func test_teleport_rejects_world_position_overflow() -> void:
 	teleport.step.x = 2.5e38
 	_component(teleport)
 	assert_bool(driver.call("initialize", environment).ok).is_false()
+
+func test_teleport_explains_when_no_axis_has_two_directions() -> void:
+	var teleport: ScholaTeleportActuator3D = auto_free(ScholaTeleportActuator3D.new())
+	teleport.x_directions = teleport.POSITIVE
+	assert_str("\n".join(teleport._get_component_errors())).contains("Enable at least two of Wait, Positive and Negative")
+	teleport.x_directions = teleport.WAIT | teleport.POSITIVE
+	assert_str("\n".join(teleport._get_component_errors())).not_contains("Enable at least two")
