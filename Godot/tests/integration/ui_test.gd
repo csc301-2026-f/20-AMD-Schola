@@ -26,6 +26,39 @@ func test_monitor_accumulates_rewards_and_resets() -> void:
 	assert_str(monitor._status.text).contains("Receiving")
 
 
+func test_monitor_updates_agent_rows_in_place_each_step() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	add_child(monitor)
+	monitor.begin_episode(1, PackedStringArray(["A", "B"]))
+	var rows := monitor._agents.get_root().get_children()
+	rows[1].select(0)
+
+	for index in range(3):
+		monitor.record_step({"A": 1.0, "B": -0.5})
+
+	# Same rows, still selected, showing the latest values
+	assert_array(monitor._agents.get_root().get_children()).is_equal(rows)
+	assert_object(monitor._agents.get_selected()).is_same(rows[1])
+	assert_str(rows[0].get_text(1)).is_equal("+1.000")
+	assert_str(rows[0].get_text(2)).is_equal("+3.000")
+	assert_str(rows[1].get_text(2)).is_equal("-1.500")
+	monitor.end_episode()
+	assert_str(rows[1].get_text(3)).is_equal("Ended")
+
+	# A new roster gets new rows
+	monitor.begin_episode(2, PackedStringArray(["C"]))
+	var next := monitor._agents.get_root().get_children()
+	assert_int(next.size()).is_equal(1)
+	assert_str(next[0].get_text(0)).is_equal("C")
+	assert_str(next[0].get_text(1)).is_equal("—")
+
+	# A roster changed without begin_episode() is picked up, not a crash
+	monitor.agent_returns["D"] = 0.0
+	monitor.record_step({"C": 2.0, "D": 1.0})
+	assert_int(monitor._agents.get_root().get_child_count()).is_equal(2)
+	assert_str(monitor._agents.get_root().get_child(1).get_text(2)).is_equal("+1.000")
+
+
 func test_monitor_keeps_a_minimum_size_set_before_it_is_ready() -> void:
 	var sized: ScholaMonitor = auto_free(Monitor.new())
 	sized.custom_minimum_size.x = 360

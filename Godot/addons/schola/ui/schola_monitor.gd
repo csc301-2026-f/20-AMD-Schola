@@ -28,6 +28,10 @@ var _step_value: Label
 var _return_value: Label
 var _progress: ProgressBar
 var _agents: Tree
+# One Tree row per agent. record_step() runs every frame, so it edits these in
+# place; only begin_episode() changes the roster and rebuilds them.
+var _rows: Dictionary = {}
+var _rows_stale: bool = true
 var _chart: Control
 var _empty: Label
 
@@ -131,6 +135,7 @@ func begin_episode(number: int, agent_ids: PackedStringArray, step_limit: int = 
 	_warning = ""
 	for agent_id in agent_ids:
 		agent_returns[agent_id] = 0.0
+	_rows_stale = true
 	_refresh()
 
 
@@ -200,15 +205,26 @@ func _refresh() -> void:
 	_progress.value = step if _step_limit > 0 else 0
 	_progress.tooltip_text = "Episode step limit" if _step_limit > 0 else "No configured step limit"
 	_empty.visible = agent_returns.is_empty()
+	# agent_returns is public, so also catch a roster changed from outside.
+	if _rows_stale or _rows.size() != agent_returns.size() or not _rows.has_all(agent_returns.keys()):
+		_rebuild_rows()
+	for agent_id in agent_returns:
+		var row: TreeItem = _rows[agent_id]
+		row.set_text(1, "%+.3f" % float(_last_rewards[agent_id]) if _last_rewards.has(agent_id) else "—")
+		row.set_text(2, "%+.3f" % float(agent_returns[agent_id]))
+		row.set_text(3, "Active" if _active else "Ended")
+	_chart.queue_redraw()
+
+
+func _rebuild_rows() -> void:
+	_rows_stale = false
+	_rows.clear()
 	_agents.clear()
 	var root := _agents.create_item()
 	for agent_id in agent_returns:
 		var row := _agents.create_item(root)
 		row.set_text(0, str(agent_id))
-		row.set_text(1, "%+.3f" % float(_last_rewards[agent_id]) if _last_rewards.has(agent_id) else "—")
-		row.set_text(2, "%+.3f" % float(agent_returns[agent_id]))
-		row.set_text(3, "Active" if _active else "Ended")
-	_chart.queue_redraw()
+		_rows[agent_id] = row
 
 
 func _draw_history() -> void:
