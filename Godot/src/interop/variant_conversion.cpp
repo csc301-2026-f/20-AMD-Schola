@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -313,21 +314,17 @@ Status convert(const godot::Variant &p_value, const Space &p_space, const std::s
 	return Status::ok();
 }
 
-godot::PackedFloat32Array to_packed_floats(const std::vector<float> &p_values) {
-	godot::PackedFloat32Array result;
-	result.resize(static_cast<int64_t>(p_values.size()));
-	for (size_t i = 0; i < p_values.size(); ++i) {
-		result.set(static_cast<int64_t>(i), p_values[i]);
+// Copies a whole vector into a packed array through its write pointer. Each
+// set() is a separate call into the engine, so a camera image would make
+// hundreds of thousands of them per step.
+template <typename Packed, typename Value>
+Packed to_packed(const std::vector<Value> &p_values) {
+	Packed result;
+	if (p_values.empty()) {
+		return result;
 	}
-	return result;
-}
-
-godot::PackedInt32Array to_packed_ints(const std::vector<int32_t> &p_values) {
-	godot::PackedInt32Array result;
 	result.resize(static_cast<int64_t>(p_values.size()));
-	for (size_t i = 0; i < p_values.size(); ++i) {
-		result.set(static_cast<int64_t>(i), p_values[i]);
-	}
+	std::copy(p_values.begin(), p_values.end(), result.ptrw());
 	return result;
 }
 
@@ -347,21 +344,16 @@ Status variant_to_point(const godot::Variant &p_value, const Space &p_space, Poi
 
 godot::Variant point_to_variant(const Point &p_point) {
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>()) {
-		return to_packed_floats(box->values);
+		return to_packed<godot::PackedFloat32Array>(box->values);
 	}
 	if (const DiscretePoint *discrete = p_point.get_if<DiscretePoint>()) {
 		return static_cast<int64_t>(discrete->value);
 	}
 	if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>()) {
-		return to_packed_ints(multi_discrete->values);
+		return to_packed<godot::PackedInt32Array>(multi_discrete->values);
 	}
 	if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>()) {
-		godot::PackedByteArray values;
-		values.resize(static_cast<int64_t>(multi_binary->values.size()));
-		for (size_t i = 0; i < multi_binary->values.size(); ++i) {
-			values.set(static_cast<int64_t>(i), multi_binary->values[i]);
-		}
-		return values;
+		return to_packed<godot::PackedByteArray>(multi_binary->values);
 	}
 	godot::Dictionary values;
 	for (const auto &entry : p_point.get_if<DictPoint>()->entries) {

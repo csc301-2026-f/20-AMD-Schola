@@ -209,13 +209,11 @@ void point_to_proto(const Point &p_point, const Space &p_space, ::Schola::Point 
 	r_message.Clear();
 	if (const BoxPoint *box = p_point.get_if<BoxPoint>()) {
 		::Schola::BoxPoint *message = r_message.mutable_box_point();
-		for (float value : box->values) {
-			message->add_values(value);
-		}
+		// Copy each array in one go. Adding values one at a time regrows the
+		// buffer many times for large observations such as camera images.
+		message->mutable_values()->Add(box->values.begin(), box->values.end());
 		if (const BoxSpace *space = p_space.get_if<BoxSpace>()) {
-			for (int32_t dimension : space->shape) {
-				message->add_shape(dimension);
-			}
+			message->mutable_shape()->Add(space->shape.begin(), space->shape.end());
 			message->set_dtype(static_cast<::Schola::DType>(space->dtype));
 		} else {
 			message->add_shape(static_cast<int32_t>(box->values.size()));
@@ -224,11 +222,11 @@ void point_to_proto(const Point &p_point, const Space &p_space, ::Schola::Point 
 		r_message.mutable_discrete_point()->set_value(discrete->value);
 	} else if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>()) {
 		::Schola::MultiDiscretePoint *message = r_message.mutable_multi_discrete_point();
-		for (int32_t value : multi_discrete->values) {
-			message->add_values(value);
-		}
+		message->mutable_values()->Add(multi_discrete->values.begin(), multi_discrete->values.end());
 	} else if (const MultiBinaryPoint *multi_binary = p_point.get_if<MultiBinaryPoint>()) {
 		::Schola::MultiBinaryPoint *message = r_message.mutable_multi_binary_point();
+		// Each byte still has to become a bool, so reserve once and convert in the loop.
+		message->mutable_values()->Reserve(static_cast<int>(multi_binary->values.size()));
 		for (uint8_t value : multi_binary->values) {
 			message->add_values(value != 0);
 		}
