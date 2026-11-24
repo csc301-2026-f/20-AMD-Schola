@@ -5,8 +5,8 @@ extends EditorInspectorPlugin
 const AGENT_HELP: Dictionary = {
 	"agent_id": "Leave empty to use this node's name. Set an explicit ID to keep it stable after renaming. IDs must be unique within an environment.",
 	"agent_type": "Optional policy-sharing label. Empty uses the resolved agent ID without changing the saved value.",
-	"observation_space": "Explicit space for the agent's _observe() hook. Leave unset when descendant sensors supply observations. Resources may be shared; use Make Unique to edit an independent copy.",
-	"action_space": "Explicit space for the agent's _act() hook. Leave unset when descendant actuators supply actions. Resources may be shared; use Make Unique to edit an independent copy.",
+	"observation_space": "Shape and type returned by _observe(). Required when neither _define_spaces() nor descendant components supply this side. Otherwise the callback supplies both spaces and overrides Inspector assignments; invalid results never fall back to these fields. Callback results are validated at runtime startup, never by Inspector warnings, and are not copied into saved Inspector fields, which may remain empty. Resources may be shared; use Make Unique to edit an independent copy.",
+	"action_space": "Shape and type accepted by _act(). Required when neither _define_spaces() nor descendant components supply this side. Otherwise the callback supplies both spaces and overrides Inspector assignments; invalid results never fall back to these fields. Callback results are validated at runtime startup, never by Inspector warnings, and are not copied into saved Inspector fields, which may remain empty. Resources may be shared; use Make Unique to edit an independent copy.",
 }
 
 const SPACE_HELP: Dictionary = {
@@ -33,6 +33,22 @@ const SPACE_HELP: Dictionary = {
 
 func _can_handle(object: Object) -> bool:
 	return object.is_class("ScholaAgent") or object.is_class("ScholaSpace")
+
+
+func _parse_begin(object: Object) -> void:
+	if not object.is_class("ScholaAgent") or not object.has_code_defined_spaces():
+		return
+	var notice := VBoxContainer.new()
+	var title := Label.new()
+	title.text = "Spaces defined in code"
+	title.add_theme_font_size_override("font_size", 16)
+	notice.add_child(title)
+	var description := Label.new()
+	description.text = "This agent uses _define_spaces() for both spaces. The fields below are ignored and won't show the spaces from your code."
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	notice.add_child(description)
+	add_custom_control(notice)
 
 
 func _parse_property(

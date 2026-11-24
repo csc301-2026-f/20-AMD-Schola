@@ -7,6 +7,7 @@
 #include <catch_amalgamated.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 using Catch::Matchers::ContainsSubstring;
@@ -23,6 +24,29 @@ using schola::testing::FakeAgent;
 using schola::testing::FakePolicy;
 
 namespace {
+
+class CallbackAgent : public schola::Agent {
+public:
+	FakeAgent agent;
+	std::function<void()> on_observe;
+	std::function<void()> on_act;
+
+	Status define(InteractionDefinition &r_definition) override { return agent.define(r_definition); }
+	Status observe(Point &r_observation) override {
+		Status status = agent.observe(r_observation);
+		if (on_observe) {
+			on_observe();
+		}
+		return status;
+	}
+	Status act(const Point &p_action) override {
+		Status status = agent.act(p_action);
+		if (on_act) {
+			on_act();
+		}
+		return status;
+	}
+};
 
 InteractionDefinition box_definition(int32_t p_size) {
 	InteractionDefinition definition;
@@ -92,7 +116,7 @@ TEST_CASE("each entry keeps its own state", "[stepper]") {
 	REQUIRE(stepper.get_state(0) != stepper.get_state(1));
 }
 
-TEST_CASE("the same agent can be added twice with separate states", "[stepper]") {
+TEST_CASE("adding an agent that is already in the stepper is rejected", "[stepper]") {
 	FakeAgent agent = make_agent(1.0f);
 	FakePolicy policy = make_policy();
 	SimpleStepper stepper;
@@ -100,14 +124,23 @@ TEST_CASE("the same agent can be added twice with separate states", "[stepper]")
 	step_times(stepper, 2);
 
 	int32_t index = -1;
-	REQUIRE(stepper.add_agent(&agent, index).is_ok());
-	REQUIRE(index == 1);
-	REQUIRE(stepper.find_agent(&agent) == 0);
+	Status status = stepper.add_agent(&agent, index);
+	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE_THAT(status.get_message(), ContainsSubstring("already in this stepper"));
+	REQUIRE(stepper.get_agent_count() == 1);
 	step_times(stepper, 1);
 
 	REQUIRE(count_at(stepper, 0) == 3);
-	REQUIRE(count_at(stepper, 1) == 1);
-	REQUIRE(agent.actions.size() == 4);
+	REQUIRE(agent.actions.size() == 3);
+}
+
+TEST_CASE("init rejects an agent listed twice", "[stepper]") {
+	FakeAgent agent = make_agent(1.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+
+	REQUIRE(stepper.init({ &agent, &agent }, &policy).get_code() == StatusCode::INVALID_ARGUMENT);
+	REQUIRE(stepper.get_agent_count() == 0);
 }
 
 TEST_CASE("removing an entry shifts later entries with their states", "[stepper]") {
@@ -128,14 +161,14 @@ TEST_CASE("removing an entry shifts later entries with their states", "[stepper]
 	REQUIRE(count_at(stepper, 0) == 1);
 }
 
-TEST_CASE("remove_agent removes every entry for that agent", "[stepper]") {
+TEST_CASE("remove_agent removes that agent's entry", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);
 	FakePolicy policy = make_policy();
 	SimpleStepper stepper;
-	REQUIRE(stepper.init({ &first, &second, &first }, &policy).is_ok());
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
 
-	REQUIRE(stepper.remove_agent(&first) == 2);
+	REQUIRE(stepper.remove_agent(&first) == 1);
 	REQUIRE(stepper.get_agent_count() == 1);
 	REQUIRE(stepper.get_agent(0) == &second);
 	REQUIRE(stepper.remove_agent(&first) == 0);
@@ -249,6 +282,28 @@ TEST_CASE("an observe failure reuses the last observation and every agent still 
 	REQUIRE(count_at(stepper, 1) == 2);
 }
 
+TEST_CASE("removing an agent preserves the remaining agents cached observations", "[stepper]") {
+	FakeAgent first = make_agent(1.0f);
+	FakeAgent second = make_agent(2.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	REQUIRE(stepper.step().is_ok());
+
+	SECTION("remove by index") {
+		REQUIRE(stepper.remove_agent_at(0).is_ok());
+	}
+	SECTION("remove by pointer") {
+		REQUIRE(stepper.remove_agent(&first) == 1);
+	}
+
+	second.observe_result = Status::error(StatusCode::RUNTIME_FAILURE, "sensor broke");
+	REQUIRE(stepper.step().get_code() == StatusCode::RUNTIME_FAILURE);
+	REQUIRE(policy.observations.size() == 3);
+	REQUIRE(box_value(policy.observations.back()) == 2.0f);
+	REQUIRE(second.actions.size() == 2);
+}
+
 TEST_CASE("a think failure means no agent acts", "[stepper]") {
 	FakeAgent first = make_agent(1.0f);
 	FakeAgent second = make_agent(2.0f);
@@ -284,4 +339,80 @@ TEST_CASE("stepping with no agents succeeds and does nothing", "[stepper]") {
 	REQUIRE(stepper.init({}, &policy).is_ok());
 	REQUIRE(stepper.step().is_ok());
 	REQUIRE(policy.observations.empty());
+}
+
+TEST_CASE("removing an agent while acting interrupts the step instead of silently skipping an agent", "[stepper][mutation]") {
+	CallbackAgent first;
+	first.agent = make_agent(1.0f);
+	FakeAgent second = make_agent(2.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	first.on_act = [&] { CHECK(stepper.remove_agent(&first) == 1); };
+
+	const Status status = stepper.step();
+
+	CHECK(status.get_code() == StatusCode::FAILED_PRECONDITION);
+	CHECK_THAT(status.get_message(), ContainsSubstring("while acting"));
+	REQUIRE(stepper.get_agent_count() == 1);
+	CHECK(stepper.get_agent(0) == &second);
+	REQUIRE(stepper.step().is_ok());
+	CHECK(second.actions.size() == 1);
+}
+
+TEST_CASE("replacement during observation cannot pair an observation with another agent", "[stepper][mutation]") {
+	CallbackAgent first;
+	first.agent = make_agent(1.0f);
+	FakeAgent second = make_agent(2.0f);
+	FakeAgent replacement = make_agent(3.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &first, &second }, &policy).is_ok());
+	first.on_observe = [&] {
+		CHECK(stepper.remove_agent(&first) == 1);
+		int32_t index = -1;
+		CHECK(stepper.add_agent(&replacement, index).get_code() == StatusCode::FAILED_PRECONDITION);
+	};
+
+	const Status status = stepper.step();
+
+	CHECK(status.get_code() == StatusCode::FAILED_PRECONDITION);
+	CHECK(policy.observations.empty());
+	CHECK(second.actions.empty());
+	CHECK(replacement.actions.empty());
+	int32_t index = -1;
+	REQUIRE(stepper.add_agent(&replacement, index).is_ok());
+	REQUIRE(stepper.step().is_ok());
+	REQUIRE(policy.observations.size() == 2);
+	CHECK(box_value(policy.observations[0]) == 2.0f);
+	CHECK(box_value(policy.observations[1]) == 3.0f);
+}
+
+TEST_CASE("removing the last agent while observing interrupts safely", "[stepper][mutation]") {
+	CallbackAgent agent;
+	agent.agent = make_agent(1.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &agent }, &policy).is_ok());
+	agent.on_observe = [&] { REQUIRE(stepper.remove_agent_at(0).is_ok()); };
+
+	CHECK(stepper.step().get_code() == StatusCode::FAILED_PRECONDITION);
+	CHECK(stepper.get_agent_count() == 0);
+	CHECK(policy.observations.empty());
+	CHECK(stepper.step().is_ok());
+}
+
+TEST_CASE("callbacks cannot restart or reenter an active step", "[stepper][mutation]") {
+	CallbackAgent agent;
+	agent.agent = make_agent(1.0f);
+	FakePolicy policy = make_policy();
+	SimpleStepper stepper;
+	REQUIRE(stepper.init({ &agent }, &policy).is_ok());
+	agent.on_observe = [&] {
+		CHECK(stepper.init({}, &policy).get_code() == StatusCode::FAILED_PRECONDITION);
+		CHECK(stepper.step().get_code() == StatusCode::FAILED_PRECONDITION);
+	};
+
+	REQUIRE(stepper.step().is_ok());
+	CHECK(agent.agent.actions.size() == 1);
 }

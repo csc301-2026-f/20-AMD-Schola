@@ -2,14 +2,20 @@
 
 extends ScholaAgent
 
+var on_action: Callable
+var on_observe: Callable
 var observation := 0
 var last_action: Variant
 
 
 func _observe() -> Variant:
+	if on_observe.is_valid():
+		on_observe.call()
 	return observation
 
 
 func _act(action: Variant) -> void:
 	last_action = action
 	observation = int(action)
+	if on_action.is_valid():
+		on_action.call()

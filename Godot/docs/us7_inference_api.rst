@@ -95,9 +95,8 @@ Step 2: Create the Policy
 Create a :cpp:class:`ScholaOnnxPolicy` resource (**New Resource > ScholaOnnxPolicy**) and save it as a
 ``.tres`` file:
 
-- ``model_path`` - The ``.onnx`` file, for example ``res://models/agent.onnx``
-- ``max_state_sequence_length`` - Only for recurrent models with a sequence of states; see
-  `Recurrent ONNX Models`_
+- ``model_path`` - The ``.onnx`` file, for example ``res://models/agent.onnx``. Recurrent models
+  take their state sequence length from the model itself; see `Recurrent ONNX Models`_
 
 One policy resource can serve any number of agents that share the same spaces.
 
@@ -118,18 +117,21 @@ Agents can also be added and removed while the game runs, for example when enemi
 .. code-block:: gdscript
 
     $ScholaInferenceStepper.add_agent($Enemy)       # Returns OK or an Error.
-    $ScholaInferenceStepper.remove_agent($Enemy)    # Returns how many entries were removed.
+    $ScholaInferenceStepper.remove_agent($Enemy)    # Returns 1, or 0 if the agent wasn't added.
 
-The same agent can be added more than once; each entry gets its own state, and ``remove_agent()``
-and ``reset_state()`` affect every entry of that agent.
+Each agent can be in a stepper only once. Adding an agent that is already there returns
+``ERR_INVALID_PARAMETER``, emits ``inference_failed`` and leaves its existing entry unchanged.
 
 A few rules keep this safe:
 
 - The ``agents`` list is only read when the game starts. After that, use ``add_agent()``.
 - Add an agent to the scene before calling ``add_agent()``. Otherwise it returns
   ``ERR_INVALID_PARAMETER``.
-- To remove an agent inside ``_observe()`` or ``_act()``, use ``queue_free()``. Removing it
-  immediately can skip an agent or give one the wrong action for that frame.
+- Inside ``_observe()`` or ``_act()``, defer additions with
+  ``stepper.call_deferred("add_agent", agent)``. Immediate additions return ``ERR_BUSY``.
+- Prefer ``queue_free()`` when removing agents inside those callbacks. Immediate removal
+  interrupts the current step with an error before any later agent acts; actions already
+  applied are not rolled back. The next step uses the remaining agents.
 - ``remove_child()`` and ``reparent()`` also remove the agent from the stepper. Call ``add_agent()``
   again afterwards.
 - Do not call ``free()`` on the stepper or its parent from an agent's ``_observe()`` or ``_act()``.
@@ -172,10 +174,10 @@ For a custom loop, such as a turn-based game, call the policy directly:
             schola::Point action = definition.action_space.make_point();
             policy.think(observation, *state, action);
 
-``initialize()`` loads the model if none is loaded yet, or if ``model_path`` or
-``max_state_sequence_length`` changed since the last load. It then reads the agent's spaces and
-checks that they fit the model. It must be called before ``create_state()`` and ``infer()``. For a
-model without memory, the ``state`` argument of ``infer()`` can be omitted.
+``initialize()`` loads the model if none is loaded yet, or if ``model_path`` changed since the last
+load. It then reads the agent's spaces and checks that they fit the model. It must be called before
+``create_state()`` and ``infer()``. For a model without memory, the ``state`` argument of
+``infer()`` can be omitted.
 
 Call ``load()`` earlier, for example during a loading screen, to avoid a pause when the first agent
 appears, or call it again to reload after changing ``model_path``.
@@ -195,12 +197,23 @@ writes the new state into a separate pending entry that is committed only after 
 succeeds. A failed inference leaves that agent's state unchanged, but if a stepper fails partway
 through a step, the agents before the failing one keep their new state.
 
-If a state input has a dynamic sequence dimension right after the batch dimension, the state keeps
-a history of ``max_state_sequence_length`` entries. Each step drops the oldest entry and appends the
-newest one. ONNX Runtime cannot read the ``max_seq_len`` metadata that the exporter attaches to each
-state input, so set ``max_state_sequence_length`` to the value used in training. The default is one.
-A wrong value gives wrong actions with no error. RLlib LSTM exports have no sequence dimension, so
-they do not use this setting.
+If a state input has a sequence dimension right after the batch dimension, the state keeps a
+history of entries. Each step drops the oldest entry and appends the newest one. The length of that
+history comes from the model: Schola's exporter copies each state input's ``has_seq_dim``,
+``max_seq_len``, and ``seq_dim`` into the model metadata as ``<input>.<field>``, for example
+``state_in_h.max_seq_len``, and the policy reads them when it loads the model.
+
+The length cannot be set by hand. A model whose sequence dimension declares no length uses one,
+and ``initialize()`` warns once that the model should be re-exported with Schola.
+``get_state_sequence_lengths()`` returns the length each state input uses. RLlib LSTM exports declare
+no sequence dimension, so they keep a single state entry.
+
+Loading fails with a clear error if that metadata is invalid: ``has_seq_dim`` is not ``True``,
+``true``, ``1``, ``False``, ``false`` or ``0``; ``max_seq_len`` is not an integer from 1 to 65536;
+``seq_dim`` is not 1; or the declared length contradicts a fixed sequence dimension in the tensor
+shape.
+
+Unreal Schola does not read this metadata; its ``MaxStateSequenceLength`` is still set by hand.
 
 Call ``reset_state(agent)`` or ``reset_states()`` on the stepper, or ``reset()`` on a
 :cpp:class:`ScholaPolicyState`, when an agent's episode restarts.

@@ -79,6 +79,13 @@ TEST_CASE("a malformed definition is rejected with the failing field", "[spaces]
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);
 		CHECK(message_contains(status, "low[1] is NaN"));
 	}
+	SECTION("Box with an infinite bound on the wrong side") {
+		// Python would receive these as unbounded, unlike the Box Godot checks against
+		const Status status = make_box({ 0, INF }, { 1, INF }, { 2 }).check_definition();
+		CHECK(status.get_code() == StatusCode::INVALID_DATA);
+		CHECK(message_contains(status, "low[1] is inf"));
+		CHECK(message_contains(make_box({ -INF }, { -INF }, { 1 }).check_definition(), "high[0] is -inf"));
+	}
 	SECTION("Box with low greater than high") {
 		const Status status = make_box({ 0, 2 }, { 1, 1 }, { 2 }).check_definition();
 		CHECK(status.get_code() == StatusCode::INVALID_DATA);

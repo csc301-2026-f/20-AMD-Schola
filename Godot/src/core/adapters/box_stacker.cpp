@@ -80,7 +80,9 @@ Status BoxStacker::make_stacked_space(const Space &p_unstacked_space, Space &r_s
 		block_size *= input_box->shape[i];
 	}
 	const auto slots = static_cast<std::size_t>(stack_size);
-	if (input_box->low.size() > stacked.low.max_size() / slots) {
+	// Space definitions limit the total element count, not just each dimension.
+	if (input_box->low.size() > static_cast<std::size_t>(INT32_MAX) / slots ||
+			input_box->low.size() > stacked.low.max_size() / slots) {
 		return Status::error(StatusCode::INVALID_ARGUMENT,
 				"stacked Box contains too many values");
 	}

@@ -25,8 +25,22 @@ namespace {
 constexpr int32_t MIN_PORT = 1;
 constexpr int32_t MAX_PORT = 65535;
 
+// About 31 years. Longer values would overflow once converted to milliseconds
+// (and nanoseconds inside the wait), which turned "wait forever" into "give up now".
+constexpr double MAX_TIMEOUT_SEC = 1.0e9;
+
+// 0 means wait forever, and so do INF, NaN and anything too long to count.
+double clamp_timeout(double p_seconds) {
+	if (std::isnan(p_seconds) || p_seconds >= MAX_TIMEOUT_SEC) {
+		return 0.0;
+	}
+	return std::max(p_seconds, 0.0);
+}
+
 std::chrono::milliseconds to_milliseconds(double p_seconds) {
-	return std::chrono::milliseconds(static_cast<int64_t>(std::llround(p_seconds * 1000.0)));
+	// A tiny positive timeout must not round down to 0, which means forever
+	const int64_t milliseconds = std::llround(p_seconds * 1000.0);
+	return std::chrono::milliseconds(p_seconds > 0.0 ? std::max<int64_t>(milliseconds, 1) : 0);
 }
 
 godot::String to_godot_string(const std::string &p_text) {
@@ -77,7 +91,7 @@ int32_t ScholaTrainingConnector::get_port() const {
 }
 
 void ScholaTrainingConnector::set_start_timeout_sec(double p_seconds) {
-	start_timeout_sec = std::max(p_seconds, 0.0);
+	start_timeout_sec = clamp_timeout(p_seconds);
 }
 
 double ScholaTrainingConnector::get_start_timeout_sec() const {
@@ -85,7 +99,7 @@ double ScholaTrainingConnector::get_start_timeout_sec() const {
 }
 
 void ScholaTrainingConnector::set_step_timeout_sec(double p_seconds) {
-	step_timeout_sec = std::max(p_seconds, 0.0);
+	step_timeout_sec = clamp_timeout(p_seconds);
 }
 
 double ScholaTrainingConnector::get_step_timeout_sec() const {
@@ -107,22 +121,35 @@ void ScholaTrainingConnector::_physics_process(double p_delta) {
 		return;
 	}
 	// Starting here rather than in _ready() means every node's _ready() has
-	// run before Python's first reset reaches the environments.
-	if (!started) {
+	// run before Python's first reset reaches the environments. After Python
+	// closes a session, the next frame waits for its next one.
+	if (!loop.is_running()) {
 		start_session();
 		return;
 	}
 	// Every later frame: wait for Python's next reset or step and run it.
 	const schola::Status status = loop.tick(to_milliseconds(step_timeout_sec));
-	if (!status.is_ok()) {
-		finish(status);
+	if (status.is_ok()) {
+		return;
 	}
+	// Read this before stop(): a CLOSE from Python and a dropped connection
+	// both arrive as CLOSED, and only the loop knows which one it was.
+	if (loop.ended_normally()) {
+		// Python closed this session on purpose, as RLlib does after it reads
+		// the agents. Like Unreal Schola, keep the port for its next session.
+		loop.stop();
+		++completed_sessions;
+		emit_signal("session_closed");
+		return;
+	}
+	finish(status, false);
 }
 
 void ScholaTrainingConnector::_exit_tree() {
 	if (loop.is_running()) {
 		finish(schola::Status::error(schola::StatusCode::CLOSED,
-				"ScholaTrainingConnector left the scene tree, so Godot closed the training session."));
+					   "ScholaTrainingConnector left the scene tree, so Godot closed the training session."),
+				false);
 	}
 }
 
@@ -145,22 +172,31 @@ godot::Node *ScholaTrainingConnector::create_host() {
 }
 
 void ScholaTrainingConnector::start_session() {
-	// One attempt per node: whatever happens below, never start again.
-	started = true;
-
-	// 1. Pick the port: -ScholaPort=<n> on the command line wins over the property.
-	int32_t resolved_port = port;
-	schola::Status status = resolve_port(port, resolved_port);
-	if (!status.is_ok()) {
-		finish(status);
-		return;
+	// 1. Pick the port once: -ScholaPort=<n> on the command line wins over the
+	//    property. Later sessions reuse it, so Python always finds the game.
+	if (resolved_port == 0) {
+		const schola::Status status = resolve_port(port, resolved_port);
+		if (!status.is_ok()) {
+			finish(status, false);
+			return;
+		}
 	}
 
-	// 2. Create the host that runs the scene's environments for us.
-	godot::Node *host = create_host();
+	// 2. Create a fresh host that runs the scene's environments for us. A
+	//    closed host cannot run another session, so drop the previous one;
+	//    it handed its environments back when it closed.
+	backend.reset();
+	connector.reset();
+	if (host != nullptr) {
+		remove_child(host);
+		host->queue_free();
+		host = nullptr;
+	}
+	host = create_host();
 	if (host == nullptr) {
 		finish(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-				"ScholaTrainingHost is not available. Enable the Schola runtime add-on (addons/schola), which ScholaTrainingConnector needs."));
+					   "ScholaTrainingHost is not available. Enable the Schola runtime add-on (addons/schola), which ScholaTrainingConnector needs."),
+				false);
 		return;
 	}
 
@@ -173,26 +209,27 @@ void ScholaTrainingConnector::start_session() {
 	connector = std::make_unique<schola::GrpcConnector>(settings);
 
 	godot::UtilityFunctions::print("Schola: waiting for Python to connect to ", to_godot_string(settings.address), ":", resolved_port, ".");
-	status = loop.start(*connector, *backend, to_milliseconds(start_timeout_sec));
-	if (!status.is_ok()) {
-		finish(status);
+	const schola::Status status = loop.start(*connector, *backend, to_milliseconds(start_timeout_sec));
+	if (status.is_ok()) {
+		return;
 	}
+	// After Python has closed at least one session, nobody coming back means
+	// training is over, not that something went wrong.
+	const bool training_done = completed_sessions > 0 && status.get_code() == schola::StatusCode::TIMEOUT;
+	finish(status, training_done);
 }
 
-void ScholaTrainingConnector::finish(const schola::Status &p_status) {
+void ScholaTrainingConnector::finish(const schola::Status &p_status, bool p_normal) {
 	if (finished) {
 		return;
 	}
 	finished = true;
-	// Read this before stop(): a CLOSE from Python and a dropped connection
-	// both arrive as CLOSED, and only the loop knows which one it was.
-	const bool normal = loop.ended_normally();
 	loop.stop();
 	set_physics_process(false);
 
 	// An empty error means Python finished on purpose.
 	godot::String error;
-	if (!normal) {
+	if (!p_normal) {
 		error = to_godot_string(p_status.get_message());
 		godot::UtilityFunctions::push_error("ScholaTrainingConnector: ", error);
 	}
@@ -213,5 +250,6 @@ void ScholaTrainingConnector::_bind_methods() {
 			"set_start_timeout_sec", "get_start_timeout_sec");
 	ADD_PROPERTY(godot::PropertyInfo(godot::Variant::FLOAT, "step_timeout_sec", godot::PROPERTY_HINT_RANGE, "0,600,0.1,or_greater,suffix:s"),
 			"set_step_timeout_sec", "get_step_timeout_sec");
+	ADD_SIGNAL(godot::MethodInfo("session_closed"));
 	ADD_SIGNAL(godot::MethodInfo("training_finished", godot::PropertyInfo(godot::Variant::STRING, "error")));
 }

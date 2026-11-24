@@ -24,6 +24,9 @@ Status index_error(const char *p_function, int32_t p_index) {
 } // namespace
 
 Status SimpleStepper::init(const std::vector<Agent *> &p_agents, Policy *p_policy) {
+	if (stepping) {
+		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::init: cannot initialize during a step");
+	}
 	entries.clear();
 	policy = p_policy;
 	if (policy == nullptr) {
@@ -41,11 +44,18 @@ Status SimpleStepper::init(const std::vector<Agent *> &p_agents, Policy *p_polic
 }
 
 Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
+	if (stepping) {
+		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::add_agent: cannot add agents during a step; defer the addition until the step finishes");
+	}
 	if (policy == nullptr) {
 		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::add_agent: call init() first");
 	}
 	if (p_agent == nullptr) {
 		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is null");
+	}
+	// A second entry would act on the agent again each step.
+	if (find_agent(p_agent) >= 0) {
+		return Status::error(StatusCode::INVALID_ARGUMENT, "SimpleStepper::add_agent: agent is already in this stepper");
 	}
 
 	InteractionDefinition definition;
@@ -71,7 +81,7 @@ Status SimpleStepper::add_agent(Agent *p_agent, int32_t &r_index) {
 		return Status::error(StatusCode::RUNTIME_FAILURE, "SimpleStepper::add_agent: policy created a null state");
 	}
 
-	entries.push_back({ p_agent, std::move(state) });
+	entries.push_back({ p_agent, std::move(state), observation_space.make_point() });
 	r_index = static_cast<int32_t>(entries.size() - 1);
 	return Status::ok();
 }
@@ -81,12 +91,16 @@ Status SimpleStepper::remove_agent_at(int32_t p_index) {
 		return index_error("SimpleStepper::remove_agent_at", p_index);
 	}
 	entries.erase(entries.begin() + p_index);
+	++entries_revision;
 	return Status::ok();
 }
 
 int32_t SimpleStepper::remove_agent(const Agent *p_agent) {
 	const size_t before = entries.size();
 	entries.erase(std::remove_if(entries.begin(), entries.end(), [p_agent](const Entry &p_entry) { return p_entry.agent == p_agent; }), entries.end());
+	if (entries.size() != before) {
+		++entries_revision;
+	}
 	return static_cast<int32_t>(before - entries.size());
 }
 
@@ -128,6 +142,9 @@ void SimpleStepper::reset_states() {
 }
 
 Status SimpleStepper::step() {
+	if (stepping) {
+		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: cannot reenter an active step");
+	}
 	if (policy == nullptr) {
 		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: call init() first");
 	}
@@ -135,6 +152,12 @@ Status SimpleStepper::step() {
 	if (count == 0) {
 		return Status::ok();
 	}
+	struct StepGuard {
+		bool &active;
+		~StepGuard() { active = false; }
+	} guard{ stepping };
+	stepping = true;
+	const uint64_t revision = entries_revision;
 
 	if (observations.size() != count) {
 		observations.resize(count, observation_space.make_point());
@@ -145,8 +168,15 @@ Status SimpleStepper::step() {
 	}
 
 	Status first_error = Status::ok();
-	for (size_t i = 0; i < count && i < entries.size(); ++i) {
+	for (size_t i = 0; i < count; ++i) {
+		observations[i] = entries[i].observation;
 		Status observe_status = entries[i].agent->observe(observations[i]);
+		// A scene callback can remove itself or another agent. Check before
+		// reading the entry again, since its index and state may no longer exist.
+		if (entries_revision != revision) {
+			return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: agents were removed while observing; the step was interrupted");
+		}
+		entries[i].observation = observations[i];
 		if (!observe_status.is_ok() && first_error.is_ok()) {
 			first_error = Status::error(observe_status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": observe: " + observe_status.get_message());
 		}
@@ -154,17 +184,17 @@ Status SimpleStepper::step() {
 		state_ptrs[i] = entries[i].state.get();
 		action_ptrs[i] = &actions[i];
 	}
-	if (entries.size() != count) {
-		return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: agents were added or removed while observing");
-	}
 
 	Status status = policy->batched_think(observation_ptrs, state_ptrs, action_ptrs);
 	if (!status.is_ok()) {
 		return Status::error(status.get_code(), "SimpleStepper::step: " + status.get_message());
 	}
 
-	for (size_t i = 0; i < count && i < entries.size(); ++i) {
+	for (size_t i = 0; i < count; ++i) {
 		Status act_status = entries[i].agent->act(actions[i]);
+		if (entries_revision != revision) {
+			return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: agents were removed while acting; the step was interrupted");
+		}
 		if (!act_status.is_ok() && first_error.is_ok()) {
 			first_error = Status::error(act_status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": act: " + act_status.get_message());
 		}
