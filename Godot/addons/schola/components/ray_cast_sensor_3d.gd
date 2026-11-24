@@ -76,11 +76,13 @@ func get_generated_endpoints() -> PackedVector3Array:
 	var endpoints := PackedVector3Array()
 	if num_rays < 1 or num_rays > 4096:
 		return endpoints
+	# Both validation and observation build this fan; allocate its known size once.
+	endpoints.resize(num_rays)
 	for index in num_rays:
 		var angle := 0.0
 		if num_rays > 1:
 			angle = ray_degrees * 0.5 - ray_degrees * index / (num_rays if is_equal_approx(ray_degrees, 360.0) else num_rays - 1)
-		endpoints.append(Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(angle)) * ray_length)
+		endpoints[index] = Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(angle)) * ray_length
 	return endpoints
 
 func _observe() -> Variant:
