@@ -16,8 +16,11 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <iomanip>
 #include <limits>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -102,6 +105,20 @@ Status wrong_value(const std::string &p_path, const char *p_expected, int64_t p_
 	return invalid(p_path, message);
 }
 
+// Same idea as the core's float formatting, for the double a script passed in.
+// Godot's String::num() keeps 14 digits, so 0.1 * 30 would print as "3".
+std::string format_double(double p_value) {
+	std::ostringstream stream;
+	for (int digits = 15; digits <= std::numeric_limits<double>::max_digits10; ++digits) {
+		stream.str("");
+		stream << std::setprecision(digits) << p_value;
+		if (std::strtod(stream.str().c_str(), nullptr) == p_value) {
+			break;
+		}
+	}
+	return stream.str();
+}
+
 std::string narrowing_error(int64_t p_index, const std::string &p_value, bool p_whole, DType p_dtype) {
 	const std::string prefix = "Box value at index " + std::to_string(p_index) + " is " + p_value;
 	return p_whole ? prefix + ", which float32 cannot represent exactly" : prefix + " but dtype " + dtype_name(p_dtype) + " needs a whole number";
@@ -112,7 +129,7 @@ std::string narrowing_error(int64_t p_index, const std::string &p_value, bool p_
 bool push_float(double p_value, int64_t p_index, DType p_dtype, std::vector<float> &r_values, std::string &r_error) {
 	const float value = static_cast<float>(p_value);
 	if (is_whole_dtype(p_dtype) && !std::isnan(p_value) && static_cast<double>(value) != p_value) {
-		r_error = narrowing_error(p_index, to_std_string(godot::String::num(p_value)), std::floor(p_value) == p_value, p_dtype);
+		r_error = narrowing_error(p_index, format_double(p_value), std::floor(p_value) == p_value, p_dtype);
 		return false;
 	}
 	r_values.push_back(value);

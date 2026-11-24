@@ -385,6 +385,25 @@ func test_stepper_reports_a_changed_policy() -> void:
 	assert_str(messages[0]).starts_with("ScholaInferenceStepper.policy: ")
 
 
+func test_stepper_reports_the_same_failure_again_after_a_policy_change() -> void:
+	var messages: Array = []
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	# The observation is the wrong size, so every step fails with the same message
+	var agent := _agent(3, 3, PackedFloat32Array([1.0]))
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_not_equal(OK)
+
+	stepper.policy = _policy("box_scale.onnx")
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	assert_int(stepper.step()).is_not_equal(OK)
+	assert_int(messages.size()).is_equal(1)
+	assert_str(messages[0]).starts_with("ScholaInferenceStepper.step: ")
+
+
 func test_stepper_rejects_an_agent_outside_the_tree() -> void:
 	var messages: Array = []
 	var agent: ScholaAgent = auto_free(TestAgent.new())

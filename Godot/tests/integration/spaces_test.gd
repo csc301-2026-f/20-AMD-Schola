@@ -193,6 +193,8 @@ func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
 	assert_str(space.get_validation_error([0, 1.00000001])).contains("needs a whole number")
 	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 1.00000001]))).contains("needs a whole number")
 	assert_str(space.get_validation_error([0, 255.00000001])).contains("needs a whole number")
+	# The message shows the real value, not a rounded one that would look valid
+	assert_str(space.get_validation_error([0, 3.0000000000000004])).contains("is 3.0000000000000004 but dtype uint8")
 	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 255.0]))).is_empty()
 	assert_str(space.get_validation_error([0, 255])).is_empty()
 
