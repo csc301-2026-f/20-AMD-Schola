@@ -182,6 +182,41 @@ func test_hdr_viewports_are_reported() -> void:
 	assert_bool(sensor.get_configuration_errors().has(HDR_ERROR)).is_true()
 
 
+func test_rgb8_and_rgba8_images_preserve_normalized_channels(
+	format: int,
+	_test_parameters := [[Image.FORMAT_RGB8], [Image.FORMAT_RGBA8]]
+) -> void:
+	var sensor := _camera(2, 2, 15)
+	var image := Image.create(2, 2, false, format)
+	image.fill(Color8(51, 102, 153, 204))
+	var values := sensor._image_values(image, PackedInt32Array([0, 1, 2, 3]))
+	assert_int(values.size()).is_equal(16)
+	var expected := [0.2, 0.4, 0.6, 1.0 if format == Image.FORMAT_RGB8 else 0.8]
+	for channel in 4:
+		for pixel in 4:
+			assert_float(values[channel * 4 + pixel]).is_equal_approx(expected[channel], 0.5 / 255.0)
+	assert_str(sensor.space.get_validation_error(values)).is_empty()
+
+
+func test_non_ldr_readback_formats_are_rejected(
+	format: int,
+	_test_parameters := [[Image.FORMAT_RF], [Image.FORMAT_RGBF], [Image.FORMAT_RGBAH], [Image.FORMAT_RGBAF], [Image.FORMAT_L8], [Image.FORMAT_RG8]]
+) -> void:
+	var sensor := _camera(2, 2, 7)
+	var image := Image.create(2, 2, false, format)
+	assert_bool(sensor._image_values(image, PackedInt32Array([0, 1, 2])).is_empty()).is_true()
+
+
+func test_compressed_readback_is_rejected_without_decompression() -> void:
+	var sensor := _camera(4, 4, 7)
+	var data := PackedByteArray()
+	data.resize(8) # One 4x4 DXT1 block.
+	var image := Image.create_from_data(4, 4, false, Image.FORMAT_DXT1, data)
+	assert_bool(image.is_compressed()).is_true()
+	assert_bool(sensor._image_values(image, PackedInt32Array([0, 1, 2])).is_empty()).is_true()
+	assert_bool(image.is_compressed()).is_true()
+
+
 func _camera(width: int, height: int, channels: int) -> ScholaCameraSensor:
 	var sensor := ScholaCameraSensor.new()
 	sensor.width = width

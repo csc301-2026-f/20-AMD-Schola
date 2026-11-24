@@ -115,6 +115,14 @@ needs at least 2×2, because Godot never makes a SubViewport smaller. Viewports
 with HDR 2D enabled are rejected because they produce linear values above 1; use
 an LDR source for normalized color.
 
+Supported readback formats are uncompressed `Image.FORMAT_RGB8` and
+`Image.FORMAT_RGBA8`. Byte channels become floats in `[0,1]`; RGB8 supplies alpha
+as 1 when selected. Compressed, floating-point/HDR, and other image formats are
+rejected rather than decompressed or converted. Viewport configuration is checked
+before startup; the actual image format is checked when pixels become available
+at capture. Unsupported readback returns no observation and fails the runtime
+observation validation. The same readback contract applies to the depth viewport.
+
 The lifecycle owner configures the viewport, Camera3D, world and update mode.
 Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
 Viewports set to Disabled or When Visible are rejected: they draw nothing unless

@@ -56,10 +56,13 @@ func _get_component_errors() -> PackedStringArray:
 		errors.append("Image space must match its channels and dimensions; reassign width to regenerate it.")
 	return errors
 
-## Converts selected channels to a flattened [C,H,W] buffer, with no resizing.
+## Converts uncompressed RGB8/RGBA8 to flattened [C,H,W], with no resizing.
+## Other formats fail capture; no decompression or format conversion is attempted.
 func _image_values(image: Image, indices: PackedInt32Array) -> PackedFloat32Array:
 	var values := PackedFloat32Array()
 	if image == null or image.is_empty() or image.get_width() != width or image.get_height() != height:
+		return values
+	if image.is_compressed() or image.get_format() not in [Image.FORMAT_RGB8, Image.FORMAT_RGBA8]:
 		return values
 	values.resize(indices.size() * width * height)
 	var offset := 0

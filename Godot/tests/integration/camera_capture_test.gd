@@ -20,8 +20,12 @@ func before_test() -> void:
 
 
 func test_8_bit_colors_are_divided_by_255() -> void:
-	var sensor := _camera(_solid(Color8(128, 64, 255)), 15)
+	var viewport := _solid(Color8(128, 64, 255))
+	var sensor := _camera(viewport, 15)
 	await _render()
+	var image := viewport.get_texture().get_image()
+	assert_bool(image.is_compressed()).is_false()
+	assert_bool(image.get_format() in [Image.FORMAT_RGB8, Image.FORMAT_RGBA8]).is_true()
 	_assert_values(sensor._observe(), _planes([128, 64, 255, 255]))
 
 
