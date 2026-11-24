@@ -45,6 +45,7 @@ func add() -> void:
 		car.get_node(part).material_override = paint
 	add_child(car)
 	var added_agent: RaceTrackAgent = car.get_node("Agent")
+	added_agent.rays.draw_debug = agent.rays.draw_debug
 	added_agent.place(agent.track.transform_at(offset))
 	for path in stepper_paths:
 		(get_node(path) as ScholaInferenceStepper).add_agent(added_agent)

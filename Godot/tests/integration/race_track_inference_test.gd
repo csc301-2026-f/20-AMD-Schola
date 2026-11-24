@@ -147,6 +147,33 @@ func test_an_added_car_avoids_obstacles_and_r_lines_the_cars_up() -> void:
 	assert_float(track.progress_of(added.car.global_position)).is_between(53.0, 56.0)
 
 
+func test_h_hides_and_shows_the_rays_of_every_car() -> void:
+	var scene: Node = auto_free(load(SCENE).instantiate())
+	_use_exported_model(scene)
+	var failures: Array[String] = []
+	scene.get_node("InferenceStepper").inference_failed.connect(func(message: String) -> void: failures.append(message))
+	add_child(scene)
+	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
+	var spawner: Node = scene.get_node("CarSpawner")
+	await get_tree().physics_frame
+	spawner.add()
+	for frame in 3:
+		await get_tree().physics_frame
+	assert_bool(_shows_rays(agent)).is_true()
+
+	await _press_and_step(KEY_H)
+	spawner.add()
+	for frame in 3:
+		await get_tree().physics_frame
+	for shown: RaceTrackAgent in [agent, spawner.added[0], spawner.added[1]]:
+		assert_bool(_shows_rays(shown)).is_false()
+
+	await _press_and_step(KEY_H)
+	for shown: RaceTrackAgent in [agent, spawner.added[0], spawner.added[1]]:
+		assert_bool(_shows_rays(shown)).is_true()
+	assert_array(failures).is_empty()
+
+
 func test_clicking_drops_an_obstacle_ahead_in_that_lane() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	_use_exported_model(scene)
@@ -307,6 +334,10 @@ func test_road_ahead_sensor_reports_the_nearest_obstacle_in_each_lane() -> void:
 			dropper.remove(child)
 	values = sensor._observe()
 	assert_float(values[0]).is_equal(1.0)
+
+
+func _shows_rays(agent: RaceTrackAgent) -> bool:
+	return agent.rays.get_children(true).any(func(child: Node) -> bool: return child is MeshInstance3D and child.visible)
 
 
 func _press_and_step(keycode: Key) -> void:
