@@ -6,7 +6,7 @@ Schola for Godot brings AMD's reinforcement-learning toolkit to Godot 4.7. Devel
 
 AMD Schola already supports Unreal Engine. This project adds a Godot integration while preserving the shared Python tools and protocol. Our contribution lives under `Godot/`: environment and agent APIs, spaces, episode lifecycle, Python training connector, local inference, reusable components, and editor tools. The existing Unreal implementation under `Source/` and upstream Python package under `Resources/python/` provide the shared foundation.
 
-The [user stories](Godot/docs/user_stories/README.md) define the final course scope. Their individual records distinguish implementation, integration evidence, and outstanding verification. Historical demos are preserved separately and are not the current plugin's training interface.
+The [user stories](Godot/docs/user_stories/README.md) track approved MVP and stretch scope. Their individual records distinguish implementation, integration evidence, and outstanding verification. Historical demos are preserved separately and are not the current plugin's training interface.
 
 ## Access and installation
 
@@ -23,11 +23,11 @@ With Godot closed, extract the plugin ZIP and copy its `addons/schola/` director
 1. **Define a task.** Add a `ScholaEnvironment` and child `ScholaAgent` nodes. Define observation/action spaces through Inspector resources or code; implement reset and `_get_step_result(agent)` for rewards and episode endings. See [code-defined spaces](Godot/examples/code_defined_spaces/README.md).
 2. **Compose an agent.** Use reusable ray/camera sensors and movement, rotation, or teleport actuators, or implement custom observation/action hooks. See the [component guide](Godot/docs/us8_components.md) and [interactive component example](Godot/examples/us8_components/README.md).
 3. **Inspect before training.** Use the Inspector's configuration warnings, Schola editor dock, and episode monitor. The [manual environment example](Godot/examples/manual_environment/README.md) exercises reset, actions, and results without Python.
-4. **Train with Python.** Build both extensions and add `ScholaTrainingConnector` to your training scene. Start Godot, then connect Schola's supported Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
-5. **Train multiple agents.** One environment can expose agents with different spaces and independent episode results. Use RLlib for heterogeneous agents; follow the [two-agent example](Godot/examples/multi_agent/README.md).
+4. **Connect Python training.** The production connector is merged; a full supported-trainer run remains pending in [US3](Godot/docs/user_stories/US3.md). Build both extensions and add `ScholaTrainingConnector` to your training scene. Start Godot, then connect Schola's supported Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
+5. **Configure multiple agents.** One environment can expose agents with different spaces and independent episode results. Use RLlib for heterogeneous agents; follow the [two-agent example](Godot/examples/multi_agent/README.md). The full Windows/Linux RLlib CLI training run remains pending in [US12](Godot/docs/user_stories/US12.md).
 6. **Run a policy locally.** Export the trained policy to ONNX, assign it to `ScholaOnnxPolicy`, and configure `ScholaInferenceStepper` with the agents to drive. Python is not required during playback. See [policy setup and observation stacking](Godot/README.md#running-a-trained-policy).
 
-The production benchmark and real-training validation belong to [US13](Godot/docs/user_stories/US13.md). Follow its implementation record for the integrated example, training command, learning metric, export, and playback evidence. The final D4 scope also includes camera observations, stacking, and recurrent-policy metadata; platform and upstream constraints are recorded in the corresponding stories.
+The RaceTrack production example remains on a feature branch, with end-to-end training, learning evidence, export, and playback validation pending in [US13](Godot/docs/user_stories/US13.md). Camera components, observation stacking, and recurrent-policy metadata have merged implementations, but their story records identify remaining camera-workflow, live-trainer, and upstream-fixture validation. Update these instructions alongside the corresponding integrations as development continues.
 
 ## Architecture and decisions
 
@@ -43,7 +43,7 @@ flowchart LR
 
 Engine-independent logic lives in `Godot/src/core`. Godot bindings, gRPC transport, and ONNX inference adapt their own APIs at module boundaries. Runtime and training are separate extensions, allowing exported games to omit the transport and Python tooling. The port uses C++ GDExtensions to integrate native dependencies and keep core logic testable independently of the editor. Godot scenes and components use GDScript where appropriate. See [module boundaries](Godot/README.md#module-boundaries) and the [development contract](Godot/docs/development_contract.md).
 
-Partner feedback shaped the current interfaces: one step-result callback replaces separate reward/end-state callbacks; environments own truncation policy; training uses a blocking request/response loop; and policy initialization checks the agent's spaces. Current production training uses the shared gRPC protocol rather than the earlier demos' temporary transport.
+Partner feedback shaped the current interfaces: one step-result callback replaces separate reward/end-state callbacks; environments own truncation policy; training uses a blocking request/response loop; and policy initialization checks the agent's spaces. The merged production connector uses the shared gRPC protocol rather than the earlier demos' temporary transport; this does not establish a completed end-to-end trainer run.
 
 ## Non-Functional Requirements
 
