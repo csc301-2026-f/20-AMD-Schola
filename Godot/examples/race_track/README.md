@@ -12,7 +12,7 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
-Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Press H to show or hide the rays. Press M to drive the car yourself with W, A, S and D (S brakes, then reverses), and M again to give it back to the AI. While you drive, 1-4 choose the model of the cars added with +. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
+Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Press H to show or hide the rays. Press + to add another AI car at least 50 m ahead of yours, at the first spot clear of obstacles and other cars, and - to remove the last car added; your car cannot be removed. All cars use the selected policy, and R lines the added cars up again ahead of your car. Press M to drive the car yourself with W, A, S and D (S brakes, then reverses), and M again to give it back to the AI. While you drive, 1-4 choose the model of the added cars. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
 
 ## Results
 
@@ -97,6 +97,8 @@ Options:
 
 Open `race_track_train.tscn` and press F6. Its `EditorTrainer` node starts `train.py --attach` with the Python in `Godot/.venv`, `.venv` or `venv` at the repository root, or `python` on PATH. It adds `--resume` when `policies/race_track.zip` exists, so training continues from your best policy. Python's output appears in the Output panel, and closing the game window stops Python. Set the number of training steps in the node's `steps` property; the default is 100,000.
 
+The bottom-right chart shows the average reward per second, one point every 256 steps, smoothed. It rises as the car drives farther without crashing. It also rises at the start of each run while the car speeds up from a standstill, so it shows learning only over longer runs. The chart is hidden during test drives.
+
 The scene runs at normal game speed, about 55 steps per second, so this is several times slower than `--headless`. The training connector waits up to 300 seconds (`step_timeout_sec`) for Python's next step, long enough for a test drive in its own window.
 
 ### Train three cars together
@@ -143,7 +145,7 @@ A deterministic handling check drives the keyboard demo for 360 native steps. It
 godot --headless --path Godot --fixed-fps 60 res://examples/race_track/scenes/component_demo.tscn -- --race-track-smoke
 ```
 
-The integration tests `race_track_inference_test.gd`, `race_track_training_scene_test.gd` and `vehicle_components_test.gd` under `Godot/tests/integration/` check the inference scene, the training scene's configuration and spaces, and the reusable sensors and actuator. The training-scene suite needs the training extension and is skipped without it.
+The integration tests `race_track_inference_test.gd`, `race_track_training_scene_test.gd`, `race_track_multi_agent_test.gd` and `vehicle_components_test.gd` under `Godot/tests/integration/` check the inference scene, the training scene's configuration and spaces, the three-car scenes, and the reusable sensors and actuator. The training-scene and three-car suites need the training extension and are skipped without it.
 
 ## Troubleshooting
 
@@ -191,6 +193,8 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scripts/road_ahead_sensor.gd` | Distance to the next obstacle in each lane along the road ahead | None |
 | `scripts/model_switcher.gd` | Switches the inference scene between four policies with keys 1-4 and restarts the car with R | None |
 | `scripts/manual_driver.gd` | Lets the viewer drive the car with W, A, S and D after pressing M | None |
+| `scripts/car_spawner.gd` | Adds AI cars with + and removes them with - in the inference scene | None |
+| `scripts/reward_chart.gd` | The training scenes' reward-per-second chart | None |
 | `scripts/track.gd` | Distance along the track, closest centre point, direction, start positions, walls, obstacles and random obstacle layouts | `RaceTrackSpline` |
 | `scripts/race_track_agent.gd` | Placement and reset of the composed agent | `RaceTrackAgent` |
 | `scripts/race_track_environment.gd` | Reset, reward, and episode end | `RaceTrackEnvironment` |
