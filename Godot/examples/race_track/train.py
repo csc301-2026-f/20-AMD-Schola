@@ -179,6 +179,12 @@ def main():
         action="store_true",
         help="Check motion and autoreset before training",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=7,
+        help="Random seed for a new policy and the training layouts",
+    )
     args = parser.parse_args()
     if args.steps <= 0:
         parser.error("--steps must be positive")
@@ -254,7 +260,7 @@ def main():
                 "MultiInputPolicy",
                 monitored_env,
                 **PPO_SETTINGS,
-                seed=7,
+                seed=args.seed,
                 device="cpu",
                 verbose=1,
             )
