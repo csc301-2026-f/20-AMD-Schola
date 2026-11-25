@@ -1,6 +1,10 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 extends RaceTrackEditorTrainer
 
+const MULTI_AGENT_SCRIPT := "res://examples/race_track/train_multi_agent.py"
+
+@export var pretrained := false
+
 var _reader := Thread.new()
 var _reading := true
 
@@ -29,12 +33,7 @@ func _exit_tree() -> void:
 
 
 func _arguments() -> PackedStringArray:
-	return PackedStringArray([
-		"-X", "utf8", "-u", "-c", "from schola.scripts.launch import main; main()",
-		"rllib", "train", "ppo",
-		"--timesteps", str(steps),
-		"--fcnet-hiddens", "64", "64",
-		"--train-batch-size-per-learner", "2048",
-		"--learning-rate", "0.0003",
-		"editor", "--url", "127.0.0.1", "--port", "8000",
-	])
+	var arguments := PackedStringArray(["-X", "utf8", "-u", ProjectSettings.globalize_path(MULTI_AGENT_SCRIPT), "--steps", str(steps)])
+	if pretrained:
+		arguments.append("--pretrained")
+	return arguments

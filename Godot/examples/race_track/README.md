@@ -99,6 +99,22 @@ Open `race_track_train.tscn` and press F6. Its `EditorTrainer` node starts `trai
 
 The scene runs at normal game speed, about 55 steps per second, so this is several times slower than `--headless`. The training connector waits up to 300 seconds (`step_timeout_sec`) for Python's next step, long enough for a test drive in its own window.
 
+### Train three cars together
+
+Multi-agent training uses Schola's RLlib trainer. It needs Windows or Linux and RLlib in the same Python environment as above:
+
+```sh
+uv pip install --python Godot/.venv/bin/python -e 'Resources/python[sb3,rllib]'
+git lfs pull
+```
+
+Open one of these scenes and press F6. Port 8000 must be free. The window does not respond for about 30 seconds while Python starts; close it to stop training.
+
+- `race_track_multi_agent_train.tscn` trains from scratch.
+- `race_track_multi_agent_pretrained.tscn` continues from the weights of `policies/race_track.onnx`, so the cars already drive well. These weights come from the single-car policy, not from three-car training.
+
+The three cars are agents of one `ScholaEnvironment` with the same `agent_type`, so they train one shared policy, and each gets its own observations, actions and reward. A car that crashes leaves the track until all three have finished. To add a car, duplicate `Car3` under `RaceTrackEnvironment` and give its `Agent` a new `agent_id`. The number of cars is fixed when training starts. These scenes do not save a model.
+
 ### Run the exported policy
 
 Open `race_track_inference.tscn` and press F6, or score it with `demo_check.gd` as in [Results](#results).
@@ -181,6 +197,9 @@ The agent script only handles placement and reset. It has no `_observe` or `_act
 | `scripts/race_track_controls.gd` | The car's vehicle actuator, which also keeps the last action | None |
 | `demo_check.gd` | Python-free policy scoring on the demo map, dropped obstacles and random layouts | None |
 | `train.py` | PPO training, test drives, best-policy saving, and ONNX export | None |
+| `scenes/race_track_multi_agent_train.tscn`, `scenes/race_track_multi_agent_pretrained.tscn` | Three cars in one `ScholaEnvironment`, trained from scratch or from the committed policy | None |
+| `train_multi_agent.py` | Starts Schola's RLlib trainer for the three-car scenes | None |
+| `scripts/multi_agent_environment.gd`, `scripts/multi_agent_trainer.gd`, `scripts/multi_agent_status.gd` | Per-car rewards and endings, editor training, and the on-screen rewards of the three-car scenes | None |
 | `scripts/editor_trainer.gd` | Starts `train.py` when the training scene is played from the editor | None |
 | `../../addons/schola/components/path_sensor_3d.gd` | Track-relative observation component | Track features |
 

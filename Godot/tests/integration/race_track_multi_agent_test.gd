@@ -2,6 +2,7 @@
 extends GdUnitTestSuite
 
 const SCENE := "res://examples/race_track/scenes/race_track_multi_agent_train.tscn"
+const PRETRAINED_SCENE := "res://examples/race_track/scenes/race_track_multi_agent_pretrained.tscn"
 const CONTROLS := "00000000:Controls"
 
 
@@ -23,6 +24,16 @@ func test_three_cars_train_as_separate_agents_of_one_type() -> void:
 	for agent: ScholaAgent in agents:
 		assert_str(agent.get_resolved_agent_type()).is_equal("race_car")
 		assert_array(Array(agent.get_configuration_errors())).is_empty()
+
+
+func test_pretrained_scene_starts_the_same_cars_from_the_committed_policy() -> void:
+	var scene: Node = auto_free(load(PRETRAINED_SCENE).instantiate())
+	assert_array(scene.get_node("RaceTrackEnvironment").get_children().map(func(car: Node) -> String: return car.name)).contains_exactly(["Car", "Car2", "Car3"])
+	var arguments: PackedStringArray = scene.get_node("EditorTrainer")._arguments()
+	assert_bool(arguments.has("--pretrained")).is_true()
+	assert_bool(FileAccess.file_exists(arguments[3])).is_true()
+	var scratch: Node = auto_free(load(SCENE).instantiate())
+	assert_bool(scratch.get_node("EditorTrainer")._arguments().has("--pretrained")).is_false()
 
 
 func test_each_car_gets_its_own_action_and_reward_and_a_crashed_car_leaves_the_track() -> void:
