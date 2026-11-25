@@ -356,15 +356,20 @@ schola::Status GodotEnvironmentAdapter::reset(const schola::ResetSettings &p_set
 			break;
 		}
 	}
-	std::set<schola::AgentId> live_ids;
+	std::map<schola::AgentId, bool> live_agents;
 	for (const auto &entry : current) {
 		ScholaAgent *agent = nullptr;
-		if (find_agent_node(entry.id, entry.node_id, agent).is_ok() && !agent->is_training_paused()) {
-			live_ids.insert(entry.id);
+		if (find_agent_node(entry.id, entry.node_id, agent).is_ok()) {
+			live_agents.emplace(entry.id, agent->is_training_paused());
 		}
 	}
 	for (auto it = states.begin(); it != states.end();) {
-		if (live_ids.count(it->first) == 0) {
+		const auto live = live_agents.find(it->first);
+		if (live == live_agents.end()) {
+			// Python never saw this ID, so a later node may use it.
+			episode_nodes.erase(it->first);
+			it = states.erase(it);
+		} else if (live->second) {
 			it = states.erase(it);
 		} else {
 			++it;

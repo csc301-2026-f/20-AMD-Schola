@@ -841,6 +841,34 @@ func test_reset_reconciles_departures_after_later_observations() -> void:
 			first.free()
 
 
+func test_reset_departures_free_their_ids_for_later_births() -> void:
+	for removal in ["queue", "detach"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var second = _add_agent(environment, "b", "b")
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		second.on_observe = func():
+			second.on_observe = Callable()
+			if removal == "queue":
+				first.queue_free()
+			else:
+				environment.remove_child(first)
+		var initial := host.reset({})
+		assert_int(_status_code(initial)).is_equal(STATUS_OK)
+		assert_array(initial["value"][0].keys()).contains_exactly(["b"])
+		var replacement = _add_agent(environment, "a_respawn", "a")
+		var born := host.step({"actions": [{"b": 1}]})
+		assert_int(_status_code(born)).is_equal(STATUS_OK)
+		assert_bool(born["value"]["state"][0]["a"]["terminated"]).is_false()
+		assert_float(born["value"]["state"][0]["a"]["reward"]).is_equal(0.0)
+		assert_int(_status_code(host.step({"actions": [{"a": 2, "b": 1}]}))).is_equal(STATUS_OK)
+		assert_int(replacement.last_action).is_equal(2)
+		if removal == "detach":
+			first.free()
+
+
 func test_temporary_detachment_during_observation_uses_final_membership() -> void:
 	for phase in ["reset", "step"]:
 		var root := _test_root()
