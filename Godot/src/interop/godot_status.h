@@ -36,6 +36,13 @@ inline godot::String to_godot_string(const std::string &p_text) {
 	return godot::String::utf8(p_text.c_str());
 }
 
+inline schola::Status with_context(const std::string &p_context, const schola::Status &p_status) {
+	if (p_status.is_ok()) {
+		return p_status;
+	}
+	return schola::Status::error(p_status.get_code(), p_context + ": " + p_status.get_message());
+}
+
 inline godot::Error report_failure(const godot::String &p_message, godot::Error p_error, godot::String *r_last_error = nullptr) {
 	if (r_last_error != nullptr) {
 		*r_last_error = p_message;
@@ -45,5 +52,5 @@ inline godot::Error report_failure(const godot::String &p_message, godot::Error 
 }
 
 inline godot::Error report_failure(const godot::String &p_context, const schola::Status &p_status, godot::String *r_last_error = nullptr) {
-	return report_failure(p_context + godot::String(": ") + to_godot_string(p_status.get_message()), to_godot_error(p_status), r_last_error);
+	return report_failure(to_godot_string(with_context(p_context.utf8().get_data(), p_status).get_message()), to_godot_error(p_status), r_last_error);
 }
