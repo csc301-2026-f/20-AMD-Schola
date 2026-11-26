@@ -99,7 +99,7 @@ private:
 	ScholaEnvironment *node = nullptr; // Not owned.
 	std::map<schola::AgentId, schola::InteractionDefinition> definitions;
 	std::map<schola::AgentId, schola::AgentState> last_states;
-	// An ID keeps its node identity until reset, including after departure.
+	// A published ID keeps its node identity until reset, including after departure.
 	std::map<schola::AgentId, godot::ObjectID> episode_nodes;
 	// Fixed environments must keep the original nodes for the entire session.
 	std::map<schola::AgentId, godot::ObjectID> fixed_nodes;

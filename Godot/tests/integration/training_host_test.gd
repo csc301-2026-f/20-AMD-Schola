@@ -1301,6 +1301,37 @@ func test_birth_pausing_during_observation_is_announced_on_resume() -> void:
 	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
 
 
+func test_birth_leaving_while_paused_before_joining_frees_its_id() -> void:
+	for respawn in ["after_departure", "same_window"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var second = _add_agent(environment, "b", "b")
+		second.on_observe = func(): second.training_paused = true
+		var birth := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(birth)).is_equal(STATUS_OK)
+		assert_bool(birth["value"]["state"][0].has("b")).is_false()
+		second.free()
+		if respawn == "after_departure":
+			var departed := host.step({"actions": [{"a": 1}]})
+			assert_int(_status_code(departed)).is_equal(STATUS_OK)
+			assert_bool(departed["value"]["state"][0].has("b")).is_false()
+		var replacement = _add_agent(environment, "b_respawn", "b")
+		var result := host.step({"actions": [{"a": 1}]})
+		if respawn == "same_window":
+			# No step saw the old node leave, so this is still a replacement.
+			assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+			assert_str(_status_message(result)).contains("replaced before reset")
+			continue
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_bool(result["value"]["state"][0]["b"]["terminated"]).is_false()
+		assert_float(result["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+		assert_int(replacement.last_action).is_equal(2)
+
+
 func test_agents_joining_after_reset_start_with_fresh_observation_history() -> void:
 	for join in ["resume", "readd"]:
 		var root := _test_root()
