@@ -168,7 +168,7 @@ godot --headless --path Godot res://examples/code_defined_spaces/main.tscn -- --
 
 Expected output ends with `Passed: two episodes, 6 actions, each space-definition
 hook called once.` for the default settings. The scene also shows a status summary when
-run in a window. See the [space-definition API](docs/us15_space_definition_api.md)
+run in a window. See [Define spaces in code](#define-spaces-in-code)
 for constructors, validation, and snapshot lifetime.
 
 ## Inspect the Schola UI
@@ -216,7 +216,29 @@ results fail at startup without falling back to Inspector assignments. Inspector
 warnings inspect metadata without executing the callback, including for `@tool`
 scripts. Unused Inspector fields may remain empty or invalid; callback results do
 not overwrite saved resources. Behavior hooks are still required unless components
-provide that side. See the [space-definition API](docs/us15_space_definition_api.md).
+provide that side. See [Define spaces in code](#define-spaces-in-code).
+
+### Define spaces in code
+
+Instead of Inspector resources, a script can implement `_define_observation_space()`, `_define_action_space()`, or both. Each returns a `ScholaSpace` and overrides only its own side. Build spaces with the static `ScholaSpaces` constructors: `box()`, `box_bounds()`, `discrete()`, `multi_discrete()`, `multi_binary()` and `dict()`. Loops and helper functions are fine.
+
+```gdscript
+extends ScholaAgent
+
+func _define_observation_space() -> ScholaSpace:
+    return ScholaSpaces.dict({
+        "image": ScholaSpaces.box([3, 30, 32], 0, 255, ScholaSpaces.UINT8),
+        "velocity": ScholaSpaces.box_bounds([3]), # Unbounded float32.
+    })
+
+func _define_action_space() -> ScholaSpace:
+    return ScholaSpaces.discrete(5)
+```
+
+- Spaces are resolved once, at the first successful `define()`, and that copy is used for the rest of the session. To change them, recreate the scene and initialize again.
+- A null or invalid result fails with an error naming the agent and hook, for example `Agent 'robot': _define_action_space() returned null; return a ScholaSpace`. Nothing is saved, so a corrected retry works.
+- Build spaces from configuration available before the session starts, not from episode or gameplay state.
+- These hooks replace `_define_spaces()` and `ScholaSpaceDefinition`: move each former expression into its own hook and return the resource directly.
 
 Resources can be embedded in a scene or saved separately as `.tres` files. Shared
 resources intentionally share configuration; use Godot's Make Unique operation

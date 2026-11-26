@@ -67,7 +67,7 @@ Stop the scene, edit camera dimensions or limb/joint counts in the Inspector,
 then press F6 to create a fresh session. Do not change the structure while the
 session is running. Successful definitions remain cached across resets and
 repeated consumers; the example verifies one invocation of each hook across both
-episodes. See the [API guide](../../docs/us15_space_definition_api.md) for the full
+episodes. See [Define spaces in code](../../README.md#define-spaces-in-code) for the full
 contract, constructors, inherited callbacks, retry rules, and Inspector fallback.
 
 To try a validation failure, change the movement returned by `sample_action()`
