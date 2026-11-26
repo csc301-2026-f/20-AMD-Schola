@@ -4,13 +4,13 @@ This directory contains the Godot port of AMD Schola. The design keeps reusable 
 
 Repository workflow and contribution requirements are defined in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Binding engineering rules are defined in the [`Godot development contract`](docs/development_contract.md). This guide contains the supported toolchain and executable development commands.
 
-## Current D3 example and automation
+## Current plugin and automation
 
-The [D3 demo](demo/d3/README.md) exercises the native environment/agent adapters, `ScholaTrainingHost`, and ONNX inference. It uses only the runtime extension: build with the `schola` target to avoid installing or linking the unfinished production gRPC transport. The demo's localhost JSON/TCP connector and tabular trainer remain temporary integration code.
+The [root README](../README.md) introduces current user workflows. Use [the distribution guide](docs/distribution.md) to install runtime/editor packages and [the AMD codebase map](docs/maintenance.md) to locate implementation, tests, and shared interfaces.
 
-The [Godot workflow](../.github/workflows/godot.yml) runs formatting, native and Godot tests, D3 reference-policy playback, and a two-instance, 20-episode training/export/playback check. [D3 packaging](../.github/workflows/d3-release.yml) builds debug/release runtime libraries and desktop packages, checks both source and exported applications, and participates in the aggregate required PR check. Successful `main` runs publish commit-specific development prereleases; the `D3` tag publishes the final course snapshot. Manual dispatch and `D3-test-*` tags produce artifacts without publishing. Confirm platform results in Actions before describing a package as verified.
+[Godot CI](../.github/workflows/godot.yml) runs formatting, dependency checks, native unit/inference/transport suites, and headless Godot integration tests. [Plugin packaging](../.github/workflows/godot-packages.yml) builds debug/release runtime libraries for Windows x86_64, Linux x86_64, and macOS arm64, then checks the extracted add-on in a clean project. Successful main runs distribute dev artifacts; the [D4 publisher](../.github/workflows/d4-release.yml) automatically publishes versioned release/prod assets using the same packaging workflow. CI no longer trains or exports historical course demos.
 
-Every runner job has a timeout. Native compilation, especially cold debug/release builds of `godot-cpp`, needs a longer allowance than formatting and publication; SCons output caches reduce repeated work. The optional source rebuild of gRPC has its own 90-minute limit and does not run in normal PR checks or D3 packaging. Standard GitHub-hosted runners for this public repository do not consume the course organization's shared private-repository minutes allocation.
+Runner jobs have explicit timeouts. SCons caches reduce repeated native compilation; the optional 90-minute gRPC source rebuild is separate from normal checks. Continue following the course GitHub Actions Resource Policy, review workflow, and required checks. Check Actions results before describing a platform or revision as verified.
 
 ## Supported toolchain
 
@@ -99,6 +99,7 @@ From a fresh checkout:
 
 ```sh
 git submodule update --init --recursive
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip" --exclude=""
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes -r Godot/requirements.txt
@@ -108,7 +109,7 @@ scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 godot --editor --path Godot
 ```
 
-On macOS, use `platform=macos arch=arm64` and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. On Windows, run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+For a runtime-only macOS build, skip gRPC setup, add the `schola` target, use `platform=macos arch=arm64`, and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. The committed gRPC training packages support Windows/Linux x86_64. On Windows, create the environment with `python -m venv .venv`, activate it with `.venv\Scripts\Activate.ps1`, then install the same requirements and native dependencies. Run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
@@ -348,6 +349,16 @@ scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 ```
 
 Use the platform options from [Build and run](#build-and-run) on other systems. The default build includes the training extension; `schola_training` builds only that one. The runtime-only `schola` target does not include the connector.
+
+Install Schola's shared Python package into your active Python 3.12 environment from the repository root. Choose the framework you will use:
+
+```sh
+python -m pip install -e "Resources/python[sb3]"
+# For heterogeneous multi-agent training instead:
+python -m pip install -e "Resources/python[rllib]"
+```
+
+The Python CLI workflow is documented for Windows/Linux; macOS runtime inference support does not establish Python CLI support. Follow the [multi-agent example](examples/multi_agent/README.md) for its full two-shell setup and command.
 
 Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. The command below is the one documented for Unreal Schola and has not yet been verified against Godot. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
 
