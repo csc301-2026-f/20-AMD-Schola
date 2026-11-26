@@ -560,8 +560,11 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 			}
 			it->second.paused = true;
 			++it;
+		} else if (previous == last_states.end()) {
+			// A birth that left before publication has no trajectory to finish.
+			it = states.erase(it);
 		} else {
-			if (result_ids.count(id) == 0 && previous != last_states.end()) {
+			if (result_ids.count(id) == 0) {
 				it->second = previous->second;
 				if (!previous->second.paused) {
 					it->second.reward = 0.0f;

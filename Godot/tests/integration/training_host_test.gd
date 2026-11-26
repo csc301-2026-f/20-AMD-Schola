@@ -1446,3 +1446,35 @@ func test_autoreset_mode_rejects_values_that_would_wrap() -> void:
 	assert_int(_status_code(host.set_autoreset_mode(4294967298))).is_equal(STATUS_INVALID_ARGUMENT)
 	# Nothing was configured, so the real mode is still accepted
 	assert_int(_status_code(host.set_autoreset_mode(AUTORESET_DISABLED))).is_equal(STATUS_OK)
+
+
+func test_birth_leaving_in_its_first_step_frees_its_id() -> void:
+	for removal in ["queue", "detach"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var first = environment.get_agents()[0]
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var second = _add_agent(auto_free(Node.new()), "b", "b")
+		second.on_observe = func():
+			if removal == "queue":
+				second.queue_free()
+			else:
+				environment.remove_child(second)
+		# b is born during the action of a, then leaves during its first observation.
+		first.on_action = func():
+			first.on_action = Callable()
+			second.reparent(environment)
+		var birth := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(birth)).is_equal(STATUS_OK)
+		assert_array(birth["value"]["state"][0].keys()).contains_exactly(["a"])
+		if removal == "detach":
+			second.free()
+		var replacement = _add_agent(environment, "b_respawn", "b")
+		var result := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_bool(result["value"]["state"][0]["b"]["terminated"]).is_false()
+		assert_float(result["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+		assert_int(replacement.last_action).is_equal(2)
