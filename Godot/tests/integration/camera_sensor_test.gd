@@ -210,6 +210,13 @@ func test_non_ldr_readback_formats_are_rejected(
 	var sensor := _camera(2, 2, 7)
 	var image := Image.create(2, 2, false, format)
 	assert_bool(sensor._image_values(image, PackedInt32Array([0, 1, 2])).is_empty()).is_true()
+	var name: String = ClassDB.class_get_enum_constants("Image", "Format")[format]
+	assert_str(sensor.readback_error).is_equal("ScholaCameraSensor._observe: readback format %s is not supported; use an uncompressed RGB8 or RGBA8 viewport without HDR 2D." % name)
+	assert_bool(sensor._image_values(image, PackedInt32Array([0, 1, 2])).is_empty()).is_true()
+	assert_str(sensor.readback_error).contains(name)
+	var supported := Image.create(2, 2, false, Image.FORMAT_RGB8)
+	assert_int(sensor._image_values(supported, PackedInt32Array([0, 1, 2])).size()).is_equal(12)
+	assert_str(sensor.readback_error).is_empty()
 
 
 func test_compressed_readback_is_rejected_without_decompression() -> void:
@@ -220,6 +227,7 @@ func test_compressed_readback_is_rejected_without_decompression() -> void:
 	assert_bool(image.is_compressed()).is_true()
 	assert_bool(sensor._image_values(image, PackedInt32Array([0, 1, 2])).is_empty()).is_true()
 	assert_bool(image.is_compressed()).is_true()
+	assert_str(sensor.readback_error).contains("readback format FORMAT_DXT1 is not supported")
 
 
 func _camera(width: int, height: int, channels: int) -> ScholaCameraSensor:

@@ -121,12 +121,17 @@ as 1 when selected. Compressed, floating-point/HDR, and other image formats are
 rejected rather than decompressed or converted. Viewport configuration is checked
 before startup; the actual image format is checked when pixels become available
 at capture. Unsupported readback returns no observation and fails the runtime
-observation validation. The same readback contract applies to the depth viewport.
+observation validation. The sensor also prints an error naming the format, for
+example `ScholaCameraSensor._observe: readback format FORMAT_RGBAH is not
+supported`, once until a supported frame arrives, and keeps it in
+`readback_error`. The same readback contract applies to the depth viewport.
 
 The lifecycle owner configures the viewport, Camera3D, world and update mode.
 Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
-Viewports set to Disabled or When Visible are rejected: they draw nothing unless
-shown on screen, so the image would stay black.
+Viewports set to Disabled are rejected because they never draw. When Visible
+viewports are allowed but show an Inspector warning: they draw only while
+something displays them, such as a `TextureRect`, and otherwise captures repeat
+their last frame.
 Await `RenderingServer.frame_post_draw` before the first reset/readback. Observations
 use the most recent completed render, which can precede the current physics action.
 `ScholaTrainingHost.step()` applies actions and reads observations synchronously;
