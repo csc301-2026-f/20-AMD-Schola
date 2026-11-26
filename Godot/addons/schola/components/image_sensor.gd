@@ -17,6 +17,7 @@ const MAX_VALUES := 4194304
 	set(value):
 		enabled_channels = value
 		_refresh_space()
+var readback_error := ""
 
 func _init() -> void:
 	_refresh_space()
@@ -56,11 +57,16 @@ func _get_component_errors() -> PackedStringArray:
 		errors.append("Image space must match its channels and dimensions; reassign width to regenerate it.")
 	return errors
 
-## Converts selected channels to a flattened [C,H,W] buffer, with no resizing.
+## Converts uncompressed RGB8/RGBA8 to flattened [C,H,W], with no resizing.
+## Other formats fail capture; no decompression or format conversion is attempted.
 func _image_values(image: Image, indices: PackedInt32Array) -> PackedFloat32Array:
 	var values := PackedFloat32Array()
 	if image == null or image.is_empty() or image.get_width() != width or image.get_height() != height:
 		return values
+	if image.is_compressed() or image.get_format() not in [Image.FORMAT_RGB8, Image.FORMAT_RGBA8]:
+		_report_readback_format(image.get_format())
+		return values
+	readback_error = ""
 	values.resize(indices.size() * width * height)
 	var offset := 0
 	for channel in indices:
@@ -69,3 +75,10 @@ func _image_values(image: Image, indices: PackedInt32Array) -> PackedFloat32Arra
 				values[offset] = image.get_pixel(x, y)[channel]
 				offset += 1
 	return values
+
+func _report_readback_format(format: int) -> void:
+	var names := ClassDB.class_get_enum_constants("Image", "Format")
+	var message := "%s._observe: readback format %s is not supported; use an uncompressed RGB8 or RGBA8 viewport without HDR 2D." % [get_script().get_global_name(), names[format] if format >= 0 and format < names.size() else str(format)]
+	if message != readback_error:
+		readback_error = message
+		push_error(message)

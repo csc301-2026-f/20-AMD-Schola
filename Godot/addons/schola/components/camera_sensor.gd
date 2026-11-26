@@ -32,6 +32,8 @@ func _get_component_errors() -> PackedStringArray:
 	var errors := super._get_component_errors()
 	if capture_mode < CaptureMode.COLOR or capture_mode > CaptureMode.COLOR_DEPTH:
 		errors.append("capture_mode must be Color, Depth or ColorDepth.")
+	if width < 2 or height < 2:
+		errors.append("Camera images must be at least 2x2 pixels because Godot SubViewports are never smaller.")
 	var paths: Array[NodePath] = []
 	if capture_mode != CaptureMode.DEPTH:
 		paths.append(viewport_path)
@@ -41,11 +43,25 @@ func _get_component_errors() -> PackedStringArray:
 		var viewport := get_node_or_null(path) as SubViewport
 		if viewport == null:
 			errors.append("Camera sources must reference SubViewport nodes.")
-		elif viewport.size != Vector2i(width, height):
+			continue
+		if viewport.size != Vector2i(width, height):
 			errors.append("Source viewport size must match the image width and height.")
+		if viewport.render_target_update_mode == SubViewport.UPDATE_DISABLED:
+			errors.append("Source viewports must render for each capture; set render_target_update_mode to Always, When Visible while the viewport is displayed, or Once before each capture.")
+		if viewport.use_hdr_2d:
+			errors.append("Source viewports must not use HDR 2D, which produces linear values above 1.")
 	if DisplayServer.get_name() == "headless":
 		errors.append("Camera readback requires a rendering display; use ScholaFakeCameraSensor for headless runs.")
 	return errors
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings := get_configuration_errors()
+	for path in [viewport_path, depth_viewport_path]:
+		var viewport := get_node_or_null(path) as SubViewport
+		if viewport != null and viewport.render_target_update_mode == SubViewport.UPDATE_WHEN_VISIBLE:
+			warnings.append("A When Visible source viewport renders only while something displays it; otherwise captures repeat its last frame.")
+			break
+	return warnings
 
 func _read(path: NodePath, channels: PackedInt32Array) -> PackedFloat32Array:
 	var viewport := get_node_or_null(path) as SubViewport

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/camera_target/scenes/camera_target.tscn" id="1"]
+
+[node name="CameraTargetTrain" type="Node3D"]
+
+[node name="CameraTarget" parent="." instance=ExtResource("1")]
+
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]

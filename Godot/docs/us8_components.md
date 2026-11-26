@@ -110,16 +110,44 @@ must be finite and in `[0,1]`.
 The Box space is float32 `[channels, height, width]`, with bounds `[0,1]`. Each
 plane is row-major (top to bottom, left to right); there is no resizing or automatic
 color-space conversion. Source viewports must exactly match the configured size.
-Use dimensions 1..2048, with at most 4,194,304 output values. Out-of-range HDR
-pixels fail observation validation; configure an LDR source for normalized color.
+Use dimensions 1..2048, with at most 4,194,304 output values. The real camera
+needs at least 2×2, because Godot never makes a SubViewport smaller. Viewports
+with HDR 2D enabled are rejected because they produce linear values above 1; use
+an LDR source for normalized color.
+
+Supported readback formats are uncompressed `Image.FORMAT_RGB8` and
+`Image.FORMAT_RGBA8`. Byte channels become floats in `[0,1]`; RGB8 supplies alpha
+as 1 when selected. Compressed, floating-point/HDR, and other image formats are
+rejected rather than decompressed or converted. Viewport configuration is checked
+before startup; the actual image format is checked when pixels become available
+at capture. Unsupported readback returns no observation and fails the runtime
+observation validation. The sensor also prints an error naming the format, for
+example `ScholaCameraSensor._observe: readback format FORMAT_RGBAH is not
+supported`, once until a supported frame arrives, and keeps it in
+`readback_error`. The same readback contract applies to the depth viewport.
 
 The lifecycle owner configures the viewport, Camera3D, world and update mode.
 Use `SubViewport.UPDATE_ALWAYS` or request an update before the capture frame.
+Viewports set to Disabled are rejected because they never draw. When Visible
+viewports are allowed but show an Inspector warning: they draw only while
+something displays them, such as a `TextureRect`, and otherwise captures repeat
+their last frame.
 Await `RenderingServer.frame_post_draw` before the first reset/readback. Observations
 use the most recent completed render, which can precede the current physics action.
-For action-to-image synchronization, render after applying the action before
-requesting the next observation. Rendering is not forced inside the synchronous
-sensor callback. Empty/unavailable readback fails; headless display mode reports
+`ScholaTrainingHost.step()` applies actions and reads observations synchronously;
+the caller cannot insert an awaited render between those phases. Waiting before
+the next host call can provide a newer completed frame, but does not guarantee an
+image of the action submitted in that same call. Likewise, waiting before
+`reset()` does not guarantee that its observation reflects changes made inside
+`_reset_episode()`: the reset hook and observation run in one synchronous call.
+US11 deliberately retains this latest-completed-frame behavior for training and
+inference. Multiple steps can read the same frame, and the delay is not guaranteed
+to be exactly one physics tick. A reset observation can still show the previous
+episode; it must not be described as a fresh image of the reset scene.
+An optional lifecycle that applies actions or resets, advances simulation, waits
+for rendering, and only then collects observations is deferred to a future user
+story (see [future opportunities](user_stories/remaining.md)).
+Rendering is not forced inside the synchronous sensor callback. Empty/unavailable readback fails; headless display mode reports
 a configuration error. Use the fake camera for headless tests or run a real
 rendering display, including a GPU-capable virtual display for training.
 
@@ -139,6 +167,9 @@ using Godot viewports rather than Unreal SceneCapture's built-in capture modes.
 Image sensors compose like any other sensor for training and ONNX inference.
 `ScholaImageSensor` supplies shared image settings and layout helpers; use one of
 the concrete camera classes rather than adding the base directly.
+
+The [camera target example](../examples/camera_target/README.md) composes
+`ScholaCameraSensor` with a rotation actuator and runs an exported policy.
 
 ## Observation adapters and tests
 
@@ -162,3 +193,9 @@ Run the same command with `--rendering-method mobile` for the Vulkan path.
 The camera suite skips on a headless display. It verifies real color pixels,
 selected channels, CHW ordering, rendered normalized depth, native dispatch and
 viewport-size validation. Frozen milestone demos are not required or modified.
+
+US11 adds two camera suites. `camera_sensor_test.gd` checks image spaces, channel
+selection and configuration errors without rendering, so it runs headless.
+`camera_capture_test.gd` checks rendered 8-bit normalization, non-square layout,
+channel selection, repeated captures and frame timing; run it like the camera
+suite above, with its path after `-a`.

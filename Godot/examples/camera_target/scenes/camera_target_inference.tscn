@@ -1,0 +1,20 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/camera_target/scenes/camera_target.tscn" id="1"]
+
+[sub_resource type="ScholaOnnxPolicy" id="Policy"]
+model_path = "res://examples/camera_target/policies/camera_target.onnx"
+
+[node name="CameraTargetInference" type="Node3D"]
+
+[node name="CameraTarget" parent="." instance=ExtResource("1")]
+
+[node name="InferenceStepper" type="ScholaInferenceStepper" parent="."]
+policy = SubResource("Policy")
+agents = Array[NodePath]([NodePath("../CameraTarget/Agent")])
+
+[node name="NewBall" type="Timer" parent="."]
+wait_time = 3.0
+autostart = true
+
+[connection signal="timeout" from="NewBall" to="CameraTarget" method="place_ball"]
