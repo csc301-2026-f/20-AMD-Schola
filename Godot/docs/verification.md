@@ -96,7 +96,7 @@ Runtime package loading, in-editor inference, and exported-game playback have se
 | --- | --- |
 | Separate the existing AMD product from the team's Godot contribution | [Root README: scope and architecture](../../README.md#problem-and-project-scope); [module map](maintenance.md) |
 | Define environments and agents with engine-native tools | [Node/resource configuration](../README.md#inspect-the-schola-ui), [US1](user_stories/US1.md), [US5](user_stories/US5.md), and [code-defined spaces](../examples/code_defined_spaces/README.md) |
-| Modular observations/actions and the step/reset loop | [Component guide](us8_components.md), [US4](user_stories/US4.md), and host/component integration suites |
+| Modular observations/actions and the step/reset loop | [Component guide](../README.md#reusable-sensors-and-actuators), [US4](user_stories/US4.md), and host/component integration suites |
 | Reuse the shared Schola protocol and Python trainers | [Training setup](../README.md#train-with-python), SB3 and RLlib runs above, [US3](user_stories/US3.md) |
 | Simultaneous agents and independent/shared rewards | [Number-line example](../examples/multi_agent/README.md), [US12](user_stories/US12.md), heterogeneous-policy trainer results above |
 | A production example demonstrates successful learning | [RaceTrack](../examples/race_track/README.md), trained/untrained evaluation above, [US13](user_stories/US13.md) |

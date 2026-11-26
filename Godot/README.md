@@ -377,9 +377,31 @@ godot --headless --path Godot \
 
 ## Reusable sensors and actuators
 
-See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
-nodes, ordered agent composition, ray sensing, movement, rotation, teleportation,
-and real/fake camera components, including rendered color/depth capture tests.
+`ScholaSensor` and `ScholaActuator` are nodes you place under a `ScholaAgent`. Extend either in GDScript, assign its `space` and an optional `component_id` (blank uses the node name), and implement `_observe() -> Variant` or `_act(action: Variant) -> void`. An optional `_get_component_errors() -> PackedStringArray` reports setup problems in the Inspector and at runtime.
+
+- **Composition.** The agent collects its sensors and actuators in depth-first scene-tree order, stopping at nested agents, and combines them into Dict spaces with keys `00000000:<id>`, `00000001:<id>`, and so on. Read the keys from `agent.get_effective_observation_space().spaces` and `get_effective_action_space().spaces`. IDs must be unique per kind on an agent.
+- **Direct hooks win.** If the agent implements `_observe()` or `_act()` itself, that side uses its own assigned space instead of the components.
+- **Fixed layout.** Changing components, IDs, order or spaces after initialization requires recreating the environment or session. The whole action is validated before any actuator runs; actions are not rolled back if a later actuator fails.
+- **Unreal mapping.** `ScholaSensor` and `ScholaActuator` play the role of Unreal Schola's sensor and actuator components. Movement sets `CharacterBody3D` velocity instead of accumulating pawn input, teleport adds world-axis offsets as Unreal does, ray queries run on the main thread instead of optional worker tracing, a single generated ray points straight ahead, and cameras read Godot `SubViewport`s instead of SceneCapture.
+
+| Component | What it does |
+|---|---|
+| `ScholaRayCastSensor3D` | Each ray reports `[tag flags..., hit, normalized distance]` in `[0, 1]`. Use a list of `RayCast3D` paths, or `use_generated_rays` with `origin_path`, `num_rays`, `ray_degrees` and `ray_length` for a fan around local -Z. `tracked_tags` names Godot groups; `draw_debug` draws the rays. |
+| `ScholaMovementActuator3D` | Box input sets the enabled local velocity axes of a `CharacterBody3D`. Your body loop still calls `move_and_slide()`. |
+| `ScholaRotationActuator3D` | Box input rotates a `Node3D` by a local Euler increment in degrees. |
+| `ScholaTeleportActuator3D` | MultiDiscrete input moves a node by a world-space offset per axis; `sweep=true` stops at obstacles. |
+| `ScholaCameraSensor` | Reads rendered `SubViewport` frames as float32 `[channels, height, width]` in `[0, 1]`, in Color, Depth or ColorDepth mode. |
+| `ScholaFakeCameraSensor` | Produces the same image layout without rendering, for headless tests. |
+
+Camera notes:
+
+- The source viewport must match the configured size (at least 2×2), must not use HDR 2D, and must read back as uncompressed RGB8 or RGBA8. Other formats fail with an error naming the format.
+- Use `SubViewport.UPDATE_ALWAYS`. Disabled is rejected; When Visible works only while something displays the viewport, and shows an Inspector warning.
+- Observations use the latest completed frame, which can be older than the current action, and several steps can read the same frame. Await `RenderingServer.frame_post_draw` before the first reset.
+- A headless display has no rendering, so use the fake camera there. For depth, apply the supplied `linear_depth.gdshader` in a separate depth viewport.
+
+Run `components_test.gd`, `components_parity_test.gd` and `camera_sensor_test.gd` with the other integration tests, using a runtime built with `integration_tests=yes`. The rendered camera suites, `camera_render_test.gd` and `camera_capture_test.gd`, need a display: run them with `--rendering-method gl_compatibility` or `mobile` instead of `--headless`.
+
 Open [the interactive US8 example](examples/us8_components/README.md) to try
 keyboard movement, automatic control, and live ray observations with F6.
 The [camera target example](examples/camera_target/README.md) runs an exported

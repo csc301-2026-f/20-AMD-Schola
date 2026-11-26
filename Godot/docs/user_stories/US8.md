@@ -35,7 +35,7 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 ## Implementation
 
-See [the component API guide](../us8_components.md) for native base nodes, GDScript implementations, ordering, direct-hook precedence, and Unreal mapping. Behavior is covered by `tests/integration/components_test.gd`.
+See [the component API guide](../../README.md#reusable-sensors-and-actuators) for native base nodes, GDScript implementations, ordering, direct-hook precedence, and Unreal mapping. Behavior is covered by `tests/integration/components_test.gd`.
 
 ## Current integration evidence
 
