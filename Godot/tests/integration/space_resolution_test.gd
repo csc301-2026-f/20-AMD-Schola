@@ -10,21 +10,49 @@ const FAILED_PRECONDITION := 5
 
 
 # An agent that builds its spaces in code. Each test sets `returned` to
-# whatever _define_spaces() should hand back; `calls` counts how often it ran.
+# the resources each space hook should return; counters track each invocation.
 class CodeAgent extends ScholaAgent:
-	var returned: ScholaSpaceDefinition
+	var returned: Dictionary = {}
 	var calls := 0
+	var action_calls := 0
 	var on_define := Callable()
+	var on_define_action := Callable()
 
-	func _define_spaces() -> ScholaSpaceDefinition:
+	func _define_observation_space() -> ScholaSpace:
 		calls += 1
 		if on_define.is_valid():
 			on_define.call()
+		return returned.get("observation")
+
+	func _define_action_space() -> ScholaSpace:
+		action_calls += 1
+		if on_define_action.is_valid():
+			on_define_action.call()
+		return returned.get("action")
+
+
+# Gets both space hooks through inheritance.
+class InheritedCodeAgent extends CodeAgent:
+	pass
+
+
+class ObservationOnlyAgent extends ScholaAgent:
+	var calls := 0
+	var returned: ScholaSpace = ScholaSpaces.discrete(7)
+	func _define_observation_space() -> ScholaSpace:
+		calls += 1
 		return returned
 
 
-# Gets _define_spaces() only through inheritance.
-class InheritedCodeAgent extends CodeAgent:
+class ActionOnlyAgent extends ScholaAgent:
+	var calls := 0
+	var returned: ScholaSpace = ScholaSpaces.discrete(8)
+	func _define_action_space() -> ScholaSpace:
+		calls += 1
+		return returned
+
+
+class InheritedActionOnlyAgent extends ActionOnlyAgent:
 	pass
 
 
@@ -59,15 +87,15 @@ func _define(agent: ScholaAgent) -> Dictionary:
 	return _driver.call("define_agent", agent)
 
 
-func _code_agent(returned: ScholaSpaceDefinition) -> CodeAgent:
+func _code_agent(returned: Dictionary) -> CodeAgent:
 	var agent: CodeAgent = auto_free(CodeAgent.new())
 	agent.name = "Coder"
 	agent.returned = returned
 	return agent
 
 
-func _spaces(observation: ScholaSpace, action: ScholaSpace) -> ScholaSpaceDefinition:
-	return ScholaSpaceDefinition.create(observation, action)
+func _spaces(observation: ScholaSpace, action: ScholaSpace) -> Dictionary:
+	return {"observation": observation, "action": action}
 
 
 func _assert_fails(result: Dictionary, code: int, reason: String) -> void:
@@ -117,6 +145,74 @@ func test_inspector_agent_with_a_missing_space_names_the_property() -> void:
 	_assert_fails(_define(agent), FAILED_PRECONDITION, "action_space is not set")
 
 
+func test_independent_hooks_override_only_their_own_inspector_side() -> void:
+	for script in [ObservationOnlyAgent, ActionOnlyAgent, InheritedActionOnlyAgent]:
+		var agent: ScholaAgent = auto_free(script.new())
+		agent.name = "Coder"
+		agent.observation_space = ScholaSpaces.discrete(2)
+		agent.action_space = ScholaSpaces.discrete(3)
+		assert_bool(agent.has_code_defined_spaces()).is_true()
+		assert_bool(agent.has_code_defined_observation_space()).is_equal(script == ObservationOnlyAgent)
+		assert_bool(agent.has_code_defined_action_space()).is_equal(script != ObservationOnlyAgent)
+		assert_array(agent.get_configuration_errors()).is_empty()
+		assert_int(agent.calls).is_equal(0)
+		var result := _define(agent)
+		assert_bool(result.ok).is_true()
+		assert_int(result.observation.n).is_equal(7 if script == ObservationOnlyAgent else 2)
+		assert_int(result.action.n).is_equal(3 if script == ObservationOnlyAgent else 8)
+		assert_bool(_define(agent).ok).is_true()
+		assert_int(agent.calls).is_equal(1)
+
+
+func test_independent_hooks_keep_diagnostics_for_the_other_side() -> void:
+	for script in [ObservationOnlyAgent, ActionOnlyAgent]:
+		var agent: ScholaAgent = auto_free(script.new())
+		agent.name = "Coder"
+		var other := "action_space" if script == ObservationOnlyAgent else "observation_space"
+		assert_array(agent.get_configuration_errors()).contains_exactly([other + " is not set"])
+		assert_int(agent.calls).is_equal(0)
+		_assert_fails(_define(agent), FAILED_PRECONDITION, other + " is not set")
+
+
+func test_independent_null_hooks_do_not_fall_back_and_can_be_retried() -> void:
+	for script in [ObservationOnlyAgent, ActionOnlyAgent]:
+		var agent: ScholaAgent = auto_free(script.new())
+		agent.name = "Coder"
+		agent.observation_space = ScholaSpaces.discrete(2)
+		agent.action_space = ScholaSpaces.discrete(3)
+		agent.returned = null
+		var hook := "_define_observation_space()" if script == ObservationOnlyAgent else "_define_action_space()"
+		_assert_fails(_define(agent), INVALID_ARGUMENT, hook + " returned null")
+		agent.returned = ScholaSpaces.discrete(4)
+		assert_bool(_define(agent).ok).is_true()
+		assert_int(agent.calls).is_equal(2)
+
+
+func test_single_hook_keeps_other_component_side_and_snapshot_on_redefinition() -> void:
+	for script in [ObservationOnlyAgent, ActionOnlyAgent]:
+		var agent: ScholaAgent = auto_free(script.new())
+		agent.name = "Coder"
+		var component: Node
+		if script == ObservationOnlyAgent:
+			component = TestActuator.new()
+		else:
+			component = TestSensor.new()
+		component.space = ScholaSpaces.discrete(3)
+		agent.add_child(component)
+		assert_array(agent.get_configuration_errors()).is_empty()
+		var original := _define(agent)
+		assert_bool(original.ok).is_true()
+		agent.returned = ScholaSpaces.discrete(9)
+		component.space = ScholaSpaces.discrete(4)
+		var refreshed := _define(agent)
+		assert_bool(refreshed.ok).is_true()
+		var code_side := "observation" if script == ObservationOnlyAgent else "action"
+		var component_side := "action" if script == ObservationOnlyAgent else "observation"
+		assert_dict(refreshed[code_side]).is_equal(original[code_side])
+		assert_dict(refreshed[component_side]).is_not_equal(original[component_side])
+		assert_int(agent.calls).is_equal(1)
+
+
 func test_callback_supplies_both_spaces_when_inspector_is_empty() -> void:
 	var observation := ScholaSpaces.box([4], -1, 1)
 	var action := ScholaSpaces.discrete(5)
@@ -160,11 +256,11 @@ func test_callback_wins_over_inspector_and_leaves_inspector_fields_alone() -> vo
 
 
 func test_broken_callback_never_falls_back_to_valid_inspector_spaces() -> void:
-	var agent := _code_agent(ScholaSpaceDefinition.new())
+	var agent := _code_agent({})
 	agent.observation_space = ScholaSpaces.discrete(2)
 	agent.action_space = ScholaSpaces.discrete(2)
 
-	_assert_fails(_define(agent), INVALID_ARGUMENT, "_define_spaces().observation is null")
+	_assert_fails(_define(agent), INVALID_ARGUMENT, "_define_observation_space() returned null")
 
 
 func test_callback_wins_even_when_inspector_spaces_are_invalid() -> void:
@@ -192,7 +288,7 @@ func test_callback_rejects_spaces_incompatible_with_component_dispatch() -> void
 
 
 func _component_agent() -> CodeAgent:
-	var agent := _code_agent(null)
+	var agent := _code_agent({})
 	var sensor := TestSensor.new()
 	sensor.space = ScholaSpaces.discrete(3)
 	agent.add_child(sensor)
@@ -209,15 +305,14 @@ func test_malformed_results_name_the_agent_and_the_problem() -> void:
 	var ok := ScholaSpaces.discrete(2)
 	var cycle := ScholaDictSpace.new()
 	cycle.spaces = {"self": cycle}
-	# Each case: [what _define_spaces() returns, part of the expected error].
+	# Each case: [resources returned by the hooks, part of the expected error].
 	var cases := [
-		[null, "_define_spaces() returned null"],
-		[ScholaSpaceDefinition.new(), "_define_spaces().observation is null"],
-		[_spaces(null, ok), "_define_spaces().observation is null"],
-		[_spaces(ok, null), "_define_spaces().action is null"],
-		[_spaces(ok, ScholaSpaces.box([2], 1, 0)), "_define_spaces().action: "],
-		[_spaces(ok, ScholaSpaces.box([0], 0, 1)), "_define_spaces().action: "],
-		[_spaces(ScholaSpaces.box_bounds([3], [0, 0], [1]), ok), "_define_spaces().observation: "],
+		[{}, "_define_observation_space() returned null"],
+		[_spaces(null, ok), "_define_observation_space() returned null"],
+		[_spaces(ok, null), "_define_action_space() returned null"],
+		[_spaces(ok, ScholaSpaces.box([2], 1, 0)), "_define_action_space(): "],
+		[_spaces(ok, ScholaSpaces.box([0], 0, 1)), "_define_action_space(): "],
+		[_spaces(ScholaSpaces.box_bounds([3], [0, 0], [1]), ok), "_define_observation_space(): "],
 		[_spaces(ScholaSpaces.dict({"arm": ScholaSpaces.discrete(0)}), ok), "must be positive"],
 		[_spaces(cycle, ok), "Dict contains itself"],
 	]
@@ -237,10 +332,11 @@ func test_spaces_are_resolved_once_and_reused() -> void:
 		assert_bool(_define(agent).ok).is_true()
 
 	assert_int(agent.calls).is_equal(1)
+	assert_int(agent.action_calls).is_equal(1)
 
 
 func test_failed_resolution_saves_nothing_and_can_be_retried() -> void:
-	var agent := _code_agent(ScholaSpaceDefinition.new())
+	var agent := _code_agent({})
 	assert_bool(_define(agent).ok).is_false()
 
 	agent.returned = _spaces(ScholaSpaces.discrete(2), ScholaSpaces.discrete(3))
@@ -251,6 +347,7 @@ func test_failed_resolution_saves_nothing_and_can_be_retried() -> void:
 	# The successful answer is now kept, so the callback doesn't run again.
 	assert_bool(_define(agent).ok).is_true()
 	assert_int(agent.calls).is_equal(2)
+	assert_int(agent.action_calls).is_equal(1)
 
 
 func test_editing_resources_after_resolution_does_not_change_saved_spaces() -> void:
@@ -276,7 +373,7 @@ func test_changing_inspector_fields_after_resolution_does_not_change_saved_space
 	assert_int(_define(agent).observation.n).is_equal(3)
 
 
-func test_editing_and_releasing_return_object_preserves_saved_snapshot() -> void:
+func test_replacing_and_releasing_returned_resources_preserves_saved_snapshot() -> void:
 	var definition := _spaces(ScholaSpaces.discrete(3), ScholaSpaces.discrete(2))
 	var agent := _code_agent(definition)
 	assert_bool(_define(agent).ok).is_true()
@@ -284,8 +381,8 @@ func test_editing_and_releasing_return_object_preserves_saved_snapshot() -> void
 	definition.action = null
 	assert_int(_define(agent).observation.n).is_equal(3)
 	assert_int(_define(agent).action.n).is_equal(2)
-	agent.returned = null
-	definition = null
+	agent.returned = {}
+	definition = {}
 	assert_int(_define(agent).action.n).is_equal(2)
 	assert_int(agent.calls).is_equal(1)
 
@@ -300,7 +397,18 @@ func test_callback_that_calls_define_again_is_refused_without_breaking_the_outer
 	assert_bool(outer.ok).is_true()
 	assert_int(agent.calls).is_equal(1)
 	assert_int(inner_results.size()).is_equal(1)
-	_assert_fails(inner_results[0], FAILED_PRECONDITION, "_define_spaces() must not cause define() to run again")
+	_assert_fails(inner_results[0], FAILED_PRECONDITION, "Space-definition hooks must not cause define() to run again")
+
+
+func test_action_callback_that_calls_define_again_is_refused() -> void:
+	var agent := _code_agent(_spaces(ScholaSpaces.discrete(2), ScholaSpaces.discrete(3)))
+	var inner_results: Array = []
+	agent.on_define_action = func() -> void: inner_results.append(_define(agent))
+	assert_bool(_define(agent).ok).is_true()
+	assert_int(agent.calls).is_equal(1)
+	assert_int(agent.action_calls).is_equal(1)
+	assert_int(inner_results.size()).is_equal(1)
+	_assert_fails(inner_results[0], FAILED_PRECONDITION, "Space-definition hooks must not cause define() to run again")
 
 
 # --- Large and repeated spaces built with loops and helpers ---------------

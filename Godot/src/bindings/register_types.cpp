@@ -8,7 +8,6 @@
 #include "bindings/adapters/schola_observation_adapter.h"
 #include "bindings/environment/schola_agent.h"
 #include "bindings/environment/schola_environment.h"
-#include "bindings/environment/schola_space_definition.h"
 #include "bindings/lifecycle/schola_training_host.h"
 #include "bindings/schola_runtime_probe.h"
 #include "bindings/spaces/schola_box_space.h"
@@ -41,7 +40,6 @@ void register_schola_binding_types() {
 	GDREGISTER_CLASS(ScholaMultiBinarySpace);
 	GDREGISTER_CLASS(ScholaDictSpace);
 	GDREGISTER_ABSTRACT_CLASS(ScholaSpaces);
-	GDREGISTER_CLASS(ScholaSpaceDefinition);
 	GDREGISTER_CLASS(ScholaAgent);
 #ifdef SCHOLA_INTEGRATION_TESTS
 	register_schola_environment_test_driver();

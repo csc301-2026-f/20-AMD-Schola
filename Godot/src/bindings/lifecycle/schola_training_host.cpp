@@ -101,7 +101,7 @@ schola::Status check_environment_node(godot::ObjectID p_id, size_t p_index, Scho
 }
 
 // Works out every agent's spaces now, at session start. The scene configuration
-// check never runs _define_spaces(), so without this a broken callback
+// check never runs the space-definition hooks, so without this a broken callback
 // would only show up later, when Python asks for the definition. Each agent
 // keeps what it resolved, so training's later define() calls get the same
 // spaces back without running the callback again.

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "bindings/adapters/schola_observation_adapter.h"
-#include "bindings/environment/schola_space_definition.h"
+#include "bindings/spaces/schola_space.h"
 #include "core/environment/agent.h"
 #include <godot_cpp/variant/typed_array.hpp>
 
@@ -79,24 +79,21 @@ public:
 	uint64_t get_interaction_revision() const;
 	// note: US5 does not duplicate Box, Discrete, bounds, points, validation logic from US2
 
-	/** Returns whether this script or a base script defines _define_spaces(), without executing it. */
+	/** Metadata queries include inherited hooks and never execute user code. */
 	bool has_code_defined_spaces() const;
+	bool has_code_defined_observation_space() const;
+	bool has_code_defined_action_space() const;
 
 	/**
-	 * Optional GDScript space-definition hook for US15.
-	 *
-	 * Contract: return a ScholaSpaceDefinition with observation and action fields,
-	 * each a non-null ScholaSpace. An override supplies both spaces and takes
-	 * precedence over Inspector assignments; invalid results must not fall back.
-	 * The typed hook exposes this contract to GDScript and editor tooling.
-	 *
-	 * The first successful define() calls this hook once and saves a copy of
-	 * both spaces until the scene is recreated (see GodotAgentAdapter). Use
-	 * deterministic, pre-initialization configuration without gameplay side
-	 * effects. Inspector warnings must never execute this hook. Inspector getters
-	 * continue to return authored resources rather than resolved definitions.
+	 * Optional space hooks. Each returns a non-null ScholaSpace and overrides
+	 * only its corresponding Inspector or component space. Invalid results do
+	 * not fall back. The first successful define() snapshots both spaces;
+	 * failures save neither side and may be retried. Use deterministic startup
+	 * configuration without gameplay side effects. Editor queries never run
+	 * these hooks, and Inspector getters keep returning authored resources.
 	 */
-	GDVIRTUAL0R(godot::Ref<ScholaSpaceDefinition>, _define_spaces)
+	GDVIRTUAL0R(godot::Ref<ScholaSpace>, _define_observation_space)
+	GDVIRTUAL0R(godot::Ref<ScholaSpace>, _define_action_space)
 
 	// === US1 Additions Below ===
 
@@ -137,7 +134,7 @@ public:
 	// Returns every invalid Inspector configuration; empty when the configuration is valid
 	// Reports missing observation or action spaces and invalid US2 space definitions
 	// Space errors name the observation or action property and include the US2 validation reason
-	// Agents with _define_spaces() skip the space checks: their fields are unused, and the
+	// Code-defined sides skip Inspector checks; each corresponding
 	// callback is only run (and checked) by define() at startup, never by this method.
 	godot::PackedStringArray get_configuration_errors() const;
 	// Adds missing behavior hooks to resource errors for Godot's warning icons.

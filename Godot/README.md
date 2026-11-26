@@ -132,9 +132,8 @@ scons -C Godot schola platform=windows target=template_debug
 ```
 
 Open `Godot/examples/code_defined_spaces/main.tscn` in the editor and press F6.
-Both Inspector space fields on Robot stay empty because `_define_spaces()` returns
-a typed `ScholaSpaceDefinition` built with `ScholaSpaceDefinition.create(observation,
-action)`. Adjust its exported dimensions and joint counts before starting the scene.
+Both Inspector space fields on Robot stay empty because `_define_observation_space()`
+and `_define_action_space()` each return a `ScholaSpace` resource. Adjust its exported dimensions and joint counts before starting the scene.
 The example does not change the project's configured main scene.
 
 For a headless check that exits with code 0 on success and 1 on failure:
@@ -143,8 +142,8 @@ For a headless check that exits with code 0 on success and 1 on failure:
 godot --headless --path Godot res://examples/code_defined_spaces/main.tscn -- --us15-smoke-test
 ```
 
-Expected output ends with `Passed: two episodes, 6 actions, one space-definition
-callback.` for the default settings. The scene also shows a status summary when
+Expected output ends with `Passed: two episodes, 6 actions, each space-definition
+hook called once.` for the default settings. The scene also shows a status summary when
 run in a window. See the [space-definition API](docs/us15_space_definition_api.md)
 for constructors, validation, and snapshot lifetime.
 
@@ -177,19 +176,18 @@ saved properties. The integrated US1 adapter uses the resolved type when populat
 ### Space resources and configuration warnings
 
 For direct agent hooks, assign `ScholaSpace` resources to `observation_space`
-and `action_space`. Both start unassigned. When `_define_spaces()` is implemented,
-it supplies both spaces and overrides
-Inspector assignments. Otherwise, when descendant sensors or actuators
+and `action_space`. Both start unassigned. Each optional `_define_observation_space()` or `_define_action_space()` hook
+overrides the corresponding Inspector assignment. Otherwise, when descendant sensors or actuators
 supply a side instead, its explicit property may remain unassigned. The saved
 properties return only explicit configuration; `get_effective_observation_space()`
 and `get_effective_action_space()` report explicit or component-composed resources
-without executing `_define_spaces()` or exposing its saved result. The Inspector
+without executing the space hooks or exposing their saved results. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
 at zero and require a positive value; their Inspector fields show that unset zero
 until you enter a size. Box dtype defaults to float32, and omitted bounds are unbounded.
 
-Inherited `_define_spaces()` callbacks also take precedence. Invalid callback
+Inherited space hooks also take precedence for their respective sides. Invalid callback
 results fail at startup without falling back to Inspector assignments. Inspector
 warnings inspect metadata without executing the callback, including for `@tool`
 scripts. Unused Inspector fields may remain empty or invalid; callback results do
@@ -214,8 +212,8 @@ See [the nesting decision](docs/decisions/environment-nesting.md).
 Warnings refresh when resources (including nested Dict entries) or scripts change,
 and when agents are added, removed, renamed, or reparented. Script-hook diagnostics
 inspect inherited script metadata; gameplay scripts do not need `@tool`.
-`get_configuration_errors()` checks Inspector resources for agents without
-`_define_spaces()` and checks scene configuration; the editor
+`get_configuration_errors()` checks Inspector resources on sides without
+a space hook and checks scene configuration; the editor
 adds missing-hook warnings. Runtime adapter calls still validate required hooks
 before invoking them.
 
