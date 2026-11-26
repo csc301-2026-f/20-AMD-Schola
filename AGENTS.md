@@ -4,7 +4,7 @@
 
 Exclude that folder when assessing implemented features or answering questions about available nodes, UI bindings, APIs, and runtime behavior. Do not reuse its code unless the user explicitly asks to work on the D1 demo.
 
-Legacy C# files also remain under `Godot/addons/schola/`, including `ui/RewardStatusPanel.cs` and `nodes/`. Their presence alone does not establish current functionality. Verify features against the active C++ GDExtension registrations, build configuration, and current scenes before claiming they are available.
+Verify current features against the active C++ GDExtension registrations, build configuration, and current scenes before claiming they are available. The historical C# prototype is self-contained under `Godot/demo/d1/`.
 
 # Repository guidance
 

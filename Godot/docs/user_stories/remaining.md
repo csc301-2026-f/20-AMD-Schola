@@ -6,7 +6,7 @@ This document records work that is not represented as a separate active user sto
 
 These tasks complete or validate existing stories rather than introducing new product capabilities:
 
-- Validate the merged [US3](US3.md) scene connector with the open [US13 RaceTrack example](US13.md).
+- Merge the [US13 RaceTrack example](US13.md), which trains through the [US3](US3.md) scene connector merged in PR #59.
 - Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. Include the simultaneous-agent training run tracked in [US12](US12.md).
 - Document the approved move from the specification's preferred C# implementation to the C++ GDExtension architecture.
 - Maintain setup, usage, architecture, troubleshooting, and packaging documentation.
