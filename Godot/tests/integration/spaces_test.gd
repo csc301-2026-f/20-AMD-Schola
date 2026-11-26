@@ -38,6 +38,14 @@ func test_space_resources_are_registered() -> void:
 		assert_bool(ClassDB.class_exists(name)).is_true()
 
 
+func test_size_fields_can_show_their_unset_zero() -> void:
+	# The Inspector clamps a value to the hint's range, so the range must include the default
+	for space in [ScholaDiscreteSpace.new(), ScholaMultiBinarySpace.new()]:
+		var n: Dictionary = space.get_property_list().filter(func(property: Dictionary) -> bool: return property["name"] == "n")[0]
+		assert_int(space.n).is_equal(0)
+		assert_str(n["hint_string"]).starts_with("0,")
+
+
 func test_default_values_round_trip_for_every_kind() -> void:
 	var spaces: Array[ScholaSpace] = [
 		_box(PackedFloat32Array([1.0]), PackedFloat32Array([2.0]), PackedInt32Array([2, 2])),
@@ -149,6 +157,9 @@ func test_multi_discrete_and_multi_binary_accept_packed_and_plain_arrays() -> vo
 	assert_str(multi_binary.get_validation_error(PackedByteArray([0, 1, 1]))).is_empty()
 	assert_str(multi_binary.get_validation_error([1, 0, 1])).is_empty()
 	assert_str(multi_binary.get_validation_error([1, 2, 1])).contains("0 or 1")
+	# Values past the byte range get the same guidance as 2
+	assert_str(multi_binary.get_validation_error([1, 0, -1])).contains("index 2 is -1 but must be 0 or 1")
+	assert_str(multi_binary.get_validation_error([1, 0, 256])).contains("index 2 is 256 but must be 0 or 1")
 	assert_str(multi_binary.get_validation_error([1, 0.5, 1])).contains("Array element 1")
 
 
@@ -190,6 +201,8 @@ func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
 	assert_str(space.get_validation_error([0, 1.00000001])).contains("needs a whole number")
 	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 1.00000001]))).contains("needs a whole number")
 	assert_str(space.get_validation_error([0, 255.00000001])).contains("needs a whole number")
+	# The message shows the real value, not a rounded one that would look valid
+	assert_str(space.get_validation_error([0, 3.0000000000000004])).contains("is 3.0000000000000004 but dtype uint8")
 	assert_str(space.get_validation_error(PackedFloat64Array([0.0, 255.0]))).is_empty()
 	assert_str(space.get_validation_error([0, 255])).is_empty()
 
@@ -207,3 +220,11 @@ func test_integer_box_checks_values_before_narrowing_to_float32() -> void:
 
 	space.dtype = 0 # float32
 	assert_str(space.get_validation_error([0, 1.00000001])).is_empty()
+
+
+func test_stacker_fields_only_offer_values_the_stacker_accepts() -> void:
+	var hints := {}
+	for property in ScholaStacker.new().get_property_list():
+		hints[property["name"]] = property["hint_string"]
+	assert_str(hints["stack_size"]).starts_with("1,")
+	assert_str(hints["stack_dimension"]).starts_with("0,")

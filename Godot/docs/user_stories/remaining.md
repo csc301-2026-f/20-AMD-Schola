@@ -6,7 +6,7 @@ This document records work that is not represented as a separate active user sto
 
 These tasks complete or validate existing stories rather than introducing new product capabilities:
 
-- Land the scene-level connector from [US3](US3.md) and connect it to the [US13 RaceTrack example](US13.md).
+- Merge the [US13 RaceTrack example](US13.md), which trains through the [US3](US3.md) scene connector merged in PR #59.
 - Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. Include the simultaneous-agent training run tracked in [US12](US12.md).
 - Document the approved move from the specification's preferred C# implementation to the C++ GDExtension architecture.
 - Maintain setup, usage, architecture, troubleshooting, and packaging documentation.
@@ -19,8 +19,8 @@ These tasks complete or validate existing stories rather than introducing new pr
 These capabilities already exist in Unreal Schola or have a clear equivalent, but are not currently proposed as course commitments:
 
 - **Parallel headless training:** Run multiple isolated environment instances in one Godot process using its supported headless mode. Validate stable environment IDs, isolated episode state, session-wide failure behavior, configuration documentation, and a simple throughput comparison. Camera observations would require a supported renderer or a clear incompatibility error. Distributed training across machines or processes remains out of scope.
-- Additional actuator types beyond the movement, rotation and teleport nodes on the US8 branch.
-- Additional non-visual sensors after the US8 composition contract is stable.
+- Additional actuator types beyond the movement, rotation and teleport nodes on main.
+- Additional non-visual sensors beyond the merged US8 composition contract.
 - Text spaces and points if the shared protocol and Python consumers require them.
 - Pipelined inference, but only if profiling demonstrates that synchronous inference causes unacceptable frame stalls.
 - Further observation adapters beyond Box and Dict stacking.

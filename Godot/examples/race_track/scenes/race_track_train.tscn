@@ -1,0 +1,57 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/race_track.tscn" id="1_race_track"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/race_track_environment.gd" id="2_environment"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/car.tscn" id="3_car"]
+[ext_resource type="PackedScene" path="res://examples/race_track/scenes/action_display.tscn" id="4_display"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/editor_trainer.gd" id="5_trainer"]
+[ext_resource type="Script" path="res://examples/race_track/scripts/reward_chart.gd" id="6_chart"]
+
+[node name="RaceTrackTrain" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866, 0, -0.866, 0.5, 0, 50, 0)
+shadow_enabled = true
+
+[node name="RaceTrack" parent="." instance=ExtResource("1_race_track")]
+
+[node name="RaceTrackEnvironment" type="ScholaEnvironment" parent="."]
+script = ExtResource("2_environment")
+maximum_steps = 3000
+maximum_stalled_steps = 120
+maximum_track_distance = 4.5
+maximum_tilt_degrees = 60.0
+terminate_on_obstacle = true
+random_start = true
+random_obstacles = true
+demo_map_share = 0.2
+
+[node name="Car" parent="RaceTrackEnvironment" instance=ExtResource("3_car")]
+contact_monitor = true
+max_contacts_reported = 4
+
+[node name="TrainingConnector" type="ScholaTrainingConnector" parent="."]
+step_timeout_sec = 300.0
+
+[node name="EditorTrainer" type="Node" parent="."]
+script = ExtResource("5_trainer")
+
+[node name="ActionDisplay" parent="." instance=ExtResource("4_display")]
+controls_path = NodePath("../RaceTrackEnvironment/Car/Agent/Controls")
+
+[node name="RewardChart" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -256.0
+offset_top = -156.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("6_chart")
+environment_path = NodePath("../RaceTrackEnvironment")

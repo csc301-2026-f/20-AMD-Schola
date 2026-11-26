@@ -546,6 +546,7 @@ func test_invalid_reset_requests_do_not_reset_any_environment() -> void:
 		{0: {"seed": 2147483648}}, {0: {"seed": -2147483649}},
 		{0: {"options": "invalid options"}},
 		{0: {"options": {1: "value"}}}, {0: {"options": {"key": 1}}},
+		{0: {"Seed": 42}}, {0: {"seed": 42, "option": {"track": "hard"}}},
 	]
 	for request in invalid_requests:
 		var result := host.reset(request)
@@ -571,6 +572,43 @@ func test_reset_forwards_seed_boundaries_and_options() -> void:
 	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
 	assert_object(environment.last_seed).is_null()
 	assert_dict(environment.last_options).is_empty()
+
+
+func test_reset_accepts_string_name_setting_keys() -> void:
+	var root := _test_root()
+	var environment := _add_environment(root, "Environment", "agent") as TestEnvironment
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	var result := host.reset({0: {&"seed": 42, &"options": {"track": "hard"}}})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_int(environment.last_seed).is_equal(42)
+	assert_dict(environment.last_options).is_equal({"track": "hard"})
+	# Option keys and values may be StringNames too.
+	result = host.reset({0: {"options": {&"track": &"easy"}}})
+	assert_int(_status_code(result)).is_equal(STATUS_OK)
+	assert_dict(environment.last_options).is_equal({"track": "easy"})
+	result = host.reset({0: {&"Seed": 42}})
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(result)).contains("unknown key")
+	assert_int(environment.reset_count).is_equal(2)
+	# Anything that is not text is still rejected.
+	result = host.reset({0: {"options": {"track": 3}}})
+	assert_int(_status_code(result)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(result)).contains("must be strings")
+
+
+func test_step_accepts_string_name_agent_ids() -> void:
+	var root := _test_root()
+	var environment := _add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+	assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+
+	assert_int(_status_code(host.step({"actions": [{&"agent": 1}]}))).is_equal(STATUS_OK)
+	assert_int(environment.get_node("agent").last_action).is_equal(1)
+	var numeric := host.step({"actions": [{7: 1}]})
+	assert_int(_status_code(numeric)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(numeric)).contains("agent IDs must be strings")
 
 
 func test_multiple_environments_run_repeated_episodes_without_state_leakage() -> void:
@@ -1263,6 +1301,37 @@ func test_birth_pausing_during_observation_is_announced_on_resume() -> void:
 	assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
 
 
+func test_birth_leaving_while_paused_before_joining_frees_its_id() -> void:
+	for respawn in ["after_departure", "same_window"]:
+		var root := _test_root()
+		var environment := _dynamic_environment(root)
+		var host := _add_host(root)
+		assert_int(_status_code(_start(host))).is_equal(STATUS_OK)
+		assert_int(_status_code(host.reset({}))).is_equal(STATUS_OK)
+		var second = _add_agent(environment, "b", "b")
+		second.on_observe = func(): second.training_paused = true
+		var birth := host.step({"actions": [{"a": 1}]})
+		assert_int(_status_code(birth)).is_equal(STATUS_OK)
+		assert_bool(birth["value"]["state"][0].has("b")).is_false()
+		second.free()
+		if respawn == "after_departure":
+			var departed := host.step({"actions": [{"a": 1}]})
+			assert_int(_status_code(departed)).is_equal(STATUS_OK)
+			assert_bool(departed["value"]["state"][0].has("b")).is_false()
+		var replacement = _add_agent(environment, "b_respawn", "b")
+		var result := host.step({"actions": [{"a": 1}]})
+		if respawn == "same_window":
+			# No step saw the old node leave, so this is still a replacement.
+			assert_int(_status_code(result)).is_equal(STATUS_INVALID_DATA)
+			assert_str(_status_message(result)).contains("replaced before reset")
+			continue
+		assert_int(_status_code(result)).is_equal(STATUS_OK)
+		assert_bool(result["value"]["state"][0]["b"]["terminated"]).is_false()
+		assert_float(result["value"]["state"][0]["b"]["reward"]).is_equal(0.0)
+		assert_int(_status_code(host.step({"actions": [{"a": 1, "b": 2}]}))).is_equal(STATUS_OK)
+		assert_int(replacement.last_action).is_equal(2)
+
+
 func test_agents_joining_after_reset_start_with_fresh_observation_history() -> void:
 	for join in ["resume", "readd"]:
 		var root := _test_root()
@@ -1317,3 +1386,16 @@ func test_session_activity_tracks_initialization_recoverable_errors_and_close() 
 	assert_bool(host.is_session_active()).is_false()
 	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
 	assert_bool(host.is_session_active()).is_false()
+
+
+func test_autoreset_mode_rejects_values_that_would_wrap() -> void:
+	var root := _test_root()
+	_add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+
+	# 2^32 and 2^32 + 2 used to wrap into SAME_STEP and DISABLED
+	assert_int(_status_code(host.set_autoreset_mode(4294967296))).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_int(_status_code(host.set_autoreset_mode(4294967298))).is_equal(STATUS_INVALID_ARGUMENT)
+	# Nothing was configured, so the real mode is still accepted
+	assert_int(_status_code(host.set_autoreset_mode(AUTORESET_DISABLED))).is_equal(STATUS_OK)

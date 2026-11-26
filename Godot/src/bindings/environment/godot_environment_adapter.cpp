@@ -581,6 +581,14 @@ schola::Status GodotEnvironmentAdapter::step(const std::map<schola::AgentId, sch
 	for (const auto &[id, state] : states) {
 		last_states[id] = state;
 	}
+	// Python never saw these IDs, so a later node may use one once its node has left.
+	for (auto it = episode_nodes.begin(); it != episode_nodes.end();) {
+		if (last_states.count(it->first) == 0 && live_agents.count(it->first) == 0) {
+			it = episode_nodes.erase(it);
+		} else {
+			++it;
+		}
+	}
 	++episode_step;
 	r_states = std::move(states);
 	const bool all_finished = !last_states.empty() && std::all_of(last_states.begin(), last_states.end(), [](const auto &entry) {

@@ -185,8 +185,8 @@ and `get_effective_action_space()` report explicit or component-composed resourc
 without executing `_define_spaces()` or exposing its saved result. The Inspector
 offers Box, Discrete, MultiDiscrete, MultiBinary, and Dict resource types supplied
 by US2, with inline help for their settings. Discrete and MultiBinary sizes start
-at zero and require a positive value; their Inspector fields provide positive-size
-range hints. Box dtype defaults to float32, and omitted bounds are unbounded.
+at zero and require a positive value; their Inspector fields show that unset zero
+until you enter a size. Box dtype defaults to float32, and omitted bounds are unbounded.
 
 Inherited `_define_spaces()` callbacks also take precedence. Invalid callback
 results fail at startup without falling back to Inspector assignments. Inspector
@@ -303,7 +303,7 @@ The **AMD Schola** editor plugin uses GDScript and works in standard Godot witho
 
 - Open the **Schola** dock beside the Inspector to see which native Schola classes are actually available. Refresh after changing the scene tree. Select a listed node to configure its existing properties in the Inspector.
 - Use **Add monitor to current scene** to insert a `CanvasLayer` and `ScholaMonitor`, with editor undo/redo support. You can also search for **ScholaMonitor** in Add Node. Its title and history limit are editable in the Inspector.
-- Use **Open interactive UI preview**, then **F6**, to inspect the runtime panel. Alternatively open `res://examples/ui_preview/main.tscn` directly. Next step, auto play/pause, new episode, terminate, and truncate operate on explicitly synthetic telemetry. This preview does not run a trainer or implement an RL environment.
+- Use **Open interactive UI preview**, then **F6**, to inspect the runtime panel. The button appears in this repository's project, where the preview scene lives. Alternatively open `res://examples/ui_preview/main.tscn` directly. Next step, auto play/pause, new episode, terminate, and truncate operate on explicitly synthetic telemetry. This preview does not run a trainer or implement an RL environment.
 
 The runtime monitor displays episode and step counts, cumulative reward history, per-agent rewards and returns, and termination/truncation state. Feed it real data from the component that owns the lifecycle, on the Godot main thread:
 

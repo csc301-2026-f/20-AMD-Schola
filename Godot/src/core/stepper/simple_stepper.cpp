@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 namespace schola {
 
@@ -171,18 +172,20 @@ Status SimpleStepper::step() {
 
 	Status first_error = Status::ok();
 	for (size_t i = 0; i < count; ++i) {
-		observations[i] = entries[i].observation;
 		Status observe_status = entries[i].agent->observe(observations[i]);
 		// A scene callback can remove itself or another agent. Check before
 		// reading the entry again, since its index and state may no longer exist.
 		if (entries_revision != revision) {
 			return Status::error(StatusCode::FAILED_PRECONDITION, "SimpleStepper::step: agents were removed while observing; the step was interrupted");
 		}
-		entries[i].observation = observations[i];
-		if (!observe_status.is_ok() && first_error.is_ok()) {
+		if (observe_status.is_ok()) {
+			// Swapping caches the new observation without copying it.
+			std::swap(entries[i].observation, observations[i]);
+		} else if (first_error.is_ok()) {
 			first_error = Status::error(observe_status.get_code(), "SimpleStepper::step: agent " + std::to_string(i) + ": observe: " + observe_status.get_message());
 		}
-		observation_ptrs[i] = &observations[i];
+		// After a failed observe, the policy reuses the cached observation.
+		observation_ptrs[i] = &entries[i].observation;
 		state_ptrs[i] = entries[i].state.get();
 		action_ptrs[i] = &actions[i];
 	}
