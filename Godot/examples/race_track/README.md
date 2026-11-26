@@ -37,7 +37,7 @@ The committed policy uses a bigger network than the policies on keys 1-3: two hi
 
 The policy on key 3 was trained from scratch with `train.py` for 350,000 steps, then for 300,000 more with `--resume` after touching an obstacle began ending episodes and the drift bonus rose to 0.5. It drives faster on the demo map it was trained on, but misses 12 of the 30 dropped obstacles and completes none of the random layouts.
 
-Physics runs at a fixed 60 Hz, so repeated runs give the same numbers. Reproduce the table from the repository root:
+Physics runs at a fixed 60 Hz for repeatable comparisons under the same setup. Exact physics measurements can vary across builds and platforms. The November 26 Windows rerun confirmed the baseline's 61 m and the committed policy's 2 clean laps, 58 km/h, 30 of 30 dodges, and 10 of 10 layouts; it measured 67.9 seconds of drifting. See the [verification record](../../docs/verification.md). Reproduce the comparison from the repository root:
 
 ```sh
 godot --headless --path Godot --fixed-fps 60 -s res://examples/race_track/demo_check.gd -- res://examples/race_track/policies/race_track_untrained.onnx res://examples/race_track/policies/race_track_350k_steps.onnx res://examples/race_track/policies/race_track_650k_steps.onnx res://examples/race_track/policies/race_track.onnx

@@ -1,6 +1,6 @@
 # AMD codebase map and maintenance guide
 
-This guide explains where the Godot port lives and how to continue developing or integrate it. The course repository and its tagged snapshots provide the source reference. Future upstream destination, ownership, and integration arrangements are to be discussed with Alex; no repository transfer or ongoing support commitment is implied.
+This guide explains how to maintain the Godot port and integrate it into AMD Schola. The D4 handoff includes the source snapshot, runtime/editor packages, shared Python integration, production examples, trained RaceTrack policy, tests, and setup/usage documentation. Start from the tagged source for a reproducible release build or from `main` for ongoing development.
 
 ## Where everything is
 
@@ -14,7 +14,7 @@ This guide explains where the Godot port lives and how to continue developing or
 | `Godot/src/interop/` | Conversion of spaces and points at extension boundaries |
 | `Godot/addons/schola/` | Runtime descriptor, editor dock/Inspector/monitor, reusable GDScript components, and generated platform binaries |
 | `Godot/addons/schola_training/` | Separate training extension descriptor and generated binaries |
-| `Godot/examples/` | Current component, manual environment, multi-agent, and space-definition examples |
+| `Godot/examples/` | Current RaceTrack, camera, component, manual environment, multi-agent, and space-definition examples |
 | `Godot/tests/` | Catch2 unit/inference/transport tests and GdUnit4 integration suites |
 | `Godot/SConstruct`, `dependencies.lock.json`, `requirements*.txt` | Build targets, dependency/toolchain pins, and formatting tools |
 | `Godot/tools/`, `Godot/vendor/` | Dependency setup/verification, packaging, committed native packages, licenses, and provenance |
@@ -56,4 +56,4 @@ Update dependency versions centrally in the lock, acquisition scripts, manifests
 - Story records distinguish merged code, synthetic fixtures, real-trainer checks, and remaining upstream limitations. Consult [the story index](user_stories/README.md) and [remaining work](user_stories/remaining.md) before expanding scope.
 - Submitted demos and deliverable reports describe their own snapshots. Use current examples and developer docs for new work.
 
-For the partner walkthrough, start at the root README, use this map to locate each module, and show the clean source setup, tests, shared protocol boundary, and distribution channels. Record decisions from the Friday meeting in a new meeting record rather than guessing future AMD ownership arrangements.
+For the partner walkthrough, start at the root README, use this map to locate each module, and show the clean source setup, tests, shared protocol boundary, and distribution channels. Record future integration and ownership decisions in new meeting records as they are agreed with AMD.

@@ -95,11 +95,19 @@ Godot has an [upstream race](https://github.com/godotengine/godot/issues/98062) 
 
 ## Build and run
 
-From a fresh checkout:
+Install Git, Git LFS, and the supported toolchain above. Clone the source, then run the following from the repository root. The LFS files include native dependency packages and the RaceTrack policies used for playback.
+
+```sh
+git clone --recurse-submodules https://github.com/csc301-2026-f/20-AMD-Schola.git
+cd 20-AMD-Schola
+git lfs install
+```
+
+On Linux:
 
 ```sh
 git submodule update --init --recursive
-git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip" --exclude=""
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip,Godot/examples/race_track/policies/*.onnx" --exclude=""
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes -r Godot/requirements.txt
@@ -109,7 +117,23 @@ scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 godot --editor --path Godot
 ```
 
-For a runtime-only macOS build, skip gRPC setup, add the `schola` target, use `platform=macos arch=arm64`, and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. The committed gRPC training packages support Windows/Linux x86_64. On Windows, create the environment with `python -m venv .venv`, activate it with `.venv\Scripts\Activate.ps1`, then install the same requirements and native dependencies. Run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+On Windows, use an x64 Visual Studio developer shell:
+
+```powershell
+git submodule update --init --recursive
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip,Godot/examples/race_track/policies/*.onnx" --exclude=""
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r Godot/requirements.txt
+python Godot/tools/setup_onnxruntime.py
+python Godot/tools/setup_grpc.py
+scons -C Godot platform=windows target=template_debug
+godot --editor --path Godot
+```
+
+Use Python 3.12 for the virtual environment. `godot` denotes the Godot 4.7.2 executable on PATH; on Windows the console executable is useful for logs. For a runtime-only macOS build, use the Linux setup sequence but skip gRPC setup, add the `schola` target, use `platform=macos arch=arm64`, and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. The committed gRPC training packages support Windows/Linux x86_64. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+
+After building, open `examples/race_track/scenes/race_track_inference.tscn` and press F6 to watch the committed policy. Follow the [RaceTrack guide](examples/race_track/README.md) to install the Python training extras, train, export, and evaluate your own policy. The project's default scene is a small extension-loading probe.
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
@@ -360,11 +384,13 @@ python -m pip install -e "Resources/python[rllib]"
 
 The Python CLI workflow is documented for Windows/Linux; macOS runtime inference support does not establish Python CLI support. Follow the [multi-agent example](examples/multi_agent/README.md) for its full two-shell setup and command.
 
-Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. The command below is the one documented for Unreal Schola and has not yet been verified against Godot. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
+Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. For the [two-agent number-line scene](examples/multi_agent/README.md), the following RLlib PPO command trains both policies. Windows verification completed 4,096 environment steps; the [verification record](docs/verification.md) includes the current run and the earlier 300-episode review. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
 
 ```sh
-schola sb3 train ppo editor --port 8000 --timesteps 100000
+schola rllib train ppo --timesteps 4000 editor --port 8000
 ```
+
+For Stable-Baselines3 training and ONNX export, follow the [RaceTrack example](examples/race_track/README.md). It uses the existing Schola SB3 wrapper and handles its dictionary actions. Choose the trainer and policy for the scene's spaces; heterogeneous agents require RLlib.
 
 Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training.
 
@@ -501,6 +527,7 @@ Godot/
 ├── src/
 │   ├── core/
 │   │   ├── common/               Shared IDs and status values
+│   │   ├── adapters/             Observation transforms and stacking
 │   │   ├── connector/            Engine-independent connector loop
 │   │   ├── environment/          Environment and agent contracts
 │   │   ├── spaces/               Observation/action spaces and point values
@@ -521,10 +548,17 @@ Godot/
 │   ├── schola/                   Runtime add-on packaging
 │   └── schola_training/          Training-only add-on packaging
 ├── examples/
-│   └── basic_environment/       End-to-end demonstration environment
+│   ├── basic_environment/       Extension registration probe
+│   ├── race_track/              Production training, evaluation, and ONNX playback
+│   ├── camera_target/           Rendered image training/export and inference
+│   ├── multi_agent/             Heterogeneous two-agent training
+│   ├── manual_environment/      Debugging through the production host
+│   └── code_defined_spaces/     Programmatic observation/action spaces
 └── tests/
-    ├── unit/                    Fast tests for individual modules
-    └── integration/             Cross-module and Python compatibility tests
+    ├── unit/                    Engine-independent Catch2 tests
+    ├── inference/               ONNX compatibility and policy fixtures
+    ├── transport/               gRPC sessions and protocol conversion
+    └── integration/             Godot scene, binding, lifecycle, and UI tests
 ```
 
 ## Module boundaries

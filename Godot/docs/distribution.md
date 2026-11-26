@@ -73,4 +73,4 @@ Use `platform=windows` for Windows and `platform=macos arch=arm64` for macOS in 
 - **Model does not load:** check that the file exists and matches the agent's effective observation/action spaces, including stacking and recurrent state. Read the model-loading diagnostic.
 - **Python cannot connect:** start the training scene first, use the same localhost port in Python and Godot, and connect within `start_timeout_sec`. See [training configuration](../README.md#train-with-python).
 - **Headless import crashes after completing:** the known Godot first-import shutdown issue can require a retry. CI retries the known crash codes up to three times and fails persistent errors.
-- **Download unavailable:** inspect the relevant Actions run. A workflow definition or release URL alone does not establish that packages were successfully published.
+- **Actions artifact expired:** use the versioned D4 release package, or select a newer successful dev run. Keep the package's `BUILD.txt` when reporting an installation issue.

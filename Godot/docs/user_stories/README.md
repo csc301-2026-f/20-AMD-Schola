@@ -1,28 +1,26 @@
 # User stories
 
-This directory is the canonical home for the project's approved MVP and stretch stories, and current implementation progress.
+These are the approved MVP and stretch stories for the Godot port. The current implementation is the C++ GDExtension under `Godot/`; the Unreal implementation and shared Python trainers are the foundation it extends.
 
-| Story | Title | Owner(s) | Status |
-|---|---|---|---|
-| [US1](US1.md) | Define a reinforcement-learning environment | Isaac and Sanjay | Complete on main |
-| [US2](US2.md) | Declare observation and action spaces | Jimmy | Complete on main |
-| [US3](US3.md) | Connect to existing Python training tools | Sanjay and Isaac | Connector merged; trainer run pending |
-| [US4](US4.md) | Execute the episode lifecycle | Shahyar | Complete on main |
-| [US5](US5.md) | Configure Schola through Godot-native tools | Vansh | Native configuration merged |
-| [US7](US7.md) | Run and ship an ONNX policy | Bohdan | Complete on main |
-| [US8](US8.md) | Compose agents from reusable sensors and actuators | Guneev | Complete on main |
-| [US9](US9.md) | Test an environment without Python | Shahyar | Complete on main |
-| [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Merged; live trainer run with stacking unverified |
-| [US11](US11.md) | Observe the environment through a camera sensor | Bohdan and Vansh | In progress |
-| [US12](US12.md) | Train multiple agents simultaneously | Sanjay | Merged; full RLlib CLI training run pending |
-| [US13](US13.md) | Train and deploy through a production example | Bohdan | Complete on feature branch: RaceTrack with single- and multi-agent training; PR #50 awaiting review |
-| [US14](US14.md) | Read the state sequence length from the model | Jimmy | Merged; real-trainer sequence fixture blocked upstream |
-| [US15](US15.md) | Define observation and action spaces in code | Vansh | Complete on main |
+| Story | User outcome | Owner(s) | Delivery |
+| --- | --- | --- | --- |
+| [US1](US1.md) | Define an environment and its agents | Isaac and Sanjay | Complete on main |
+| [US2](US2.md) | Declare and validate observation/action spaces | Jimmy | Complete on main |
+| [US3](US3.md) | Train through existing Schola Python tools | Sanjay and Isaac | Complete on main; SB3 and RLlib trainer evidence |
+| [US4](US4.md) | Coordinate steps, results, resets, and episodes | Shahyar | Complete on main |
+| [US5](US5.md) | Configure Schola with native nodes and Inspector resources | Vansh | Complete on main |
+| [US7](US7.md) | Run and ship ONNX policies without Python | Bohdan | Complete on main |
+| [US8](US8.md) | Compose reusable sensors and actuators | Guneev | Complete on main |
+| [US9](US9.md) | Debug an environment without Python | Shahyar | Complete on main |
+| [US10](US10.md) | Stack observation history for training and inference | Jimmy and Shahyar | Complete on main; live stacked-observation training passed |
+| [US11](US11.md) | Use camera observations in training and inference | Bohdan and Vansh | Delivered on main; latest-completed-frame capture |
+| [US12](US12.md) | Train simultaneous agents | Sanjay | Complete on main; Windows RLlib training recorded |
+| [US13](US13.md) | Train, export, and deploy a production example | Bohdan | Complete on main; RaceTrack |
+| [US14](US14.md) | Read recurrent state sequence length from ONNX metadata | Jimmy | Implemented on main; trainer fixture limitation documented |
+| [US15](US15.md) | Define spaces through independent code hooks | Vansh | Complete on main |
 
-Alex approved US8-US14 at the [Nov. 6 partner meeting](../../../deliverables/team/minutes/partner-meeting-07.md). US8, US12, and US13 are the highest-priority MVP stories; US9, US10, US11, and US14 are stretch goals. Statuses were reviewed on Nov. 24, 2026 against main at `9a77d78`, GitHub PRs, and the active Godot implementation. Open PRs describe proposed work and are not evidence of functionality on main.
+Reviewed on November 26, 2026 against main at [`090ef506`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/090ef506f4a16c0e92c328743dfb5264f997903b), merged PRs, their review discussions, and the active registrations, examples, and tests. See the [verification record](../verification.md) for reproducible commands and results. RaceTrack, the camera workflow, independent space hooks, and the reviewed lifecycle/error-handling fixes are included in this implementation.
 
-US6 is not part of the approved MVP story set.
+Alex approved US8-US14 at the [November 6 partner meeting](../../../deliverables/team/minutes/partner-meeting-07.md). US8, US12, and US13 are the highest-priority MVP stories; US9, US10, US11, and US14 are stretch goals. US6 is outside the approved MVP set.
 
-See [US11](US11.md) for current camera sensor implementation and validation progress.
-
-See [Remaining work and future opportunities](remaining.md) for integration tasks and Unreal Schola capabilities that are not represented as active user stories.
+The individual records retain acceptance criteria, delivered behavior, and material limits. [Future opportunities](remaining.md) distinguishes product extensions from maintenance. Submitted deliverables and demos preserve their original snapshots.

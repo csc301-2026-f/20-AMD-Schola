@@ -1,25 +1,31 @@
-# Remaining work and future opportunities
+# Maintenance and future opportunities
 
 This document records work that is not represented as a separate active user story. Items here are not commitments. They should become stories only when a concrete user outcome, AMD priority, and maintainable cross-engine design justify the additional scope.
 
-## Required integration and release work
+## Maintenance of the delivered workflows
 
-These tasks complete or validate existing stories rather than introducing new product capabilities:
+RaceTrack, the camera pipeline, the Python connector, and simultaneous-agent training are merged. Existing story verification is recorded in the [story index](README.md) and [verification record](../verification.md). Future maintenance should:
 
-- Merge the [US13 RaceTrack example](US13.md), which trains through the [US3](US3.md) scene connector merged in PR #59.
-- Verify installation, Python training, export, local ONNX inference, and packaging together from a clean checkout. Include the simultaneous-agent training run tracked in [US12](US12.md).
-- Document the approved move from the specification's preferred C# implementation to the C++ GDExtension architecture.
-- Maintain setup, usage, architecture, troubleshooting, and packaging documentation.
-- Verify error behavior and Inspector configuration warnings consistently across Godot-facing APIs.
-- Confirm that exported games can omit training and transport dependencies.
-- Do not replace components in the frozen D1 or D2 demos; use a new current example for production integration.
+- Keep source setup, installation, training, export, inference, and troubleshooting instructions aligned with the supported dependencies.
+- Run the appropriate native and Godot integration suites after changes; preserve the required PR checks and platform package installation checks.
+- Repeat real-trainer smoke checks when the protocol, Python wrappers, spaces, or dependency versions change. Protocol fixtures and short PPO updates check compatibility; learned-policy quality is evaluated separately in RaceTrack.
+- Preserve the runtime/training extension split and verify exported games on their target platform. Windows export evidence and clean-project package loading have different scopes.
+- Maintain the dev and release distribution workflows, license notices, dependency provenance, and source revision records.
+- Preserve submitted D1-D3 artifacts. Put current examples and future improvements under `Godot/examples/` and `Godot/docs/`.
+
+## Specific extension and validation opportunities
+
+- **Camera learning benchmark:** Train and evaluate a vision policy beyond the existing camera smoke/export checks. Broaden real-renderer, platform, and exported-game coverage. Latest-completed-frame capture remains the delivered contract.
+- **Recurrent trainer fixture:** Add an end-to-end trainer-exported sequence-dimension model when the shared old-stack RLlib export path supports it. The metadata reader, synthetic sequence fixture, and ordinary recurrent-model paths already have tests; see [US14](US14.md).
+- **Stacking breadth:** The live trainer check covers a 3-frame Box stack. Preserve the core/integration coverage for Dict stacking, padding, ordering, independent histories, and reset behavior; add representative real-trainer cases when those workflows change.
+- **Multi-agent benchmarking:** The number-line example trains distinct policies and RaceTrack supplies shared-policy scenes. Longer cooperative/competitive benchmarks, saved multi-agent RaceTrack policies, and broader dynamic-population trainer runs are additional evidence, rather than missing baseline multi-agent functionality.
 
 ## Possible cross-engine follow-ups
 
 These capabilities already exist in Unreal Schola or have a clear equivalent, but are not currently proposed as course commitments:
 
 - **Parallel headless training:** Run multiple isolated environment instances in one Godot process using its supported headless mode. Validate stable environment IDs, isolated episode state, session-wide failure behavior, configuration documentation, and a simple throughput comparison. Camera observations would require a supported renderer or a clear incompatibility error. Distributed training across machines or processes remains out of scope.
-- Additional actuator types beyond the movement, rotation and teleport nodes on main.
+- Additional actuator types beyond the movement, rotation, teleport, and vehicle components on main.
 - Additional non-visual sensors beyond the merged US8 composition contract.
 - Text spaces and points if the shared protocol and Python consumers require them.
 - Pipelined inference, but only if profiling demonstrates that synchronous inference causes unacceptable frame stalls.
