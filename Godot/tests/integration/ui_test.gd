@@ -26,6 +26,50 @@ func test_monitor_accumulates_rewards_and_resets() -> void:
 	assert_str(monitor._status.text).contains("Receiving")
 
 
+func test_monitor_updates_agent_rows_in_place_each_step() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	add_child(monitor)
+	monitor.begin_episode(1, PackedStringArray(["A", "B"]))
+	var rows := monitor._agents.get_root().get_children()
+	rows[1].select(0)
+
+	for index in range(3):
+		monitor.record_step({"A": 1.0, "B": -0.5})
+
+	# Same rows, still selected, showing the latest values
+	assert_array(monitor._agents.get_root().get_children()).is_equal(rows)
+	assert_object(monitor._agents.get_selected()).is_same(rows[1])
+	assert_str(rows[0].get_text(1)).is_equal("+1.000")
+	assert_str(rows[0].get_text(2)).is_equal("+3.000")
+	assert_str(rows[1].get_text(2)).is_equal("-1.500")
+	monitor.end_episode()
+	assert_str(rows[1].get_text(3)).is_equal("Ended")
+
+	# A new roster gets new rows
+	monitor.begin_episode(2, PackedStringArray(["C"]))
+	var next := monitor._agents.get_root().get_children()
+	assert_int(next.size()).is_equal(1)
+	assert_str(next[0].get_text(0)).is_equal("C")
+	assert_str(next[0].get_text(1)).is_equal("—")
+
+	# A roster changed without begin_episode() is picked up, not a crash
+	monitor.agent_returns["D"] = 0.0
+	monitor.record_step({"C": 2.0, "D": 1.0})
+	assert_int(monitor._agents.get_root().get_child_count()).is_equal(2)
+	assert_str(monitor._agents.get_root().get_child(1).get_text(2)).is_equal("+1.000")
+
+
+func test_monitor_keeps_a_minimum_size_set_before_it_is_ready() -> void:
+	var sized: ScholaMonitor = auto_free(Monitor.new())
+	sized.custom_minimum_size.x = 360
+	add_child(sized)
+	assert_vector(sized.custom_minimum_size).is_equal(Vector2(360, 380))
+
+	var unsized: ScholaMonitor = auto_free(Monitor.new())
+	add_child(unsized)
+	assert_vector(unsized.custom_minimum_size).is_equal(Vector2(300, 380))
+
+
 func test_monitor_bounds_history_and_handles_empty_episode() -> void:
 	var monitor: ScholaMonitor = auto_free(Monitor.new())
 	add_child(monitor)
@@ -39,6 +83,24 @@ func test_monitor_bounds_history_and_handles_empty_episode() -> void:
 	assert_bool(monitor._empty.visible).is_true()
 	monitor.end_episode()
 	assert_str(monitor._status.text).contains("Terminated")
+
+
+func test_monitor_warns_once_per_episode_and_names_the_agent() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	add_child(monitor)
+	monitor.begin_episode(1, PackedStringArray(["A"]))
+	for index in range(3):
+		monitor.record_step({"A": 1.0, "spawned": 0.0})
+	assert_int(monitor.step).is_equal(0)
+	assert_str(monitor._warning).contains("agent 'spawned' was not declared")
+	# Later rejections in the same episode stay quiet
+	monitor.record_step({"A": NAN})
+	assert_str(monitor._warning).contains("'spawned'")
+
+	monitor.begin_episode(2, PackedStringArray(["A"]))
+	assert_str(monitor._warning).is_empty()
+	monitor.record_step({"A": "fast"})
+	assert_str(monitor._warning).contains("reward for agent 'A' must be a finite number")
 
 
 func test_preview_controls_drive_only_sample_telemetry() -> void:
@@ -56,3 +118,16 @@ func test_preview_controls_drive_only_sample_telemetry() -> void:
 	assert_int(preview.monitor.step).is_equal(60)
 	assert_bool(preview.monitor.is_episode_active()).is_false()
 	assert_str(preview.monitor._status.text).contains("Truncated")
+
+
+func test_monitor_text_is_light_on_its_dark_panel() -> void:
+	var monitor: ScholaMonitor = auto_free(Monitor.new())
+	var inherited_theme := Theme.new()
+	inherited_theme.set_color("font_color", "Tree", Color.BLACK)
+	inherited_theme.set_color("title_button_color", "Tree", Color.BLACK)
+	monitor.theme = inherited_theme
+	add_child(monitor)
+	assert_that(monitor._heading.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._episode_value.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._agents.get_theme_color("font_color")).is_equal(Color("eef2fa"))
+	assert_that(monitor._agents.get_theme_color("title_button_color")).is_equal(Color("eef2fa"))

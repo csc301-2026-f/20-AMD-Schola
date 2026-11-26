@@ -190,6 +190,11 @@ TEST_CASE("an invalid point is rejected with an error that names the failing ind
 		CHECK(message_contains(status, "index 1"));
 		CHECK(message_contains(status, "7.5"));
 	}
+	SECTION("a value just past its bound does not print as the bound") {
+		const float past_high = std::nextafter(5.0f, 6.0f);
+		CHECK(message_contains(box.validate(Point(BoxPoint{ { 1, past_high, 2 } })), "is 5.0000005, outside [0, 5]"));
+		CHECK(message_contains(make_box({ past_high }, { 5 }, { 1 }).check_definition(), "(5.0000005) is greater than high[0] (5)"));
+	}
 	SECTION("NaN Box value") {
 		CHECK(message_contains(box.validate(Point(BoxPoint{ { 1, 1, std::nanf("") } })), "index 2 is NaN"));
 	}

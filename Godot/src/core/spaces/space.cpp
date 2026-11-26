@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <iomanip>
 #include <limits>
 #include <set>
 #include <sstream>
@@ -118,9 +120,17 @@ std::string format_list(const std::vector<T> &p_values) {
 	return stream.str();
 }
 
+// Prints the fewest digits that read back as the same float. Six digits are
+// usually enough, but 1.0000001 would print as "1" and look like a valid bound.
 std::string format_float(float p_value) {
 	std::ostringstream stream;
-	stream << p_value;
+	for (int digits = 6; digits <= std::numeric_limits<float>::max_digits10; ++digits) {
+		stream.str("");
+		stream << std::setprecision(digits) << p_value;
+		if (std::strtof(stream.str().c_str(), nullptr) == p_value) {
+			break;
+		}
+	}
 	return stream.str();
 }
 

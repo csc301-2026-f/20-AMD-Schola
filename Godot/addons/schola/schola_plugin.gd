@@ -34,7 +34,10 @@ func _enter_tree() -> void:
 	_capabilities = Label.new()
 	_capabilities.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dock_content.add_child(_capabilities)
-	_button("Open interactive UI preview", func(): get_editor_interface().open_scene_from_path(PREVIEW))
+	# The preview scene ships with this repository's project, not with the add-on,
+	# so projects that only copy addons/schola/ don't get a button that can't work.
+	if ResourceLoader.exists(PREVIEW):
+		_button("Open interactive UI preview", func(): get_editor_interface().open_scene_from_path(PREVIEW))
 	_button("Add monitor to current scene", _add_monitor)
 	var caption := Label.new()
 	caption.text = "SCENE NODES · select to inspect"
@@ -42,11 +45,14 @@ func _enter_tree() -> void:
 	_nodes = ItemList.new()
 	_nodes.custom_minimum_size.y = 180
 	_nodes.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# Clicking the same entry again should re-select its node after the user
+	# picked something else in the Scene dock.
+	_nodes.allow_reselect = true
 	_nodes.item_selected.connect(_inspect_node)
 	_dock_content.add_child(_nodes)
 	_button("Refresh scene & capabilities", _refresh)
 	var note := Label.new()
-	note.text = "Configure selected nodes in the Inspector.\nThe monitor accepts telemetry from your lifecycle code. Training and inference controls become available when their native APIs are implemented."
+	note.text = "Configure selected nodes in the Inspector.\nFeed the monitor from your lifecycle code. Use ScholaTrainingConnector for Python training and ScholaInferenceStepper for ONNX playback when those native classes are available."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dock_content.add_child(note)
 	add_control_to_dock(DOCK_SLOT_RIGHT_UL, _dock)
@@ -98,7 +104,9 @@ func _collect_nodes(node: Node, root: Node) -> void:
 
 
 func _inspect_node(index: int) -> void:
-	if index >= _scene_nodes.size() or not is_instance_valid(_scene_nodes[index]):
+	# Nodes deleted in the editor stay alive for undo, so a valid instance may
+	# already be gone from the scene.
+	if index >= _scene_nodes.size() or not is_instance_valid(_scene_nodes[index]) or not _scene_nodes[index].is_inside_tree():
 		_refresh()
 		return
 	var selection := get_editor_interface().get_selection()

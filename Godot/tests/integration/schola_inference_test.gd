@@ -78,6 +78,16 @@ func test_infer_needs_a_state_for_a_model_with_memory() -> void:
 	assert_str(policy.get_last_error()).contains("create_state()")
 
 
+func test_infer_rejects_a_state_that_did_not_come_from_create_state() -> void:
+	var policy := _policy("box_scale.onnx")
+	assert_int(policy.initialize(_agent(3, 3, null))).is_equal(OK)
+
+	# A stateless model, so the error must not claim it has memory
+	assert_that(policy.infer(PackedFloat32Array([1.0, 2.0, 3.0]), ScholaPolicyState.new())).is_null()
+	assert_str(policy.get_last_error()).contains("must come from create_state()")
+	assert_str(policy.get_last_error()).not_contains("memory")
+
+
 func test_last_error_is_cleared_by_the_next_call() -> void:
 	var policy := _policy("box_scale.onnx")
 	assert_int(policy.load()).is_equal(OK)
@@ -375,6 +385,25 @@ func test_stepper_reports_a_changed_policy() -> void:
 	assert_str(messages[0]).starts_with("ScholaInferenceStepper.policy: ")
 
 
+func test_stepper_reports_the_same_failure_again_after_a_policy_change() -> void:
+	var messages: Array = []
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = _policy("box_scale.onnx")
+	stepper.enabled = false
+	add_child(stepper)
+	# The observation is the wrong size, so every step fails with the same message
+	var agent := _agent(3, 3, PackedFloat32Array([1.0]))
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	assert_int(stepper.step()).is_not_equal(OK)
+
+	stepper.policy = _policy("box_scale.onnx")
+	assert_int(stepper.add_agent(agent)).is_equal(OK)
+	stepper.inference_failed.connect(func(message: String) -> void: messages.append(message))
+	assert_int(stepper.step()).is_not_equal(OK)
+	assert_int(messages.size()).is_equal(1)
+	assert_str(messages[0]).starts_with("ScholaInferenceStepper.step: ")
+
+
 func test_stepper_rejects_an_agent_outside_the_tree() -> void:
 	var messages: Array = []
 	var agent: ScholaAgent = auto_free(TestAgent.new())
@@ -572,6 +601,26 @@ func test_stepper_warns_about_missing_configuration() -> void:
 	var errors := stepper.get_configuration_errors()
 	assert_str(errors[0]).contains("policy")
 	assert_str(errors[1]).contains("missing")
+
+
+func test_stepper_follows_edits_to_its_policy() -> void:
+	var policy := ScholaOnnxPolicy.new()
+	var changes := [0]
+	policy.changed.connect(func() -> void: changes[0] += 1)
+	policy.model_path = FIXTURES + "box_scale.onnx"
+	policy.model_path = FIXTURES + "box_scale.onnx"
+	assert_int(changes[0]).is_equal(1)
+
+	# The stepper listens to its current policy only, so its warnings refresh on edits
+	var stepper: ScholaInferenceStepper = auto_free(ScholaInferenceStepper.new())
+	stepper.policy = policy
+	assert_bool(_listeners(policy).has(stepper)).is_true()
+	stepper.policy = null
+	assert_bool(_listeners(policy).has(stepper)).is_false()
+
+
+func _listeners(policy: ScholaOnnxPolicy) -> Array:
+	return policy.changed.get_connections().map(func(connection: Dictionary) -> Object: return connection["callable"].get_object())
 
 func test_stepper_uses_stacked_space_and_resets_observation_history() -> void:
 	var agent := _agent(1, 3, PackedFloat32Array([1.0]))
