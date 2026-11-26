@@ -72,6 +72,22 @@ func test_capture_before_the_next_frame_returns_the_previous_frame() -> void:
 	_assert_values(sensor._observe(), _planes([0, 0, 200]))
 
 
+func test_when_visible_viewport_shown_on_screen_is_captured() -> void:
+	var viewport := _solid(Color8(200, 0, 0))
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	var shown: TextureRect = auto_free(TextureRect.new())
+	shown.texture = viewport.get_texture()
+	shown.size = Vector2(16, 16)
+	add_child(shown)
+	var sensor := _camera(viewport, 7)
+	assert_array(Array(sensor.get_configuration_errors())).is_empty()
+	await _render()
+	_assert_values(sensor._observe(), _planes([200, 0, 0]))
+	(viewport.get_child(0) as ColorRect).color = Color8(0, 0, 200)
+	await _render()
+	_assert_values(sensor._observe(), _planes([0, 0, 200]))
+
+
 func test_removed_viewport_stops_observations() -> void:
 	var viewport := _solid(Color8(200, 0, 0))
 	var sensor := _camera(viewport, 7)

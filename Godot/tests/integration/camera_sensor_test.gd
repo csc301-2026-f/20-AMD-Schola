@@ -8,7 +8,8 @@ const SOURCE_ERROR := "Camera sources must reference SubViewport nodes."
 const SIZE_ERROR := "Source viewport size must match the image width and height."
 const HEADLESS_ERROR := "Camera readback requires a rendering display; use ScholaFakeCameraSensor for headless runs."
 const MINIMUM_ERROR := "Camera images must be at least 2x2 pixels because Godot SubViewports are never smaller."
-const UPDATE_ERROR := "Source viewports must render for each capture; set render_target_update_mode to Always, or to Once before each capture."
+const UPDATE_ERROR := "Source viewports must render for each capture; set render_target_update_mode to Always, When Visible while the viewport is displayed, or Once before each capture."
+const WHEN_VISIBLE_WARNING := "A When Visible source viewport renders only while something displays it; otherwise captures repeat its last frame."
 const HDR_ERROR := "Source viewports must not use HDR 2D, which produces linear values above 1."
 
 var agent: ScholaAgent
@@ -151,15 +152,19 @@ func test_viewports_that_stop_rendering_are_reported() -> void:
 	var color := _viewport("Color", Vector2i(8, 4))
 	sensor.viewport_path = sensor.get_path_to(color)
 	var cases := [
-		[SubViewport.UPDATE_DISABLED, true],
-		[SubViewport.UPDATE_WHEN_VISIBLE, true],
-		[SubViewport.UPDATE_ONCE, false],
-		[SubViewport.UPDATE_WHEN_PARENT_VISIBLE, false],
-		[SubViewport.UPDATE_ALWAYS, false],
+		[SubViewport.UPDATE_DISABLED, true, false],
+		[SubViewport.UPDATE_WHEN_VISIBLE, false, true],
+		[SubViewport.UPDATE_ONCE, false, false],
+		[SubViewport.UPDATE_WHEN_PARENT_VISIBLE, false, false],
+		[SubViewport.UPDATE_ALWAYS, false, false],
 	]
 	for case in cases:
 		color.render_target_update_mode = case[0]
 		assert_bool(sensor.get_configuration_errors().has(UPDATE_ERROR)).is_equal(case[1])
+		var warnings := sensor._get_configuration_warnings()
+		assert_bool(warnings.has(UPDATE_ERROR)).is_equal(case[1])
+		assert_bool(warnings.has(WHEN_VISIBLE_WARNING)).is_equal(case[2])
+		assert_bool(warnings.has(HEADLESS_ERROR)).is_equal(DisplayServer.get_name() == "headless")
 	var depth := _viewport("Depth", Vector2i(8, 4))
 	depth.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	sensor.depth_viewport_path = sensor.get_path_to(depth)
