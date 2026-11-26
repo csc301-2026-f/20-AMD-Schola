@@ -42,6 +42,20 @@ These rules define where work may execute, not the queue type, lifecycle sequenc
 
 Engine-independent modules use the shared `schola::Status` and `StatusCode` declarations in `src/core/common/status.h` for recoverable cross-module failures. A module-specific result type may carry domain data, but it must not introduce a competing project-wide error channel without a separately reviewed contract change.
 
+### Godot-facing failures
+
+Godot classes report failures the same way:
+
+- `src/interop/godot_status.h` is the only place that turns a `schola::Status` into a Godot `Error`.
+- A method that can fail returns a Godot `Error`. A method that returns a value returns `null` or an empty value on failure. Validation methods such as `ScholaSpace.get_validation_error()` return the reason as text, or an empty string when the value is valid.
+- Messages start with the class and method, then the reason, for example `ScholaOnnxPolicy.load: cannot read 'res://model.onnx'`. Build them with `with_context()` or `report_failure()` from `godot_status.h` instead of formatting the prefix by hand. `report_failure()` also prints the message with `push_error`.
+- A class that stores its last error clears it at the start of every call, so it always describes the latest call. `ScholaOnnxPolicy` and `ScholaPolicyState` expose it through `get_last_error()`.
+- Nodes that run by themselves also emit a failure signal, because no caller is waiting for a return value: `ScholaInferenceStepper.inference_failed` and `ScholaTrainingConnector.training_finished`.
+- Scene-setup mistakes appear as editor configuration warnings before the game runs.
+- Failures never throw or crash the game.
+
+`ScholaTrainingHost` does not return a Godot `Error`. Each method returns `{status: {code, message}, value}`, where `code` is a `schola::StatusCode`, because its callers, the training connector and US9's manual testing tools, need Schola's own code to report failures to Python and the value on success. Its messages use the same `ScholaTrainingHost.<method>: reason` form.
+
 ## Protocol Buffer generation
 
 - The existing definitions under the repository-level `Proto/` directory are the shared Schola wire contract and are authoritative for every engine and the Python package. They are not Unreal-only. Godot integration code must not create `Godot/Proto/` or maintain another divergent copy of those definitions.

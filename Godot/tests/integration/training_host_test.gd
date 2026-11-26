@@ -348,6 +348,25 @@ func test_duplicate_initialization_and_operations_before_initialization_fail() -
 	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_FAILED_PRECONDITION)
 
 
+func test_failures_name_the_host_method_that_failed() -> void:
+	var root := _test_root()
+	_add_environment(root, "Environment", "agent")
+	var host := _add_host(root)
+
+	assert_str(_status_message(host.define())).starts_with("ScholaTrainingHost.define: ")
+	assert_str(_status_message(host.reset({}))).starts_with("ScholaTrainingHost.reset: ")
+	assert_str(_status_message(host.step({"actions": []}))).starts_with("ScholaTrainingHost.step: ")
+	assert_int(_status_code(host.initialize_session())).is_equal(STATUS_OK)
+	assert_str(_status_message(host.initialize_session())).is_equal("ScholaTrainingHost.initialize_session: training session is already initialized")
+	var mode := host.set_autoreset_mode(1 << 40)
+	assert_int(_status_code(mode)).is_equal(STATUS_INVALID_ARGUMENT)
+	assert_str(_status_message(mode)).is_equal("ScholaTrainingHost.set_autoreset_mode: unknown autoreset mode")
+	assert_str(_status_message(host.set_autoreset_mode(AUTORESET_DISABLED))).is_empty()
+	assert_str(_status_message(host.define())).is_empty()
+	assert_int(_status_code(host.close())).is_equal(STATUS_OK)
+	assert_str(_status_message(host.close())).is_empty()
+
+
 func test_freed_environment_fails_and_closes_session() -> void:
 	var root := _test_root()
 	var environment := _add_environment(root, "FreedEnvironment", "agent")
