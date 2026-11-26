@@ -464,7 +464,7 @@ A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPol
 
 Add a `ScholaStacker` Resource to the agent's `observation_adapters` array to give the policy recent observations. Keep the agent's `observation_space` and `_observe()` output in the original format. The agent applies Resources in array order and reports the final space to the trainer or policy. Set the output kind to Box for axis-based stacking or Dict for slot-suffixed keys. Slot zero is newest. An unset `default_point` uses the input space's default. Agents can share a stacker Resource and each agent keeps its own history. Training resets history automatically at episode start. With local inference, call the stepper's `reset_state(agent)` or `reset_states()` when starting an episode.
 
-Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [inference guide](docs/inference.md) for the full guide, recurrent models, the model contract, and error handling.
 
 ## Dynamic training populations
 

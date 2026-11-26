@@ -100,7 +100,7 @@ Runtime package loading, in-editor inference, and exported-game playback have se
 | Reuse the shared Schola protocol and Python trainers | [Training setup](../README.md#train-with-python), SB3 and RLlib runs above, [US3](user_stories/US3.md) |
 | Simultaneous agents and independent/shared rewards | [Number-line example](../examples/multi_agent/README.md), [US12](user_stories/US12.md), heterogeneous-policy trainer results above |
 | A production example demonstrates successful learning | [RaceTrack](../examples/race_track/README.md), trained/untrained evaluation above, [US13](user_stories/US13.md) |
-| Run trained policies inside gameplay without Python | [Inference and export guide](us7_inference_api.rst), current ONNX playback above, [US7](user_stories/US7.md) |
+| Run trained policies inside gameplay without Python | [Inference and export guide](inference.md), current ONNX playback above, [US7](user_stories/US7.md) |
 | Current workflows, installation, and user access | [Root README](../../README.md), [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4), [installation/update/rollback guide](distribution.md) |
 | Automatic dev and release/prod distribution | [Distribution channels](distribution.md#channels-and-package-contents), [required CI](../../.github/workflows/godot.yml), [platform packaging](../../.github/workflows/godot-packages.yml), [D4 publisher](../../.github/workflows/d4-release.yml) |
 | Reliable automated core and frontend-facing tests | Native suites plus Godot scene, Inspector-warning, dock/monitor, and integration tests; [passing CI](https://github.com/csc301-2026-f/20-AMD-Schola/actions/runs/45760521033) |
