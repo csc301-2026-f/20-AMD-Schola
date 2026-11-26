@@ -15,7 +15,7 @@ This directory is the canonical home for the project's approved MVP and stretch 
 | [US10](US10.md) | Stack recent observations | Jimmy and Shahyar | Merged; live trainer run with stacking unverified |
 | [US11](US11.md) | Observe the environment through a camera sensor | Bohdan and Vansh | Camera components on main; workflow in PR #60 |
 | [US12](US12.md) | Train multiple agents simultaneously | Sanjay | Merged; full RLlib CLI training run pending |
-| [US13](US13.md) | Train and deploy through a production example | Bohdan | RaceTrack draft on feature branch; end-to-end proof pending |
+| [US13](US13.md) | Train and deploy through a production example | Bohdan | Complete on feature branch: RaceTrack with single- and multi-agent training; PR #50 awaiting review |
 | [US14](US14.md) | Read the state sequence length from the model | Jimmy | Merged; real-trainer sequence fixture blocked upstream |
 | [US15](US15.md) | Define observation and action spaces in code | Vansh | Complete on main |
 
