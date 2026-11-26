@@ -6,6 +6,7 @@
 #include "bindings/environment/schola_environment.h"
 #include "core/environment/interaction_definition.h"
 
+#include "interop/godot_status.h"
 #include "interop/space_dictionary.h"
 #include "interop/variant_conversion.h"
 
@@ -13,7 +14,6 @@
 #include <godot_cpp/classes/thread.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <cstdint>
 #include <limits>
@@ -377,9 +377,9 @@ godot::Dictionary encode_step_result(const schola::StepResult &result) {
 	return encoded;
 }
 
-godot::Dictionary encode_result(const schola::Status &status, const godot::Variant &value = godot::Variant()) {
+godot::Dictionary encode_result(const char *p_method, const schola::Status &status, const godot::Variant &value = godot::Variant()) {
 	godot::Dictionary result;
-	result["status"] = encode_status(status);
+	result["status"] = encode_status(with_context(std::string("ScholaTrainingHost.") + p_method, status));
 	result["value"] = value;
 	return result;
 }
@@ -599,130 +599,128 @@ schola::Status ScholaTrainingHost::shutdown_core() {
 godot::Dictionary ScholaTrainingHost::initialize_session() {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("initialize_session", thread_status);
 	}
 
-	return encode_result(initialize_session_core());
+	return encode_result("initialize_session", initialize_session_core());
 }
 
 godot::Dictionary ScholaTrainingHost::set_autoreset_mode(int64_t p_mode) {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("set_autoreset_mode", thread_status);
 	}
 
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
-		return encode_result(active);
+		return encode_result("set_autoreset_mode", active);
 	}
 
 	schola::Status nodes = validate_environment_nodes();
 	if (!nodes.is_ok()) {
-		return encode_result(fail_session(nodes));
+		return encode_result("set_autoreset_mode", fail_session(nodes));
 	}
 
 	// AutoResetMode is an int underneath, so a wider value would wrap into a valid
 	// mode (2^32 becomes SAME_STEP). Reject it before the cast; the coordinator
 	// checks everything in range.
 	if (p_mode < std::numeric_limits<int32_t>::min() || p_mode > std::numeric_limits<int32_t>::max()) {
-		return encode_result(schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "unknown autoreset mode"));
+		return encode_result("set_autoreset_mode", schola::Status::error(schola::StatusCode::INVALID_ARGUMENT, "unknown autoreset mode"));
 	}
-	return encode_result(coordinator.set_autoreset_mode(
-			static_cast<schola::AutoResetMode>(p_mode)));
+	return encode_result("set_autoreset_mode", coordinator.set_autoreset_mode(static_cast<schola::AutoResetMode>(p_mode)));
 }
 
 godot::Dictionary ScholaTrainingHost::define() {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("define", thread_status);
 	}
 
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
-		return encode_result(active);
+		return encode_result("define", active);
 	}
 
 	schola::Status nodes = validate_environment_nodes();
 	if (!nodes.is_ok()) {
-		return encode_result(fail_session(nodes));
+		return encode_result("define", fail_session(nodes));
 	}
 
 	schola::TrainingDefinition definition;
 	schola::Status status = run_coordinator([&] { return coordinator.define(definition); });
 	if (!status.is_ok()) {
-		return encode_result(status);
+		return encode_result("define", status);
 	}
 
 	training_definition = definition;
-	return encode_result(status, encode_training_definition(definition));
+	return encode_result("define", status, encode_training_definition(definition));
 }
 
 godot::Dictionary ScholaTrainingHost::reset(const godot::Dictionary &p_request) {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("reset", thread_status);
 	}
 
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
-		return encode_result(active);
+		return encode_result("reset", active);
 	}
 
 	schola::Status nodes = validate_environment_nodes();
 	if (!nodes.is_ok()) {
-		return encode_result(fail_session(nodes));
+		return encode_result("reset", fail_session(nodes));
 	}
 
 	schola::ResetRequest request;
 	schola::Status status = decode_reset_request(p_request, request);
 	if (!status.is_ok()) {
-		return encode_result(status);
+		return encode_result("reset", status);
 	}
 
 	schola::InitialState state;
 	status = run_coordinator([&] { return coordinator.reset(request, state); });
-	return status.is_ok() ? encode_result(status, encode_initial_state(state)) : encode_result(status);
+	return status.is_ok() ? encode_result("reset", status, encode_initial_state(state)) : encode_result("reset", status);
 }
 
 godot::Dictionary ScholaTrainingHost::step(const godot::Dictionary &p_request) {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("step", thread_status);
 	}
 
 	schola::Status active = require_active_session();
 	if (!active.is_ok()) {
-		return encode_result(active);
+		return encode_result("step", active);
 	}
 
 	schola::Status nodes = validate_environment_nodes();
 	if (!nodes.is_ok()) {
-		return encode_result(fail_session(nodes));
+		return encode_result("step", fail_session(nodes));
 	}
 
 	if (!training_definition.has_value()) {
-		return encode_result(schola::Status::error(schola::StatusCode::FAILED_PRECONDITION,
-				"training session is not defined"));
+		return encode_result("step", schola::Status::error(schola::StatusCode::FAILED_PRECONDITION, "training session is not defined"));
 	}
 
 	schola::StepRequest request;
 	schola::Status status = decode_step_request(p_request, *training_definition, request);
 	if (!status.is_ok()) {
-		return encode_result(status);
+		return encode_result("step", status);
 	}
 
 	schola::StepResult result;
 	status = run_coordinator([&] { return coordinator.step(request, result); });
-	return status.is_ok() ? encode_result(status, encode_step_result(result)) : encode_result(status);
+	return status.is_ok() ? encode_result("step", status, encode_step_result(result)) : encode_result("step", status);
 }
 
 godot::Dictionary ScholaTrainingHost::close() {
 	schola::Status thread_status = require_main_thread();
 	if (!thread_status.is_ok()) {
-		return encode_result(thread_status);
+		return encode_result("close", thread_status);
 	}
 
-	return encode_result(shutdown_core());
+	return encode_result("close", shutdown_core());
 }
 
 bool ScholaTrainingHost::is_session_active() const {
@@ -732,8 +730,7 @@ bool ScholaTrainingHost::is_session_active() const {
 void ScholaTrainingHost::_exit_tree() {
 	schola::Status status = shutdown_core();
 	if (!status.is_ok()) {
-		godot::UtilityFunctions::push_error(
-				godot::String("ScholaTrainingHost shutdown failed: ") + godot::String::utf8(status.get_message().c_str()));
+		(void)report_failure("ScholaTrainingHost._exit_tree: shutdown failed", status);
 	}
 }
 
