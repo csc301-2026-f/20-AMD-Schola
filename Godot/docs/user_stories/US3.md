@@ -1,8 +1,8 @@
 # US3: Connect to existing Python training tools
 
 - **Owner:** Sanjay and Isaac
-- **Status:** Connector merged on main; full Python trainer run pending
-- **Last updated:** Nov. 24, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -19,7 +19,7 @@ As an ML practitioner, I want a Godot environment to connect to Schola's existin
 
 ## Progress
 
-- The gRPC server, RPC dispatch and transport tests merged in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47) ([`87d77bb`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/87d77bb)). `ScholaTrainingConnector` and `HostTrainingBackend` merged in [PR #59](https://github.com/csc301-2026-f/20-AMD-Schola/pull/59). A full training run with Schola’s Python trainer remains unverified; [US12](US12.md) records a Python client check over multiple episodes and the pending RLlib CLI run.
+- The gRPC server, RPC dispatch and transport tests merged in [PR #47](https://github.com/csc301-2026-f/20-AMD-Schola/pull/47) ([`87d77bb`](https://github.com/csc301-2026-f/20-AMD-Schola/commit/87d77bb)). `ScholaTrainingConnector` and `HostTrainingBackend` merged in [PR #59](https://github.com/csc301-2026-f/20-AMD-Schola/pull/59). The [US13 RaceTrack example](US13.md), merged in [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50), trains through this connector with Schola's Stable-Baselines3 trainer (`schola.sb3.VecEnv` over `GrpcProtocol`); its committed policy comes from a 650,000-step run. [US12](US12.md) records a Python client check over multiple episodes and the pending RLlib CLI run.
 - `ScholaTrainingConnector` is the one node a user adds to a scene, like Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the scene through its own internal `ScholaTrainingHost` (US4) and blocks each physics frame until Python's next reset or step. `HostTrainingBackend` calls that host by method name, so the training extension does not link runtime C++ classes; spaces cross as Dictionaries rebuilt with `dictionary_to_space()` in `src/interop`, and points as Variants. Python drives the session: `StartGymConnector` → `set_autoreset_mode` (which first calls the host's `initialize_session()`, so an untrainable scene fails here and Python gets the error as its reply) → `RequestTrainingDefinition` → `define` → repeated `UpdateState` → `reset`/`step`, until Python's CLOSE ends the session. The connector then waits for a new session, as added in [PR #61](https://github.com/csc301-2026-f/20-AMD-Schola/pull/61). Usage is in the [Godot README](../../README.md#train-with-python).
 - New tests:
   - `tests/unit/connector_loop_test.cpp` checks that `ConnectorLoop::ended_normally()` is true only after Python's CLOSE (not after a disconnect or timeout) and is cleared by the next `start()`.
@@ -34,4 +34,5 @@ As an ML practitioner, I want a Godot environment to connect to Schola's existin
 - Connector waits are bounded by timeouts, and a Python disconnect ends the session. Messages up to 100 MB are allowed, so large observations such as camera images fit.
 - Eight tests check the connector over a real network connection on one machine. A small C++ client plays Python and a fake game plays Godot. One test runs a whole session with two environments of two agents each and checks that every action and reward reaches the right agent. One sends an 8 MB observation. The rest break the session on purpose: Python never connects, goes silent, reports its own error, or hangs up mid-call; the game fails; or the port is already taken. Each ends with a clear error instead of hanging. The tests pass locally on Windows.
 - The transport had only been built on Linux before. On Windows, a Windows macro named `ERROR` broke Schola's generated `ERROR` status value. Defining `NOGDI` for gRPC builds keeps that macro out.
+- Fixes since: an infinite connector timeout waits forever instead of stopping at once ([PR #77](https://github.com/csc301-2026-f/20-AMD-Schola/pull/77)), a reply too large to send fails the session instead of being reported as sent ([PR #79](https://github.com/csc301-2026-f/20-AMD-Schola/pull/79)), and Box and MultiDiscrete values are copied into replies in bulk instead of one at a time ([PR #91](https://github.com/csc301-2026-f/20-AMD-Schola/pull/91)).
 - The D3 demo uses the localhost JSON/TCP stand-in and a tabular learner. Its runner calls the native US4 host, but does not exercise the production gRPC connector.

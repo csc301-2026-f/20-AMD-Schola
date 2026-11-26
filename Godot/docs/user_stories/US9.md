@@ -1,9 +1,9 @@
 # US9: Test an environment without Python
 
 - **Owner:** Shahyar
-- **Status:** Complete
+- **Status:** Complete on main
 - **Priority:** Stretch goal
-- **Last updated:** Nov. 24, 2026
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -25,8 +25,7 @@ Unreal Schola provides a manual connector for testing and debugging without an e
 
 ## Progress
 
-The manual debugging example merged in [PR #57](https://github.com/csc301-2026-f/20-AMD-Schola/pull/57).
-
+The manual debugging example merged in [PR #57](https://github.com/csc301-2026-f/20-AMD-Schola/pull/57). [PR #92](https://github.com/csc301-2026-f/20-AMD-Schola/pull/92) later made `ScholaMonitor` keep its configured minimum size, made its text and agents table readable on its dark panel, and replaced a per-step warning with one warning per episode. [PR #89](https://github.com/csc301-2026-f/20-AMD-Schola/pull/89) shows the dock's UI preview button only when the preview scene exists.
 
 The nine focused tests and 14 host tests passed together headlessly
 on Windows after rebuilding the native runtime extension. The original five

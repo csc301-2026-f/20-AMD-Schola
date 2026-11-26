@@ -3,7 +3,7 @@
 - **Owner:** Guneev
 - **Status:** Complete on main
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 24, 2026
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -26,7 +26,7 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 ## Progress
 
-[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) merged and adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) also uses these components in its RaceTrack branch.
+[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) merged and adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. The [US13 RaceTrack example](US13.md), merged in [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50), composes the ray-cast sensor with three add-on components it introduced: `ScholaPathSensor3D`, `ScholaVelocitySensor3D` and `ScholaVehicleActuator3D`. [PR #91](https://github.com/csc301-2026-f/20-AMD-Schola/pull/91) sets up the ray sensor's physics query once per observation instead of once per ray, and [PR #89](https://github.com/csc301-2026-f/20-AMD-Schola/pull/89) makes the teleport actuator say which directions to enable.
 
 ## Scope limits
 

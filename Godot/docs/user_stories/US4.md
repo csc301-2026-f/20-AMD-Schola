@@ -2,7 +2,7 @@
 
 - **Owner:** Shahyar
 - **Status:** Complete on main
-- **Last updated:** Nov. 24, 2026
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -28,6 +28,8 @@ As an ML practitioner, I want Schola to coordinate observations, actions, reward
 - `_exit_tree` performs clean shutdown.
 - The Godot host integration suite runs against the native US1 adapter and covers multiple environments, repeated episodes, all three autoreset modes, and session failure handling.
 - Reset requests validate environment IDs, settings, signed 32-bit seeds, and string options before any environment resets. Invalid requests leave the session usable.
+- Fixes since: the step count resets before episode callbacks ([PR #64](https://github.com/csc301-2026-f/20-AMD-Schola/pull/64)); training callbacks can no longer close or re-enter the host while it is running ([PR #81](https://github.com/csc301-2026-f/20-AMD-Schola/pull/81)); action rosters are validated before any environment steps ([PR #86](https://github.com/csc301-2026-f/20-AMD-Schola/pull/86)); and unknown reset keys such as `Seed` and out-of-range autoreset mode numbers are rejected, while GDScript StringNames work wherever strings do ([PR #90](https://github.com/csc301-2026-f/20-AMD-Schola/pull/90)).
+- Open PR #99 would prefix every `ScholaTrainingHost` error with the failing method, such as `ScholaTrainingHost.set_autoreset_mode:`, and record the error-handling rules in the development contract.
 
 ## Ownership boundary
 

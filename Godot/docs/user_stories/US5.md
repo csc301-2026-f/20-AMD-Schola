@@ -1,8 +1,8 @@
 # US5: Configure Schola through Godot-native tools
 
 - **Owner:** Vansh
-- **Status:** Native configuration merged
-- **Last updated:** Nov. 17, 2026
+- **Status:** Complete on main
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -25,6 +25,7 @@ As a Godot developer, I want to configure agents and environments through nodes 
 - Built-in episode step limits have been removed from the node API and lifecycle. Users implement their own cutoff by returning `truncated: true`; no special-purpose `MaxEpisodeSteps` node is required.
 - Inspector help explains identities, space settings, defaults, and resource sharing. Positive-size fields have range hints. The Schola editor dock scrolls within the available space instead of displacing the editor's bottom panels.
 - Editor warnings report missing or invalid spaces, missing agents, duplicate resolved IDs with both conflicting node paths, and missing required behavior hooks. Warnings refresh after resource edits, nested-resource edits, script changes, agent addition/removal, renaming, and reparenting. Hook checks recognize inherited methods without executing gameplay scripts in the editor.
+- Later fixes: environment warnings are summarized per agent ([PR #71](https://github.com/csc301-2026-f/20-AMD-Schola/pull/71)); the dock hint names `ScholaTrainingConnector` and `ScholaInferenceStepper` ([PR #89](https://github.com/csc301-2026-f/20-AMD-Schola/pull/89)); and the dock no longer selects deleted nodes, while Discrete and MultiBinary Inspector ranges show their unconfigured value 0 instead of 1 ([PR #92](https://github.com/csc301-2026-f/20-AMD-Schola/pull/92)).
 
 ## Verification
 

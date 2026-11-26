@@ -2,7 +2,7 @@
 
 - **Owner:** Bohdan
 - **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** Nov. 25, 2026
 
 ## Story
 
@@ -26,4 +26,8 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 - Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.
 - Windows debug and release exports run the policy without Python or the training add-on.
-- The demonstration agent runs its trained policy in the D3 demo with Python closed.
+- The demonstration agent runs its trained policy in the D3 demo with Python closed. On main, the [US13 RaceTrack](US13.md) and [US11 camera target](US11.md) examples also run exported policies through `ScholaInferenceStepper`.
+- Fixes since: agent changes during stepping are guarded ([PR #63](https://github.com/csc301-2026-f/20-AMD-Schola/pull/63)); integer actions and observations that overflow the model's type are rejected ([PR #70](https://github.com/csc301-2026-f/20-AMD-Schola/pull/70), [PR #84](https://github.com/csc301-2026-f/20-AMD-Schola/pull/84)); duplicate agents are rejected ([PR #75](https://github.com/csc301-2026-f/20-AMD-Schola/pull/75)); a new stepper agent is checked against the policy's spaces ([PR #80](https://github.com/csc301-2026-f/20-AMD-Schola/pull/80)); reset clears the previous episode's observations ([PR #83](https://github.com/csc301-2026-f/20-AMD-Schola/pull/83)); an empty `ScholaPolicyState` is reported as not coming from `create_state()` ([PR #89](https://github.com/csc301-2026-f/20-AMD-Schola/pull/89)); the stepper reports a repeated error after `set_policy()` ([PR #90](https://github.com/csc301-2026-f/20-AMD-Schola/pull/90)); and its `model_path` warning clears when a model is picked ([PR #92](https://github.com/csc301-2026-f/20-AMD-Schola/pull/92)).
+- Performance: the stepper swaps each new observation into its cache instead of copying it ([PR #94](https://github.com/csc301-2026-f/20-AMD-Schola/pull/94)), and float32 Box observations are copied into ONNX tensors in one step ([PR #95](https://github.com/csc301-2026-f/20-AMD-Schola/pull/95)). Their benchmarks show the largest gains for camera-sized observations.
+- The D4 release ([PR #96](https://github.com/csc301-2026-f/20-AMD-Schola/pull/96)) packages the runtime and editor plugin with ONNX Runtime for Windows and Linux x86_64 and macOS arm64; see [distribution](../distribution.md).
+- Open PR #99 would record the Godot-facing error-handling rules in the development contract.
