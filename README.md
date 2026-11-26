@@ -4,9 +4,9 @@ Schola for Godot brings AMD's reinforcement-learning toolkit to Godot 4.7. Devel
 
 ## Problem and project scope
 
-AMD Schola already supports Unreal Engine. This project adds a Godot integration while preserving the shared Python tools and protocol. Our contribution lives under `Godot/`: environment and agent APIs, spaces, episode lifecycle, Python training connector, local inference, reusable components, and editor tools. The existing Unreal implementation under `Source/` and upstream Python package under `Resources/python/` provide the shared foundation.
+AMD Schola already supports Unreal Engine. This project gives Godot game developers, RL researchers, and simulation developers the same training-to-gameplay workflow while preserving the shared Python tools and protocol. Our contribution lives under `Godot/`: environment and agent APIs, spaces, episode lifecycle, Python training connector, local inference, reusable components, and editor tools. The existing Unreal implementation under `Source/` and upstream Python package under `Resources/python/` provide the shared foundation.
 
-The [user stories](Godot/docs/user_stories/README.md) track approved MVP and stretch scope. Their individual records distinguish implementation, integration evidence, and outstanding verification. Historical demos are preserved separately and are not the current plugin's training interface.
+The [user stories](Godot/docs/user_stories/README.md) track approved MVP and stretch scope. Each record links the delivered behavior to its implementation and verification evidence. Historical demos are preserved separately and are not the current plugin's training interface.
 
 ## Access and installation
 
@@ -21,13 +21,13 @@ With Godot closed, extract the plugin ZIP and copy its `addons/schola/` director
 ## Core workflows
 
 1. **Define a task.** Add a `ScholaEnvironment` and child `ScholaAgent` nodes. Define observation/action spaces through Inspector resources or code; implement reset and `_get_step_result(agent)` for rewards and episode endings. See [code-defined spaces](Godot/examples/code_defined_spaces/README.md).
-2. **Compose an agent.** Use reusable ray/camera sensors and movement, rotation, or teleport actuators, or implement custom observation/action hooks. See the [component guide](Godot/docs/us8_components.md) and [interactive component example](Godot/examples/us8_components/README.md).
+2. **Compose an agent.** Use reusable ray/camera sensors and movement, rotation, or teleport actuators, or implement custom observation/action hooks. See the [component guide](Godot/README.md#reusable-sensors-and-actuators) and [interactive component example](Godot/examples/us8_components/README.md).
 3. **Inspect before training.** Use the Inspector's configuration warnings, Schola editor dock, and episode monitor. The [manual environment example](Godot/examples/manual_environment/README.md) exercises reset, actions, and results without Python.
-4. **Connect Python training.** The production connector is merged; a full supported-trainer run remains pending in [US3](Godot/docs/user_stories/US3.md). Build both extensions and add `ScholaTrainingConnector` to your training scene. Start Godot, then connect Schola's supported Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
-5. **Configure multiple agents.** One environment can expose agents with different spaces and independent episode results. Use RLlib for heterogeneous agents; follow the [two-agent example](Godot/examples/multi_agent/README.md). The full Windows/Linux RLlib CLI training run remains pending in [US12](Godot/docs/user_stories/US12.md).
+4. **Connect Python training.** Build both extensions and add `ScholaTrainingConnector` to your training scene. Start Godot, then connect Schola's supported Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
+5. **Configure multiple agents.** One environment can expose agents with different spaces and independent episode results. Use RLlib for heterogeneous agents; follow the [two-agent example](Godot/examples/multi_agent/README.md). The Windows RLlib run completed 4,096 steps and 300 episodes; see [US12](Godot/docs/user_stories/US12.md) for the review record.
 6. **Run a policy locally.** Export the trained policy to ONNX, assign it to `ScholaOnnxPolicy`, and configure `ScholaInferenceStepper` with the agents to drive. Python is not required during playback. See [policy setup and observation stacking](Godot/README.md#running-a-trained-policy).
 
-The RaceTrack production example remains on a feature branch, with end-to-end training, learning evidence, export, and playback validation pending in [US13](Godot/docs/user_stories/US13.md). Camera components, observation stacking, and recurrent-policy metadata have merged implementations, but their story records identify remaining camera-workflow, live-trainer, and upstream-fixture validation. Update these instructions alongside the corresponding integrations as development continues.
+Start with the [RaceTrack production example](Godot/examples/race_track/README.md) to train a car with Stable-Baselines3 PPO, export it to ONNX, and watch the committed policy with Python closed. Its evaluation compares trained and untrained policies on laps, contacts, obstacle avoidance, and random layouts. The [camera example](Godot/examples/camera_target/README.md) demonstrates image observations with a rendered viewport. Camera capture uses the latest completed frame and requires a display; headless training uses nonvisual sensors or the deterministic fake camera. Observation stacking and recurrent-model metadata are documented in the [inference guide](Godot/README.md#running-a-trained-policy).
 
 ## Architecture and decisions
 
@@ -43,7 +43,7 @@ flowchart LR
 
 Engine-independent logic lives in `Godot/src/core`. Godot bindings, gRPC transport, and ONNX inference adapt their own APIs at module boundaries. Runtime and training are separate extensions, allowing exported games to omit the transport and Python tooling. The port uses C++ GDExtensions to integrate native dependencies and keep core logic testable independently of the editor. Godot scenes and components use GDScript where appropriate. See [module boundaries](Godot/README.md#module-boundaries) and the [development contract](Godot/docs/development_contract.md).
 
-Partner feedback shaped the current interfaces: one step-result callback replaces separate reward/end-state callbacks; environments own truncation policy; training uses a blocking request/response loop; and policy initialization checks the agent's spaces. The merged production connector uses the shared gRPC protocol rather than the earlier demos' temporary transport; this does not establish a completed end-to-end trainer run.
+Partner feedback shaped the current interfaces: one step-result callback replaces separate reward/end-state callbacks; environments own truncation policy; training uses a blocking request/response loop; and policy initialization checks the agent's spaces. The production connector uses the shared gRPC protocol and existing Schola Python wrappers. RaceTrack exercises the complete training, export, and local inference workflow; the earlier demos remain historical snapshots.
 
 ## Non-Functional Requirements
 
@@ -57,13 +57,13 @@ Partner feedback shaped the current interfaces: one step-result callback replace
 | Useful Godot diagnostics | Inspector warnings, named errors, dock configuration, and a textual episode monitor support setup and debugging. [UI guide](Godot/README.md#inspect-the-schola-ui). Screen-reader support and a full accessibility audit are not claimed. |
 | Communication boundary | Training defaults to loopback. There is no documented authentication/TLS deployment for untrusted networks; use trusted local training. [Connector configuration](Godot/README.md#train-with-python). |
 
-These links identify test coverage and design evidence. [Actions results](https://github.com/csc301-2026-f/20-AMD-Schola/actions) establish whether a particular revision passed; synthetic fixtures and protocol tests alone do not establish learned-policy quality.
+The [verification record](Godot/docs/verification.md) links passing CI jobs, local checks, trainer evidence, and the scope of each result. RaceTrack provides learning evidence separately from the protocol and inference compatibility tests.
 
 ## Automated testing and distribution
 
 [Godot CI](.github/workflows/godot.yml) runs for PRs, merge queues, and pushes to `main`. Relevant changes run C++ formatting, dependency integrity/installer checks, native unit/inference/transport suites, and headless Godot integration tests. Its required check includes platform plugin packaging. The tests exercise core logic and Godot-facing integration; package loading checks installation independently of the repository's example project.
 
-For this desktop plugin, the two distribution environments are the **dev channel** (commit-specific Actions artifacts from successful `main` builds) and the **release/prod channel** (versioned GitHub release assets). Both are automatic and use the same reusable package workflow. The [D4 publisher](.github/workflows/d4-release.yml) retains its scheduled/manual triggers and publishes the plugin ZIPs after packaging succeeds. See the [distribution guide](Godot/docs/distribution.md) for exact contents and limitations.
+For this desktop plugin, the two distribution environments are the **dev channel** (commit-specific Actions artifacts from successful `main` builds) and the **release/prod channel** (versioned GitHub release assets). Both use the same automated package workflow. The [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4) is the submission's versioned distribution; its [publisher](.github/workflows/d4-release.yml) validates the platform packages before attaching the ZIPs to the tagged revision. See the [distribution guide](Godot/docs/distribution.md) for installation, updates, rollback, and export instructions.
 
 Continue the D3 process: focused PRs, teammate review, passing checks, job timeouts, and adherence to the course GitHub Actions Resource Policy. Avoid unnecessary reruns and dependency source rebuilds. See [CONTRIBUTING.md](CONTRIBUTING.md) for the review workflow and local test commands.
 
@@ -71,13 +71,13 @@ Continue the D3 process: focused PRs, teammate review, passing checks, job timeo
 
 Start with the [AMD codebase map](Godot/docs/maintenance.md). It identifies the implementation, shared protocol/Python interfaces, build inputs, tests, documentation, and how to extend the plugin. Use the [developer README](Godot/README.md) for supported toolchains, a clean source setup, native builds, and test commands.
 
-The course repository is the handoff reference. AMD can use its source and tagged snapshots when integrating the port into its own maintenance workflow. Destination repository, ongoing ownership, and integration arrangements are to be discussed with Alex; this documentation does not assign future maintenance obligations.
+The handoff consists of the source repository, the D4 tagged snapshot and platform packages, current examples and trained RaceTrack policy, automated tests, and these user/developer guides. AMD can build and maintain the port from this snapshot and use the module map and contribution workflow when integrating it into Schola. Preserve the shared protocol and Python interfaces when extending either engine integration.
 
 ## Partner and project resources
 
 - **AMD contact:** Alexander Cann, Member of Technical Staff, [alexander.cann@amd.com](mailto:alexander.cann@amd.com).
 - **Secondary AMD contact:** TianYue "Michael" Liu, Senior Software Engineer, [tianyliu@amd.com](mailto:tianyliu@amd.com).
-- [Current user stories](Godot/docs/user_stories/README.md) and [remaining integration/future opportunities](Godot/docs/user_stories/remaining.md).
+- [Current user stories](Godot/docs/user_stories/README.md) and [maintenance and future opportunities](Godot/docs/user_stories/remaining.md).
 - [Team meeting records](deliverables/team/minutes/) and [Trello board](https://trello.com/b/Ry0Qkx2R).
 - Historical [D3 report](deliverables/D3/product-evolution.md), [D3 demo/video](https://youtu.be/JGB_9ZzR93k), [D2 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D2), and [D1 prototype](Godot/demo/d1/README.md).
 - [Upstream Schola README](README-upstream.md).

@@ -2,7 +2,7 @@
 
 - **Owner:** Bohdan
 - **Status:** Complete on main
-- **Last updated:** Nov. 17, 2026
+- **Last updated:** November 26, 2026
 
 ## Story
 
@@ -26,4 +26,10 @@ As a Godot developer, I want a trained policy to drive my agent with Python clos
 - Real RLlib LSTM and Stable-Baselines3 PPO exports match Python's ONNX Runtime results.
 - Training-only dependencies are separated from the inference add-on.
 - Windows debug and release exports run the policy without Python or the training add-on.
-- The demonstration agent runs its trained policy in the D3 demo with Python closed.
+- The current RaceTrack inference scene runs the committed learned policy with Python closed. The November 26 evaluation completed 2 clean laps, all 30 dropped-obstacle trials, and all 10 random layouts; see [US13](US13.md). The earlier D3 demo remains historical inference evidence.
+
+## Current integration evidence
+
+PRs #63, #68, #70, #75, #80, #83, and #84 harden mutation during stepping, cache lifetime, integer conversion, duplicate agents, model-space compatibility, and episode resets. PRs #94 and #95 reduce observation copying. PR #96 adds automatically built runtime/editor packages for Windows/Linux x86_64 and macOS arm64, including clean-project loading checks. Package loading and an exported playable game are distinct checks.
+
+See the [verification record](../verification.md) for the checked main revision, passing CI jobs, and local verification.

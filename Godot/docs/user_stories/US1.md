@@ -1,8 +1,8 @@
 # US1: Define a reinforcement-learning environment
 
 - **Owner(s):** Isaac and Sanjay
-- **Status:** Complete
-- **Last updated:** Nov. 24, 2026
+- **Status:** Complete on main
+- **Last updated:** November 26, 2026
 
 ## Story
 
@@ -25,3 +25,9 @@ As a Godot developer, I want to define a reinforcement-learning environment thro
 - Reset seeds and options reach environment scripts through the native adapter.
 - The passing Godot host integration suite exercises the adapters across multiple environments, repeated episodes, all three autoreset modes, and configuration failures.
 - `tests/integration/environment_adapter_test.gd` drives the environment adapter directly through the test-only driver. It covers initialization, seeded and unseeded resets, action checks before any agent moves, staggered episode endings, freed agents, and `get_agents()` order.
+
+## Current integration evidence
+
+Dynamic population handling preserves identities through pause/resume and validates possible-agent declarations. PRs #73, #76, #87, #97, #98, and #100 cover paused births and agents removed before their first published observation. An unpublished departure releases its ID; a published terminal agent keeps a retired ID until reset.
+
+See the [verification record](../verification.md) for the checked main revision, passing CI jobs, and local verification.

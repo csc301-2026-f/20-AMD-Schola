@@ -95,11 +95,19 @@ Godot has an [upstream race](https://github.com/godotengine/godot/issues/98062) 
 
 ## Build and run
 
-From a fresh checkout:
+Install Git, Git LFS, and the supported toolchain above. Clone the source, then run the following from the repository root. The LFS files include native dependency packages and the RaceTrack policies used for playback.
+
+```sh
+git clone --recurse-submodules https://github.com/csc301-2026-f/20-AMD-Schola.git
+cd 20-AMD-Schola
+git lfs install
+```
+
+On Linux:
 
 ```sh
 git submodule update --init --recursive
-git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip" --exclude=""
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip,Godot/examples/race_track/policies/*.onnx" --exclude=""
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --require-hashes -r Godot/requirements.txt
@@ -109,7 +117,23 @@ scons -C Godot platform=linux target=template_debug -j"$(nproc)"
 godot --editor --path Godot
 ```
 
-For a runtime-only macOS build, skip gRPC setup, add the `schola` target, use `platform=macos arch=arm64`, and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. The committed gRPC training packages support Windows/Linux x86_64. On Windows, create the environment with `python -m venv .venv`, activate it with `.venv\Scripts\Activate.ps1`, then install the same requirements and native dependencies. Run `scons -C Godot platform=windows target=template_debug` from a developer shell; SCons selects a safe default job count when `-j` is omitted. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+On Windows, use an x64 Visual Studio developer shell:
+
+```powershell
+git submodule update --init --recursive
+git lfs pull --include="Godot/vendor/onnxruntime/*.tar.gz,Godot/vendor/grpc/*.zip,Godot/examples/race_track/policies/*.onnx" --exclude=""
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r Godot/requirements.txt
+python Godot/tools/setup_onnxruntime.py
+python Godot/tools/setup_grpc.py
+scons -C Godot platform=windows target=template_debug
+godot --editor --path Godot
+```
+
+Use Python 3.12 for the virtual environment. `godot` denotes the Godot 4.7.2 executable on PATH; on Windows the console executable is useful for logs. For a runtime-only macOS build, use the Linux setup sequence but skip gRPC setup, add the `schola` target, use `platform=macos arch=arm64`, and replace `$(nproc)` with `$(sysctl -n hw.logicalcpu)`. The committed gRPC training packages support Windows/Linux x86_64. Windows unit tests run from `Godot\build\tests\schola_core_tests.exe`. Build products are copied into the matching `Godot/addons/*/bin/<platform>/` directory and are not committed.
+
+After building, open `examples/race_track/scenes/race_track_inference.tscn` and press F6 to watch the committed policy. Follow the [RaceTrack guide](examples/race_track/README.md) to install the Python training extras, train, export, and evaluate your own policy. The project's default scene is a small extension-loading probe.
 
 The `schola` target contains the runtime extension. The `schola_training` target is a separate training extension and may depend on runtime and core code while implementing the merged transport contracts. The example project loads `examples/basic_environment/main.tscn`, which instantiates `ScholaRuntimeProbe`. The runtime and training probe nodes exist only to verify extension registration and loading; they are not production APIs for any user story.
 
@@ -144,7 +168,7 @@ godot --headless --path Godot res://examples/code_defined_spaces/main.tscn -- --
 
 Expected output ends with `Passed: two episodes, 6 actions, each space-definition
 hook called once.` for the default settings. The scene also shows a status summary when
-run in a window. See the [space-definition API](docs/us15_space_definition_api.md)
+run in a window. See [Define spaces in code](#define-spaces-in-code)
 for constructors, validation, and snapshot lifetime.
 
 ## Inspect the Schola UI
@@ -192,7 +216,29 @@ results fail at startup without falling back to Inspector assignments. Inspector
 warnings inspect metadata without executing the callback, including for `@tool`
 scripts. Unused Inspector fields may remain empty or invalid; callback results do
 not overwrite saved resources. Behavior hooks are still required unless components
-provide that side. See the [space-definition API](docs/us15_space_definition_api.md).
+provide that side. See [Define spaces in code](#define-spaces-in-code).
+
+### Define spaces in code
+
+Instead of Inspector resources, a script can implement `_define_observation_space()`, `_define_action_space()`, or both. Each returns a `ScholaSpace` and overrides only its own side. Build spaces with the static `ScholaSpaces` constructors: `box()`, `box_bounds()`, `discrete()`, `multi_discrete()`, `multi_binary()` and `dict()`. Loops and helper functions are fine.
+
+```gdscript
+extends ScholaAgent
+
+func _define_observation_space() -> ScholaSpace:
+    return ScholaSpaces.dict({
+        "image": ScholaSpaces.box([3, 30, 32], 0, 255, ScholaSpaces.UINT8),
+        "velocity": ScholaSpaces.box_bounds([3]), # Unbounded float32.
+    })
+
+func _define_action_space() -> ScholaSpace:
+    return ScholaSpaces.discrete(5)
+```
+
+- Spaces are resolved once, at the first successful `define()`, and that copy is used for the rest of the session. To change them, recreate the scene and initialize again.
+- A null or invalid result fails with an error naming the agent and hook, for example `Agent 'robot': _define_action_space() returned null; return a ScholaSpace`. Nothing is saved, so a corrected retry works.
+- Build spaces from configuration available before the session starts, not from episode or gameplay state.
+- These hooks replace `_define_spaces()` and `ScholaSpaceDefinition`: move each former expression into its own hook and return the resource directly.
 
 Resources can be embedded in a scene or saved separately as `.tres` files. Shared
 resources intentionally share configuration; use Godot's Make Unique operation
@@ -331,9 +377,31 @@ godot --headless --path Godot \
 
 ## Reusable sensors and actuators
 
-See [US8 components](docs/us8_components.md) for GDScript sensor and actuator
-nodes, ordered agent composition, ray sensing, movement, rotation, teleportation,
-and real/fake camera components, including rendered color/depth capture tests.
+`ScholaSensor` and `ScholaActuator` are nodes you place under a `ScholaAgent`. Extend either in GDScript, assign its `space` and an optional `component_id` (blank uses the node name), and implement `_observe() -> Variant` or `_act(action: Variant) -> void`. An optional `_get_component_errors() -> PackedStringArray` reports setup problems in the Inspector and at runtime.
+
+- **Composition.** The agent collects its sensors and actuators in depth-first scene-tree order, stopping at nested agents, and combines them into Dict spaces with keys `00000000:<id>`, `00000001:<id>`, and so on. Read the keys from `agent.get_effective_observation_space().spaces` and `get_effective_action_space().spaces`. IDs must be unique per kind on an agent.
+- **Direct hooks win.** If the agent implements `_observe()` or `_act()` itself, that side uses its own assigned space instead of the components.
+- **Fixed layout.** Changing components, IDs, order or spaces after initialization requires recreating the environment or session. The whole action is validated before any actuator runs; actions are not rolled back if a later actuator fails.
+- **Unreal mapping.** `ScholaSensor` and `ScholaActuator` play the role of Unreal Schola's sensor and actuator components. Movement sets `CharacterBody3D` velocity instead of accumulating pawn input, teleport adds world-axis offsets as Unreal does, ray queries run on the main thread instead of optional worker tracing, a single generated ray points straight ahead, and cameras read Godot `SubViewport`s instead of SceneCapture.
+
+| Component | What it does |
+|---|---|
+| `ScholaRayCastSensor3D` | Each ray reports `[tag flags..., hit, normalized distance]` in `[0, 1]`. Use a list of `RayCast3D` paths, or `use_generated_rays` with `origin_path`, `num_rays`, `ray_degrees` and `ray_length` for a fan around local -Z. `tracked_tags` names Godot groups; `draw_debug` draws the rays. |
+| `ScholaMovementActuator3D` | Box input sets the enabled local velocity axes of a `CharacterBody3D`. Your body loop still calls `move_and_slide()`. |
+| `ScholaRotationActuator3D` | Box input rotates a `Node3D` by a local Euler increment in degrees. |
+| `ScholaTeleportActuator3D` | MultiDiscrete input moves a node by a world-space offset per axis; `sweep=true` stops at obstacles. |
+| `ScholaCameraSensor` | Reads rendered `SubViewport` frames as float32 `[channels, height, width]` in `[0, 1]`, in Color, Depth or ColorDepth mode. |
+| `ScholaFakeCameraSensor` | Produces the same image layout without rendering, for headless tests. |
+
+Camera notes:
+
+- The source viewport must match the configured size (at least 2×2), must not use HDR 2D, and must read back as uncompressed RGB8 or RGBA8. Other formats fail with an error naming the format.
+- Use `SubViewport.UPDATE_ALWAYS`. Disabled is rejected; When Visible works only while something displays the viewport, and shows an Inspector warning.
+- Observations use the latest completed frame, which can be older than the current action, and several steps can read the same frame. Await `RenderingServer.frame_post_draw` before the first reset.
+- A headless display has no rendering, so use the fake camera there. For depth, apply the supplied `linear_depth.gdshader` in a separate depth viewport.
+
+Run `components_test.gd`, `components_parity_test.gd` and `camera_sensor_test.gd` with the other integration tests, using a runtime built with `integration_tests=yes`. The rendered camera suites, `camera_render_test.gd` and `camera_capture_test.gd`, need a display: run them with `--rendering-method gl_compatibility` or `mobile` instead of `--headless`.
+
 Open [the interactive US8 example](examples/us8_components/README.md) to try
 keyboard movement, automatic control, and live ray observations with F6.
 The [camera target example](examples/camera_target/README.md) runs an exported
@@ -360,11 +428,13 @@ python -m pip install -e "Resources/python[rllib]"
 
 The Python CLI workflow is documented for Windows/Linux; macOS runtime inference support does not establish Python CLI support. Follow the [multi-agent example](examples/multi_agent/README.md) for its full two-shell setup and command.
 
-Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. The command below is the one documented for Unreal Schola and has not yet been verified against Godot. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
+Start the scene first. On its first physics frame, after every node's `_ready()`, the connector listens on `127.0.0.1:<port>` and waits for Python. Then start Python within `start_timeout_sec`. For the [two-agent number-line scene](examples/multi_agent/README.md), the following RLlib PPO command trains both policies. Windows verification completed 4,096 environment steps; the [verification record](docs/verification.md) includes the current run and the earlier 300-episode review. `editor` is the alias of the `external` simulator, which connects to an already running game instead of launching one:
 
 ```sh
-schola sb3 train ppo editor --port 8000 --timesteps 100000
+schola rllib train ppo --timesteps 4000 editor --port 8000
 ```
+
+For Stable-Baselines3 training and ONNX export, follow the [RaceTrack example](examples/race_track/README.md). It uses the existing Schola SB3 wrapper and handles its dictionary actions. Choose the trainer and policy for the scene's spaces; heterogeneous agents require RLlib.
 
 Once connected, each physics frame waits for Python's next reset or step and runs it, so an action and its reward land on the same frame. The game does not respond while it waits; that is expected during training.
 
@@ -394,7 +464,7 @@ A policy exported to ONNX runs inside Godot without Python. Add a `ScholaOnnxPol
 
 Add a `ScholaStacker` Resource to the agent's `observation_adapters` array to give the policy recent observations. Keep the agent's `observation_space` and `_observe()` output in the original format. The agent applies Resources in array order and reports the final space to the trainer or policy. Set the output kind to Box for axis-based stacking or Dict for slot-suffixed keys. Slot zero is newest. An unset `default_point` uses the input space's default. Agents can share a stacker Resource and each agent keeps its own history. Training resets history automatically at episode start. With local inference, call the stepper's `reset_state(agent)` or `reset_states()` when starting an episode.
 
-Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [`docs/us7_inference_api.rst`](docs/us7_inference_api.rst) for the full guide, recurrent models, the model contract, and error handling.
+Exported games need two export preset filters: add `*.onnx` to the non-resource files to export, and exclude `addons/schola_training/*`. The ONNX Runtime library is exported automatically with the runtime add-on. Release exports also need the extension built with `target=template_release`. See [inference guide](docs/inference.md) for the full guide, recurrent models, the model contract, and error handling.
 
 ## Dynamic training populations
 
@@ -501,6 +571,7 @@ Godot/
 ├── src/
 │   ├── core/
 │   │   ├── common/               Shared IDs and status values
+│   │   ├── adapters/             Observation transforms and stacking
 │   │   ├── connector/            Engine-independent connector loop
 │   │   ├── environment/          Environment and agent contracts
 │   │   ├── spaces/               Observation/action spaces and point values
@@ -521,10 +592,17 @@ Godot/
 │   ├── schola/                   Runtime add-on packaging
 │   └── schola_training/          Training-only add-on packaging
 ├── examples/
-│   └── basic_environment/       End-to-end demonstration environment
+│   ├── basic_environment/       Extension registration probe
+│   ├── race_track/              Production training, evaluation, and ONNX playback
+│   ├── camera_target/           Rendered image training/export and inference
+│   ├── multi_agent/             Heterogeneous two-agent training
+│   ├── manual_environment/      Debugging through the production host
+│   └── code_defined_spaces/     Programmatic observation/action spaces
 └── tests/
-    ├── unit/                    Fast tests for individual modules
-    └── integration/             Cross-module and Python compatibility tests
+    ├── unit/                    Engine-independent Catch2 tests
+    ├── inference/               ONNX compatibility and policy fixtures
+    ├── transport/               gRPC sessions and protocol conversion
+    └── integration/             Godot scene, binding, lifecycle, and UI tests
 ```
 
 ## Module boundaries

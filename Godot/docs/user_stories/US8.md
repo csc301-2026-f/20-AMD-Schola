@@ -3,7 +3,7 @@
 - **Owner:** Guneev
 - **Status:** Complete on main
 - **Priority:** MVP (highest priority)
-- **Last updated:** Nov. 24, 2026
+- **Last updated:** November 26, 2026
 
 ## Story
 
@@ -26,7 +26,7 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 ## Progress
 
-[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) merged and adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) also uses these components in its RaceTrack branch.
+[PR #51](https://github.com/csc301-2026-f/20-AMD-Schola/pull/51) merged and adds native sensor and actuator base nodes, deterministic scene-tree composition, reusable components, diagnostics and a playground. [PR #50](https://github.com/csc301-2026-f/20-AMD-Schola/pull/50) merged the RaceTrack example and reusable path/velocity sensors and vehicle actuator. RaceTrack combines these with the ray sensor for its training and inference scenes.
 
 ## Scope limits
 
@@ -35,6 +35,10 @@ Schola for Unreal already represents sensors and actuators as reusable component
 
 ## Implementation
 
-See [the component API guide](../us8_components.md) for native base nodes,
-GDScript implementations, ordering, direct-hook precedence, and Unreal mapping.
-Behavior is covered by `tests/integration/components_test.gd`.
+See [the component API guide](../../README.md#reusable-sensors-and-actuators) for native base nodes, GDScript implementations, ordering, direct-hook precedence, and Unreal mapping. Behavior is covered by `tests/integration/components_test.gd`.
+
+## Current integration evidence
+
+PR #89 improves component setup errors and #91 removes repeated ray setup. The vehicle component and inference suites cover the reusable RaceTrack components alongside the baseline sensor/actuator suites.
+
+See the [verification record](../verification.md) for the checked main revision, passing CI jobs, and local verification.

@@ -1,8 +1,8 @@
 # US5: Configure Schola through Godot-native tools
 
 - **Owner:** Vansh
-- **Status:** Native configuration merged
-- **Last updated:** Nov. 17, 2026
+- **Status:** Complete on main
+- **Last updated:** November 26, 2026
 
 ## Story
 
@@ -28,10 +28,11 @@ As a Godot developer, I want to configure agents and environments through nodes 
 
 ## Verification
 
-- Before the latest merge from `main`, the Windows native build and all 40 existing Godot integration tests passed, including identity/scene round trips and the consolidated callback path.
-- An editor smoke check verified warning refreshes for scene-tree edits and script attachment. A separate layout check verified that enabling the Schola dock keeps the bottom panel within the editor window.
-- Vansh completed the manual editor persistence checks. This records owner-reported manual verification separately from the automated checks.
-- The scratch scene successfully initializes and resets, applies three actions, and returns a user-defined truncation on the third step. It uses the optional `ScholaEnvironmentTestDriver`, which is available only in builds with `integration_tests=yes`.
+Automated suites exercise scene/resource round trips, default identities, configuration warnings, inherited behavior hooks, and `_get_step_result` parsing. The current Windows build and full integration run are recorded in the [verification record](../verification.md).
+
+Earlier editor checks verified warning refresh after tree/script edits, dock layout, and saved Inspector assignments. Vansh reported completion of the manual editor persistence checks. Automated warning tests check diagnostic behavior; they do not replace visual editor inspection.
+
+The current manual environment and code-defined spaces examples exercise initialization, reset, actions, and user-defined episode endings through the production host.
 
 ## Scope
 
@@ -40,3 +41,9 @@ As a Godot developer, I want to configure agents and environments through nodes 
 - CI builds the native adapter test driver with `integration_tests=yes`, so the consolidated callback suite runs alongside the other integration tests.
 
 Frozen D1/D2 demos and the archived D1 prototype are historical artifacts, not evidence of current plugin functionality.
+
+## Current integration evidence
+
+PR #71 summarizes per-agent configuration warnings. PR #92 corrects dock, Inspector, and monitor behavior. PR #93 supplies independent observation/action space hooks; each side can still use Inspector resources or components when its hook is absent.
+
+See the [verification record](../verification.md) for the checked main revision, passing CI jobs, and local verification.

@@ -73,7 +73,7 @@ This playground expects one sensor with three rays and one movement actuator.
 Its HUD and automatic controller use that six-value observation layout. Adapt
 `main.gd` when changing that layout. Stop and rerun the scene after changing
 spaces or component membership: the training session fixes its definition at
-initialization. See [the API guide](../../docs/us8_components.md).
+initialization. See [the API guide](../../README.md#reusable-sensors-and-actuators).
 
 ## Headless smoke check
 

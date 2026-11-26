@@ -1,5 +1,7 @@
 # Local training protocol (D2)
 
+This is a historical description of the frozen D2 demo. Current projects use `ScholaTrainingConnector` and the shared gRPC protocol; see [Train with Python](../README.md#train-with-python). The stand-ins and future replacements below describe D2, not the current plugin.
+
 The D2 demo connects Godot to a local Python trainer with newline-delimited JSON over localhost TCP. It is a stand-in for US3's gRPC connector. It carries the same calls, in the same order, as Schola's `GymService` (`Proto/GymConnector.proto`).
 
 - **Godot** (`ScholaLocalConnector`, `demo/d2/addons/schola_d2/transport/`) listens on `127.0.0.1:8000`.

@@ -2,7 +2,7 @@
 
 - **Owner:** Shahyar
 - **Status:** Complete on main
-- **Last updated:** Nov. 24, 2026
+- **Last updated:** November 26, 2026
 
 ## Story
 
@@ -32,3 +32,9 @@ As an ML practitioner, I want Schola to coordinate observations, actions, reward
 ## Ownership boundary
 
 US4 owns episode coordination and the Godot training host. Python client connectivity, gRPC transport, and Python-to-Godot integration testing belong to US3 and do not block US4 completion.
+
+## Current integration evidence
+
+PRs #64, #72, #81, and #86 cover reset callback timing, cross-environment deletion, re-entry, and complete action-roster validation before any environment advances. PRs #90 and #99 align host diagnostics with the shared error contract.
+
+See the [verification record](../verification.md) for the checked main revision, passing CI jobs, and local verification.
