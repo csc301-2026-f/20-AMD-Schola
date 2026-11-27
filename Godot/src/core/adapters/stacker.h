@@ -143,6 +143,14 @@ public:
 protected:
 	Status make_stacked_space(const Space &p_unstacked_space, Space &r_stacked_space) const override;
 	void make_stacked_point(const std::deque<Point> &p_history, Point &r_stacked) const override;
+
+private:
+	struct OutputEntry {
+		std::string key;
+		size_t history_slot;
+		size_t input_entry;
+	};
+	mutable std::vector<OutputEntry> output_layout;
 };
 
 } // namespace schola

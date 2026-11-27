@@ -82,3 +82,34 @@ TEST_CASE("Stacker rejects bad inputs without consuming a history slot", "[adapt
 	CHECK_FALSE(stacker.configure(Space(DiscreteSpace{ 0 }), output).is_ok());
 	CHECK(stacker.adapt(DiscretePoint{ 2 }, result).get_code() == StatusCode::FAILED_PRECONDITION);
 }
+
+TEST_CASE("Dict stack layout handles suffix ordering and reconfiguration", "[adapters]") {
+	DictStacker stacker(StackerSettings{ 12, {} });
+	const Space input(DictSpace{ { { "a", Space(DiscreteSpace{ 100 }) }, { "a_1", Space(DiscreteSpace{ 100 }) } } });
+	Space output;
+	REQUIRE(stacker.configure(input, output).is_ok());
+	Point result;
+	for (int32_t value = 1; value <= 14; ++value) {
+		REQUIRE(stacker.adapt(DictPoint{ { { "a", Point(DiscretePoint{ value }) }, { "a_1", Point(DiscretePoint{ value + 20 }) } } }, result).is_ok());
+	}
+	REQUIRE(output.validate(result).is_ok());
+	const auto *dict = result.get_if<DictPoint>();
+	REQUIRE(dict);
+	CHECK(*dict->find("a_0") == Point(DiscretePoint{ 14 }));
+	CHECK(*dict->find("a_10") == Point(DiscretePoint{ 4 }));
+	CHECK(*dict->find("a_1_11") == Point(DiscretePoint{ 23 }));
+
+	REQUIRE(stacker.configure(Space(DiscreteSpace{ 100 }), output).is_ok());
+	REQUIRE(stacker.adapt(DiscretePoint{ 8 }, result).is_ok());
+	REQUIRE(output.validate(result).is_ok());
+	dict = result.get_if<DictPoint>();
+	REQUIRE(dict);
+	CHECK(dict->entries.size() == 12);
+	CHECK(dict->entries[2].first == "Point_10");
+	CHECK(*dict->find("Point_0") == Point(DiscretePoint{ 8 }));
+	CHECK(*dict->find("Point_11") == Point(DiscretePoint{ 0 }));
+
+	REQUIRE(stacker.configure(Space(DictSpace{}), output).is_ok());
+	REQUIRE(stacker.adapt(DictPoint{}, result).is_ok());
+	CHECK(result == Point(DictPoint{}));
+}
