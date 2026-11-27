@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Demos | Schola for Godot</title>
-  <meta name="description" content="The D1, D2 and D3 demos of the Schola Godot port, and what changed between them.">
+  <meta name="description" content="The D1 to D4 demos of the Schola Godot port, and what changed between them.">
   <!-- Link previews: the card Discord, Teams and LinkedIn show when this page's address is pasted. -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Schola for Godot">
   <meta property="og:title" content="Demos | Schola for Godot">
-  <meta property="og:description" content="The D1, D2 and D3 demos of the Schola Godot port, and what changed between them.">
+  <meta property="og:description" content="The D1 to D4 demos of the Schola Godot port, and what changed between them.">
   <meta property="og:url" content="https://csc301-2026-f.github.io/20-AMD-Schola/demos.html">
   <meta property="og:image" content="https://csc301-2026-f.github.io/20-AMD-Schola/assets/img/d3_parallel_training.png">
   <meta property="og:image:alt" content="Four Godot processes training one shared policy in the Schola for Godot D3 demo.">
@@ -135,6 +135,67 @@
         </div>
       </section>
 
+      <section aria-labelledby="d4">
+        <h2 id="d4">Deliverable 4: a car that learns to drive</h2>
+        <p class="meta">November 2026</p>
+        <div class="text">
+          <p>For D4 we built RaceTrack, our production example. A car learns to drive a 905 m track with hills, two jumps and orange obstacles. It trains with Stable-Baselines3 PPO through Schola's own Python tools over gRPC, and the trained policy is exported to ONNX and drives the car in Godot with Python closed. Nothing in this loop is a stand-in.</p>
+          <p>The car sees the road through four sensors: 25 rays in front of the bumper, the direction of the track 10 m ahead, its own speed, and how far the next obstacle is in each lane. It has two actions, steering and gas/brake. Every training episode uses a new random obstacle layout, so the car has to react to what it sees instead of memorizing the map.</p>
+          <p>In the demo scene you can switch between four policies with <kbd>1</kbd> to <kbd>4</kbd>, from untrained to final, take over the car with <kbd>M</kbd>, add more AI cars with <kbd>+</kbd>, and click the road to drop an obstacle in front of the car.</p>
+        </div>
+        <div class="gallery">
+          <figure class="shot">
+            <img src="assets/img/race_track_untrained.jpg" width="1823" height="947" loading="lazy"
+                 alt="The untrained policy: the red car sits on the road at 7 km/h with 1% gas. The label reads AI model: untrained.">
+            <figcaption>Untrained (key 1). The car barely moves: 61 m in two minutes.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/race_track_650k.jpg" width="1822" height="946" loading="lazy"
+                 alt="The 650,000-step policy taking a bend at 84 km/h with full gas, its rays drawn in green and red.">
+            <figcaption>After 650,000 training steps (key 3). Two clean laps of the demo map at 81 km/h, but it dodges only 18 of 30 dropped obstacles.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/race_track_obstacle.jpg" width="1825" height="947" loading="lazy"
+                 alt="The final policy at 33 km/h steering past an orange obstacle, with another obstacle ahead on the left.">
+            <figcaption>The final policy (key 4) steering around obstacles. It dodged all 30 dropped obstacles in our test.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/race_track_manual.jpg" width="1826" height="940" loading="lazy"
+                 alt="Manual driving at 89 km/h. A Manual driving label is shown at the top right.">
+            <figcaption>Press <kbd>M</kbd> to drive yourself with <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd>, and <kbd>M</kbd> again to hand the car back to the AI.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/race_track_multi_agent.jpg" width="1842" height="923" loading="lazy"
+                 alt="Three cars training together. A panel lists each car's reward and speed, and a chart shows reward per second rising.">
+            <figcaption>Multi-agent training. Three cars learn one shared policy with RLlib, each with its own reward.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="assets/img/race_track_editor.jpg" width="1920" height="990" loading="lazy"
+                 alt="The RaceTrack inference scene open in the Godot editor, with four inference stepper nodes in the scene tree and the car's rays in the 3D view.">
+            <figcaption>The demo scene in the Godot editor. Each policy is a <code>ScholaInferenceStepper</code> node.</figcaption>
+          </figure>
+        </div>
+        <div class="text">
+          <p>We score each policy with a script that drives the demo scene without Python: two laps of the demo map, 30 obstacles dropped in front of the car, and 10 random obstacle layouts.</p>
+          <table>
+            <thead>
+              <tr><th scope="col">Policy</th><th scope="col">Demo map</th><th scope="col">Average speed</th><th scope="col">Obstacles dodged</th><th scope="col">Random layouts</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Untrained</td><td>61 m, no lap</td><td>2 km/h</td><td>0 of 30</td><td>0 of 10</td></tr>
+              <tr><td>350,000 steps</td><td>2 laps, 20 contacts</td><td>78 km/h</td><td>16 of 30</td><td>0 of 10</td></tr>
+              <tr><td>650,000 steps</td><td>2 laps, no contact</td><td>81 km/h</td><td>18 of 30</td><td>0 of 10</td></tr>
+              <tr><td>Final</td><td>2 laps, no contact</td><td>58 km/h</td><td>30 of 30</td><td>10 of 10</td></tr>
+            </tbody>
+          </table>
+          <p>The final policy uses a bigger network, two layers of 256 units instead of 64. It drives slower than the 650,000-step policy, but it's the only one that gets through every random layout.</p>
+          <ul class="links">
+            <li><a href="https://youtu.be/s9P6hWiZxb4">Production example video</a></li>
+            <li><a href="https://github.com/csc301-2026-f/20-AMD-Schola/tree/main/Godot/examples/race_track">RaceTrack guide</a></li>
+          </ul>
+        </div>
+      </section>
+
       <section aria-labelledby="changes">
         <h2 id="changes">What was real at each stage</h2>
         <div class="text">
@@ -155,9 +216,9 @@
               <tr><th scope="row">Environment and agent (US1)</th><td>Stand-in GDScript classes</td><td>Native</td><td>Native, with agents joining and leaving mid-episode</td></tr>
               <tr><th scope="row">Episode lifecycle (US4)</th><td>Stand-in demo runner</td><td>Native <code>ScholaTrainingHost</code></td><td>Native</td></tr>
               <tr><th scope="row">Configuration (US5)</th><td>Native nodes in the final release</td><td>Native, one step callback, live warnings</td><td>Native</td></tr>
-              <tr><th scope="row">Connection to Python (US3)</th><td>Stand-in JSON over local TCP</td><td>Stand-in JSON over local TCP</td><td>gRPC connector merged; full run with Schola's trainer still to do</td></tr>
+              <tr><th scope="row">Connection to Python (US3)</th><td>Stand-in JSON over local TCP</td><td>Stand-in JSON over local TCP</td><td>Native gRPC connector, used by Schola's Python trainers</td></tr>
               <tr><th scope="row">ONNX inference (US7)</th><td>Native</td><td>Native, per-agent policy state</td><td>Native, sequence length read from the model</td></tr>
-              <tr><th scope="row">Trainer</th><td>Stand-in table-based learner</td><td>Stand-in table-based learner</td><td>Schola's SB3 and RLlib trainers; full runs in progress for D4</td></tr>
+              <tr><th scope="row">Trainer</th><td>Stand-in table-based learner</td><td>Stand-in table-based learner</td><td>Schola's SB3 and RLlib trainers; RaceTrack trained end to end</td></tr>
             </tbody>
           </table>
         </div>
@@ -194,7 +255,7 @@
         <p>Schola for Godot is a CSC301 project by Team 20 at the University of Toronto. MIT licensed, like Schola.</p>
         <p>This is our student project site, not an AMD website. <a href="https://github.com/csc301-2026-f/20-AMD-Schola">Code on GitHub</a></p>
       </div>
-      <p class="partner">In partnership with <img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></p>
+      <p class="partner">In partnership with <a href="https://gpuopen.com/amd-schola/"><img src="assets/img/amd-logo.png" width="844" height="202" alt="AMD"></a></p>
     </div>
   </footer>
 </body>

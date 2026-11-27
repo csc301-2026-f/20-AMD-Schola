@@ -83,6 +83,10 @@
   height: 1.05rem;
 }
 
+.partner a {
+  display: inline-flex;
+}
+
 /* The logo file is black; on black backgrounds it is flipped to white. */
 .on-black .partner {
   color: var(--grey-on-black);
