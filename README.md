@@ -29,6 +29,10 @@ With Godot closed, extract the plugin ZIP and copy its `addons/schola/` director
 
 Start with the [RaceTrack production example](Godot/examples/race_track/README.md) to train a car with Stable-Baselines3 PPO, export it to ONNX, and watch the committed policy with Python closed. Its evaluation compares trained and untrained policies on laps, contacts, obstacle avoidance, and random layouts. The [camera example](Godot/examples/camera_target/README.md) demonstrates image observations with a rendered viewport. Camera capture uses the latest completed frame and requires a display; headless training uses nonvisual sensors or the deterministic fake camera. Observation stacking and recurrent-model metadata are documented in the [inference guide](Godot/README.md#running-a-trained-policy).
 
+![The committed RaceTrack policy steering around an obstacle](Godot/examples/race_track/media/avoiding_obstacles.png)
+
+Watch the [RaceTrack production example video](https://youtu.be/s9P6hWiZxb4) and read the [RaceTrack guide](Godot/examples/race_track/README.md) for controls, training, and evaluation results.
+
 ## Architecture and decisions
 
 ```mermaid

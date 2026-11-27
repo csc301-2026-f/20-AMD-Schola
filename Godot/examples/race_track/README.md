@@ -12,7 +12,11 @@ The original example was derived from AMD's Unreal assets. This version delibera
 
 The car drives with the committed policy, `policies/race_track.onnx`, which is stored with Git LFS. Python is not needed.
 
+![The inference scene in the Godot editor, with one ScholaInferenceStepper per policy](media/godot.png)
+
 Press 1, 2, 3 or 4 to switch between the untrained, 300,000-step, 650,000-step and 800,000-step policies while the car drives, and R to put the car back at the start. Press H to show or hide the rays. Press + to add another AI car at least 50 m ahead of yours, at the first spot clear of obstacles and other cars, and - to remove the last car added; your car cannot be removed. All cars use the selected policy, and R lines the added cars up again ahead of your car. Press M to drive the car yourself with W, A, S and D (S brakes, then reverses), and M again to give it back to the AI. While you drive, 1-4 choose the model of the added cars. Click the left, middle or right of the screen to drop an obstacle into that lane 50 m ahead of the car. Right-click any obstacle to remove it, including the ones on the map, or press Delete to remove the last one dropped. R clears dropped obstacles and brings back removed map obstacles.
+
+![Manual driving after pressing M; the label at the top right shows the mode](media/manual_mode.png)
 
 ## Results
 
@@ -32,6 +36,10 @@ A policy passes with a clean demo map (two laps, no contact, at least 50 km/h), 
 | 4 | `policies/race_track.onnx` (committed) | 2 laps, no contact | 58 km/h | 69 s | 30 of 30 | 10 of 10 | Pass |
 
 The untrained policy barely moves, so it never reaches the points where obstacles are dropped.
+
+| Key 1: untrained | Key 3: 650,000 steps | Key 4: committed policy |
+|---|---|---|
+| ![The untrained policy at 7 km/h with 1% gas](media/untrained_model.png) | ![The 650,000-step policy at 84 km/h on a bend](media/inference.png) | ![The committed policy steering around an obstacle](media/avoiding_obstacles.png) |
 
 The committed policy uses a bigger network than the policies on keys 1-3: two hidden layers of 256 units instead of 64, and it reads all 25 rays and the RoadAhead sensor. It is the only one that passes, and it also passes every trial and layout of the held-out set.
 
@@ -116,6 +124,8 @@ Open one of these scenes and press F6. Port 8000 must be free. The window does n
 - `race_track_multi_agent_pretrained.tscn` continues from the weights of `policies/race_track.onnx`, so the cars already drive well. These weights come from the single-car policy, not from three-car training.
 
 The three cars are agents of one `ScholaEnvironment` with the same `agent_type`, so they train one shared policy, and each gets its own observations, actions and reward. A car that crashes leaves the track until all three have finished. To add a car, duplicate `Car3` under `RaceTrackEnvironment` and give its `Agent` a new `agent_id`. The number of cars is fixed when training starts. These scenes do not save a model.
+
+![Three cars training together, with each car's reward and speed at the top left and the reward chart at the bottom right](media/multi_training.png)
 
 ### Run the exported policy
 
