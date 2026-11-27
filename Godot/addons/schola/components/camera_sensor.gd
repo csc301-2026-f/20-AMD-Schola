@@ -75,8 +75,9 @@ func _observe() -> Variant:
 		return null
 	var values := PackedFloat32Array()
 	if capture_mode != CaptureMode.DEPTH:
-		values = _read(viewport_path, _channel_indices())
-		if values.size() != width * height * _channel_indices().size():
+		var channels := _channel_indices()
+		values = _read(viewport_path, channels)
+		if values.size() != width * height * channels.size():
 			return null
 	if capture_mode != CaptureMode.COLOR:
 		var depth := _read(depth_viewport_path, PackedInt32Array([0]))

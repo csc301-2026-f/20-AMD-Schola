@@ -3,6 +3,8 @@
 class_name ScholaVehicleActuator3D
 extends ScholaActuator
 
+enum PedalMode { SIGNED, SEPARATE, NONE }
+
 ## Drives a VehicleBody3D from normalized actions, in this order: steering [-1, 1]
 ## when has_steering, then the pedal values selected by pedal_mode.
 @export var has_steering := true:
@@ -12,7 +14,7 @@ extends ScholaActuator
 ## Signed: one [-1, 1] value, positive throttle and negative brake.
 ## Separate: throttle [0, 1] then brake [0, 1], so both can be pressed together.
 ## None: the policy only steers; throttle and brake stay at zero.
-@export_enum("Signed", "Separate", "None") var pedal_mode: int = 0:
+@export_enum("Signed", "Separate", "None") var pedal_mode: int = PedalMode.SIGNED:
 	set(value):
 		pedal_mode = value
 		_refresh_space()
@@ -35,12 +37,18 @@ var _steering := 0.0
 var _throttle := 0.0
 var _brake := 0.0
 
+
 func _init() -> void:
 	_refresh_space()
 
 
 func get_action_count() -> int:
-	return int(has_steering) + [1, 2, 0][clampi(pedal_mode, 0, 2)]
+	var pedals := 0
+	if pedal_mode == PedalMode.SIGNED:
+		pedals = 1
+	elif pedal_mode == PedalMode.SEPARATE:
+		pedals = 2
+	return int(has_steering) + pedals
 
 
 func _refresh_space() -> void:
@@ -49,10 +57,10 @@ func _refresh_space() -> void:
 	if has_steering:
 		low.append(-1.0)
 		high.append(1.0)
-	if pedal_mode == 0:
+	if pedal_mode == PedalMode.SIGNED:
 		low.append(-1.0)
 		high.append(1.0)
-	elif pedal_mode == 1:
+	elif pedal_mode == PedalMode.SEPARATE:
 		low.append_array(PackedFloat32Array([0.0, 0.0]))
 		high.append_array(PackedFloat32Array([1.0, 1.0]))
 	var box := ScholaBoxSpace.new()
@@ -74,27 +82,32 @@ func reset() -> void:
 	_brake = 0.0
 	_apply()
 
+
 func _act(action: Variant) -> void:
 	var values: PackedFloat32Array = action
 	var index := 0
 	var steering := 0.0
 	if has_steering:
-		steering = clampf(clampf(values[0], -1.0, 1.0) * controls_scale, -1.0, 1.0)
+		steering = _scaled(values[0], -1.0)
 		index = 1
 	var throttle := 0.0
 	var brake := 0.0
-	if pedal_mode == 0:
+	if pedal_mode == PedalMode.SIGNED:
 		var pedal := clampf(values[index], -1.0, 1.0) * controls_scale
 		throttle = clampf(pedal, 0.0, 1.0)
 		brake = clampf(-pedal, 0.0, 1.0)
-	elif pedal_mode == 1:
-		throttle = clampf(clampf(values[index], 0.0, 1.0) * controls_scale, 0.0, 1.0)
-		brake = clampf(clampf(values[index + 1], 0.0, 1.0) * controls_scale, 0.0, 1.0)
+	elif pedal_mode == PedalMode.SEPARATE:
+		throttle = _scaled(values[index], 0.0)
+		brake = _scaled(values[index + 1], 0.0)
 	var delta := get_physics_process_delta_time()
 	_steering = _approach(_steering, steering, steering_rise_rate, steering_fall_rate, delta)
 	_throttle = _approach(_throttle, throttle, pedal_rise_rate, pedal_fall_rate, delta)
 	_brake = _approach(_brake, brake, pedal_rise_rate, pedal_fall_rate, delta)
 	_apply()
+
+
+func _scaled(value: float, low: float) -> float:
+	return clampf(clampf(value, low, 1.0) * controls_scale, low, 1.0)
 
 
 func _apply() -> void:
@@ -103,8 +116,11 @@ func _apply() -> void:
 	var steering_fraction := 1.0
 	if steering_speed_reference > 0.0:
 		steering_fraction = lerpf(1.0, minimum_steering_fraction, clampf(speed / steering_speed_reference, 0.0, 1.0))
+	var speed_limit := 1.0
+	if top_speed > 0.0:
+		speed_limit = clampf(1.0 - pow(speed / top_speed, 4.0), 0.0, 1.0)
 	car.steering = steering_sign * _steering * deg_to_rad(maximum_steering_degrees) * steering_fraction
-	car.engine_force = _throttle * maximum_engine_force * (clampf(1.0 - pow(speed / top_speed, 4.0), 0.0, 1.0) if top_speed > 0.0 else 1.0)
+	car.engine_force = _throttle * maximum_engine_force * speed_limit
 	car.brake = _brake * maximum_brake
 
 
@@ -115,7 +131,7 @@ func _approach(current: float, target: float, rise_rate: float, fall_rate: float
 
 func _get_component_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
-	if pedal_mode < 0 or pedal_mode > 2:
+	if pedal_mode < PedalMode.SIGNED or pedal_mode > PedalMode.NONE:
 		errors.append("pedal_mode must be Signed, Separate, or None.")
 	if get_action_count() == 0:
 		errors.append("Enable steering or choose a pedal mode.")

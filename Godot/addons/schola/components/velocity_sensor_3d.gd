@@ -3,6 +3,8 @@
 class_name ScholaVelocitySensor3D
 extends ScholaSensor
 
+enum Axes { XYZ, FORWARD_RIGHT_UP }
+
 ## Reads linear velocity from either Godot physics body type, in m/s / velocity_scale.
 ## Reports one value per enabled component, in the order of the selected axes.
 @export var body_path: NodePath:
@@ -11,7 +13,7 @@ extends ScholaSensor
 		update_configuration_warnings()
 @export var local_frame := true
 ## XYZ is Godot-native. FORWARD_RIGHT_UP matches vehicles facing local +Z.
-@export_enum("XYZ", "Forward Right Up (+Z)") var axes: int = 0:
+@export_enum("XYZ", "Forward Right Up (+Z)") var axes: int = Axes.XYZ:
 	set(value):
 		axes = value
 		update_configuration_warnings()
@@ -73,7 +75,7 @@ func _observe() -> Variant:
 	var velocity: Vector3 = rigid.linear_velocity if rigid != null else character.velocity
 	if local_frame:
 		velocity = body.global_basis.orthonormalized().inverse() * velocity
-	if axes == 1:
+	if axes == Axes.FORWARD_RIGHT_UP:
 		velocity = Vector3(velocity.z, -velocity.x, velocity.y)
 	velocity /= velocity_scale
 	var values := PackedFloat32Array()
@@ -91,7 +93,7 @@ func _get_component_errors() -> PackedStringArray:
 		errors.append("body_path must reference a RigidBody3D or CharacterBody3D.")
 	if not is_finite(velocity_scale) or velocity_scale <= 0.0:
 		errors.append("velocity_scale must be finite and positive.")
-	if axes < 0 or axes > 1:
+	if axes < Axes.XYZ or axes > Axes.FORWARD_RIGHT_UP:
 		errors.append("axes must be XYZ or Forward Right Up.")
 	if not (has_x or has_y or has_z):
 		errors.append("Enable at least one velocity component.")
