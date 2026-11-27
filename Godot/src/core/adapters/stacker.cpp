@@ -74,8 +74,11 @@ Status Stacker::adapt(const Point &p_input, Point &r_output) {
 		++num_valid;
 	}
 
-	history.push_front(p_input);
+	// Recycle the oldest point so same-shaped vectors retain their allocations.
+	Point newest = std::move(history.back());
+	newest = p_input;
 	history.pop_back();
+	history.push_front(std::move(newest));
 	make_stacked_point(history, r_output);
 	return status;
 }
