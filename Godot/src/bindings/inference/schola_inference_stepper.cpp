@@ -99,7 +99,7 @@ godot::Error ScholaInferenceStepper::add_agent(ScholaAgent *p_agent) {
 	if (!status.is_ok()) {
 		return report("ScholaInferenceStepper.add_agent", status);
 	}
-	const godot::Callable on_exiting = callable_mp(this, &ScholaInferenceStepper::on_agent_exiting).bind(p_agent);
+	const godot::Callable on_exiting = exiting_callback(p_agent);
 	if (!p_agent->is_connected("tree_exiting", on_exiting)) {
 		p_agent->connect("tree_exiting", on_exiting);
 	}
@@ -110,7 +110,7 @@ int32_t ScholaInferenceStepper::remove_agent(ScholaAgent *p_agent) {
 	if (p_agent == nullptr) {
 		return 0;
 	}
-	const godot::Callable on_exiting = callable_mp(this, &ScholaInferenceStepper::on_agent_exiting).bind(p_agent);
+	const godot::Callable on_exiting = exiting_callback(p_agent);
 	if (p_agent->is_connected("tree_exiting", on_exiting)) {
 		p_agent->disconnect("tree_exiting", on_exiting);
 	}
@@ -124,10 +124,9 @@ void ScholaInferenceStepper::reset_state(ScholaAgent *p_agent) {
 	if (stepper == nullptr || p_agent == nullptr) {
 		return;
 	}
-	for (int32_t i = 0; i < stepper->get_agent_count(); ++i) {
-		if (stepper->get_agent(i) == p_agent->get_agent()) {
-			(void)stepper->reset_state(i);
-		}
+	const int32_t index = stepper->find_agent(p_agent->get_agent());
+	if (index >= 0) {
+		(void)stepper->reset_state(index);
 	}
 }
 
@@ -234,6 +233,10 @@ void ScholaInferenceStepper::refresh_warnings() {
 
 void ScholaInferenceStepper::on_agent_exiting(godot::Object *p_agent) {
 	(void)remove_agent(godot::Object::cast_to<ScholaAgent>(p_agent));
+}
+
+godot::Callable ScholaInferenceStepper::exiting_callback(ScholaAgent *p_agent) {
+	return callable_mp(this, &ScholaInferenceStepper::on_agent_exiting).bind(p_agent);
 }
 
 godot::Error ScholaInferenceStepper::report(const godot::String &p_message, godot::Error p_error) {

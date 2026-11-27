@@ -52,6 +52,7 @@ private:
 	godot::Error prepare(ScholaAgent *p_agent);
 	void refresh_warnings();
 	void on_agent_exiting(godot::Object *p_agent);
+	godot::Callable exiting_callback(ScholaAgent *p_agent);
 	godot::Error report(const godot::String &p_message, godot::Error p_error);
 	godot::Error report(const godot::String &p_context, const schola::Status &p_status);
 

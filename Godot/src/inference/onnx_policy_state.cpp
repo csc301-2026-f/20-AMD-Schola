@@ -10,12 +10,7 @@ namespace schola {
 OnnxPolicyState::OnnxPolicyState(const std::vector<BufferLayout> &p_layouts) {
 	buffers.reserve(p_layouts.size());
 	for (const BufferLayout &layout : p_layouts) {
-		Buffer buffer;
-		buffer.name = layout.name;
-		buffer.sequence_length = layout.sequence_length;
-		buffer.state_size = layout.state_size;
-		buffer.values.assign(static_cast<size_t>((layout.sequence_length + 1) * layout.state_size), 0.0f);
-		buffers.push_back(std::move(buffer));
+		buffers.push_back({ layout, std::vector<float>(static_cast<size_t>((layout.sequence_length + 1) * layout.state_size), 0.0f) });
 	}
 }
 

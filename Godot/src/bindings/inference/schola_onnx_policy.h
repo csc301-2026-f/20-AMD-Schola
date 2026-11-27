@@ -11,7 +11,6 @@
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-#include <cstdint>
 #include <memory>
 
 namespace schola {

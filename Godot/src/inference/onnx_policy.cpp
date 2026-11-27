@@ -8,6 +8,7 @@
 
 #include <onnxruntime_c_api.h>
 
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstring>
@@ -89,66 +90,66 @@ size_t element_size(ONNXTensorElementDataType p_type) {
 }
 
 template <typename T>
-void put(std::vector<uint8_t> &r_buffer, size_t p_index, T p_value) {
+void write_raw(std::vector<uint8_t> &r_buffer, size_t p_index, T p_value) {
 	std::memcpy(r_buffer.data() + p_index * sizeof(T), &p_value, sizeof(T));
 }
 
 template <typename T>
-T get(const std::vector<uint8_t> &p_buffer, size_t p_index) {
+T read_raw(const std::vector<uint8_t> &p_buffer, size_t p_index) {
 	T value;
 	std::memcpy(&value, p_buffer.data() + p_index * sizeof(T), sizeof(T));
 	return value;
 }
 
-void store(ONNXTensorElementDataType p_type, std::vector<uint8_t> &r_buffer, size_t p_index, double p_value) {
+void write_element(ONNXTensorElementDataType p_type, std::vector<uint8_t> &r_buffer, size_t p_index, double p_value) {
 	switch (p_type) {
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
-			put(r_buffer, p_index, static_cast<float>(p_value));
+			write_raw(r_buffer, p_index, static_cast<float>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
-			put(r_buffer, p_index, p_value);
+			write_raw(r_buffer, p_index, p_value);
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
-			put(r_buffer, p_index, static_cast<int64_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<int64_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
-			put(r_buffer, p_index, static_cast<int32_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<int32_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
-			put(r_buffer, p_index, static_cast<int16_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<int16_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
-			put(r_buffer, p_index, static_cast<uint16_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<uint16_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
-			put(r_buffer, p_index, static_cast<int8_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<int8_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
-			put(r_buffer, p_index, static_cast<uint8_t>(p_value));
+			write_raw(r_buffer, p_index, static_cast<uint8_t>(p_value));
 			break;
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
-			put(r_buffer, p_index, static_cast<uint8_t>(p_value != 0.0));
+			write_raw(r_buffer, p_index, static_cast<uint8_t>(p_value != 0.0));
 			break;
 		default:
 			break;
 	}
 }
 
-double load(ONNXTensorElementDataType p_type, const std::vector<uint8_t> &p_buffer, size_t p_index) {
+double read_element(ONNXTensorElementDataType p_type, const std::vector<uint8_t> &p_buffer, size_t p_index) {
 	switch (p_type) {
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
-			return get<float>(p_buffer, p_index);
+			return read_raw<float>(p_buffer, p_index);
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
-			return get<double>(p_buffer, p_index);
+			return read_raw<double>(p_buffer, p_index);
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
-			return static_cast<double>(get<int64_t>(p_buffer, p_index));
+			return static_cast<double>(read_raw<int64_t>(p_buffer, p_index));
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
-			return get<int32_t>(p_buffer, p_index);
+			return read_raw<int32_t>(p_buffer, p_index);
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
-			return get<int8_t>(p_buffer, p_index);
+			return read_raw<int8_t>(p_buffer, p_index);
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
 		case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
-			return get<uint8_t>(p_buffer, p_index);
+			return read_raw<uint8_t>(p_buffer, p_index);
 		default:
 			return 0.0;
 	}
@@ -278,7 +279,7 @@ bool write_values(Binding &r_binding, const std::vector<T> &p_values) {
 		return false;
 	}
 	for (size_t i = 0; i < p_values.size(); ++i) {
-		store(r_binding.element_type, r_binding.buffer, i, static_cast<double>(p_values[i]));
+		write_element(r_binding.element_type, r_binding.buffer, i, static_cast<double>(p_values[i]));
 	}
 	return true;
 }
@@ -340,7 +341,7 @@ Status write_observation(Binding &r_binding, const Point &p_point) {
 		if (!status.is_ok()) {
 			return status;
 		}
-		store(r_binding.element_type, r_binding.buffer, 0, discrete->value);
+		write_element(r_binding.element_type, r_binding.buffer, 0, discrete->value);
 		written = true;
 	} else if (const MultiDiscretePoint *multi_discrete = p_point.get_if<MultiDiscretePoint>(); multi_discrete && r_binding.kind == SpaceKind::MULTI_DISCRETE) {
 		if (multi_discrete->values.size() == r_binding.bounds.size()) {
@@ -361,8 +362,8 @@ Status write_observation(Binding &r_binding, const Point &p_point) {
 
 Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) {
 	const int64_t value = p_binding.element_type == ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64
-			? get<int64_t>(p_binding.buffer, p_index)
-			: get<int32_t>(p_binding.buffer, p_index);
+			? read_raw<int64_t>(p_binding.buffer, p_index)
+			: read_raw<int32_t>(p_binding.buffer, p_index);
 	if (value < std::numeric_limits<int32_t>::min() || value > std::numeric_limits<int32_t>::max()) {
 		return Status::error(StatusCode::INVALID_DATA, p_binding.label("action") + " value " + std::to_string(value) + " does not fit int32");
 	}
@@ -373,8 +374,8 @@ Status read_integer(const Binding &p_binding, size_t p_index, int32_t &r_value) 
 Status read_action(const Binding &p_binding, Point &r_point) {
 	if (BoxPoint *box = r_point.get_if<BoxPoint>(); box && p_binding.kind == SpaceKind::BOX && box->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < box->values.size(); ++i) {
-			const float value = static_cast<float>(load(p_binding.element_type, p_binding.buffer, i));
-			box->values[i] = value < p_binding.low[i] ? p_binding.low[i] : (value > p_binding.high[i] ? p_binding.high[i] : value);
+			const float value = static_cast<float>(read_element(p_binding.element_type, p_binding.buffer, i));
+			box->values[i] = std::clamp(value, p_binding.low[i], p_binding.high[i]);
 		}
 		return Status::ok();
 	}
@@ -392,7 +393,7 @@ Status read_action(const Binding &p_binding, Point &r_point) {
 	}
 	if (MultiBinaryPoint *multi_binary = r_point.get_if<MultiBinaryPoint>(); multi_binary && p_binding.kind == SpaceKind::MULTI_BINARY && multi_binary->values.size() == p_binding.element_count) {
 		for (size_t i = 0; i < multi_binary->values.size(); ++i) {
-			multi_binary->values[i] = load(p_binding.element_type, p_binding.buffer, i) != 0.0 ? 1 : 0;
+			multi_binary->values[i] = read_element(p_binding.element_type, p_binding.buffer, i) != 0.0 ? 1 : 0;
 		}
 		return Status::ok();
 	}
@@ -784,17 +785,18 @@ Status OnnxPolicy::load_model(const uint8_t *p_data, size_t p_size, const std::s
 		return environment.status;
 	}
 
+	const std::string context = "load_model(" + p_model_name + ")";
 	OrtSessionOptions *raw_options = nullptr;
-	Status status = from_ort(ort().CreateSessionOptions(&raw_options), StatusCode::RUNTIME_FAILURE, "load_model(" + p_model_name + ")");
+	Status status = from_ort(ort().CreateSessionOptions(&raw_options), StatusCode::RUNTIME_FAILURE, context);
 	OrtPtr<OrtSessionOptions> options(raw_options);
 	if (status.is_ok()) {
-		status = from_ort(ort().SetIntraOpNumThreads(options.get(), 1), StatusCode::RUNTIME_FAILURE, "load_model(" + p_model_name + ")");
+		status = from_ort(ort().SetIntraOpNumThreads(options.get(), 1), StatusCode::RUNTIME_FAILURE, context);
 	}
 	if (status.is_ok()) {
-		status = from_ort(ort().SetInterOpNumThreads(options.get(), 1), StatusCode::RUNTIME_FAILURE, "load_model(" + p_model_name + ")");
+		status = from_ort(ort().SetInterOpNumThreads(options.get(), 1), StatusCode::RUNTIME_FAILURE, context);
 	}
 	if (status.is_ok()) {
-		status = from_ort(ort().SetSessionGraphOptimizationLevel(options.get(), ORT_ENABLE_ALL), StatusCode::RUNTIME_FAILURE, "load_model(" + p_model_name + ")");
+		status = from_ort(ort().SetSessionGraphOptimizationLevel(options.get(), ORT_ENABLE_ALL), StatusCode::RUNTIME_FAILURE, context);
 	}
 
 	OrtSession *raw_session = nullptr;
