@@ -108,8 +108,10 @@ func _observe() -> Variant:
 	var offset := curve.get_closest_offset(path.to_local(car.global_position))
 	var length := curve.get_baked_length()
 	var sample_offset := _along(offset + look_ahead, length, curve.closed)
-	var start := sample_offset if curve.closed else maxf(0.0, minf(sample_offset, length - 1.0))
-	var end := _along(start + 1.0, length, curve.closed)
+	# Keep the direction sample local when one meter would cover most of the loop.
+	var direction_distance := minf(1.0, length * 0.25) if curve.closed else 1.0
+	var start := sample_offset if curve.closed else maxf(0.0, minf(sample_offset, length - direction_distance))
+	var end := _along(start + direction_distance, length, curve.closed)
 	var center := path.to_global(curve.sample_baked(sample_offset))
 	var tangent := (path.to_global(curve.sample_baked(end)) - path.to_global(curve.sample_baked(start))).normalized()
 	var to_car_frame := car.global_basis.inverse()
