@@ -19,12 +19,10 @@ func test_inference_scene_drives_the_car_with_a_schola_exported_policy() -> void
 
 	_use_exported_model(scene)
 	var policy: ScholaOnnxPolicy = stepper.policy
-	var failures: Array[String] = []
-	stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	var failures := _collect_failures([stepper])
 	add_child(scene)
 
-	for frame in 60:
-		await get_tree().physics_frame
+	await _wait_physics_frames(60)
 	var car: VehicleBody3D = scene.get_node("Car")
 	var agent: ScholaAgent = scene.get_node("Car/Agent")
 	assert_array(failures).is_empty()
@@ -43,8 +41,7 @@ func test_inference_scene_shows_the_actions_the_policy_chose() -> void:
 	_use_exported_model(scene)
 	add_child(scene)
 
-	for frame in 60:
-		await get_tree().physics_frame
+	await _wait_physics_frames(60)
 	var controls: RaceTrackControls = scene.get_node("Car/Agent/Controls")
 	assert_object(scene.get_node("ActionDisplay").controls).is_same(controls)
 	assert_object(scene.get_node("ActionDisplay").car).is_same(scene.get_node("Car"))
@@ -70,8 +67,7 @@ func test_model_switcher_changes_model_in_place_and_r_restarts_the_car() -> void
 	await get_tree().physics_frame
 	car.global_position = track.center_at(320.0)
 	car.linear_velocity = Vector3(0.0, 0.0, 5.0)
-	for frame in 10:
-		await get_tree().physics_frame
+	await _wait_physics_frames(10)
 	var max_fps := Engine.max_fps
 	Engine.max_fps = 20
 	await _press(KEY_1)
@@ -88,9 +84,7 @@ func test_model_switcher_changes_model_in_place_and_r_restarts_the_car() -> void
 func test_plus_adds_a_driving_car_ahead_and_minus_removes_the_last_added() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	var steppers := _use_exported_model(scene)
-	var failures: Array[String] = []
-	for stepper in steppers:
-		stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	var failures := _collect_failures(steppers)
 	add_child(scene)
 	var spawner: Node = scene.get_node("CarSpawner")
 	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
@@ -108,8 +102,7 @@ func test_plus_adds_a_driving_car_ahead_and_minus_removes_the_last_added() -> vo
 	assert_float(track.progress_of(second.car.global_position) - first_at).is_greater_equal(35.0)
 	assert_object(get_viewport().get_camera_3d()).is_same(scene.get_node("Car/Camera"))
 
-	for frame in 60:
-		await get_tree().physics_frame
+	await _wait_physics_frames(60)
 	assert_array(failures).is_empty()
 	for added: RaceTrackAgent in [first, second]:
 		assert_float(absf(added.controls.action[0]) + absf(added.controls.action[1])).is_greater(0.0)
@@ -150,21 +143,18 @@ func test_an_added_car_avoids_obstacles_and_r_lines_the_cars_up() -> void:
 func test_h_hides_and_shows_the_rays_of_every_car() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	_use_exported_model(scene)
-	var failures: Array[String] = []
-	scene.get_node("InferenceStepper").inference_failed.connect(func(message: String) -> void: failures.append(message))
+	var failures := _collect_failures([scene.get_node("InferenceStepper")])
 	add_child(scene)
 	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
 	var spawner: Node = scene.get_node("CarSpawner")
 	await get_tree().physics_frame
 	spawner.add()
-	for frame in 3:
-		await get_tree().physics_frame
+	await _wait_physics_frames(3)
 	assert_bool(_shows_rays(agent)).is_true()
 
 	await _press_and_step(KEY_H)
 	spawner.add()
-	for frame in 3:
-		await get_tree().physics_frame
+	await _wait_physics_frames(3)
 	for shown: RaceTrackAgent in [agent, spawner.added[0], spawner.added[1]]:
 		assert_bool(_shows_rays(shown)).is_false()
 
@@ -177,16 +167,13 @@ func test_h_hides_and_shows_the_rays_of_every_car() -> void:
 func test_m_hands_the_car_to_the_keyboard_and_back_to_the_ai() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
 	var steppers := _use_exported_model(scene)
-	var failures: Array[String] = []
-	for stepper in steppers:
-		stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	var failures := _collect_failures(steppers)
 	add_child(scene)
 	var agent: RaceTrackAgent = scene.get_node("Car/Agent")
 	var driver: Label = scene.get_node("ManualDriver")
 	var switcher: Label = scene.get_node("ModelSwitcher")
 	var spawner: Node = scene.get_node("CarSpawner")
-	for frame in 3:
-		await get_tree().physics_frame
+	await _wait_physics_frames(3)
 	assert_bool(driver.visible).is_false()
 
 	await _press_and_step(KEY_M)
@@ -194,16 +181,13 @@ func test_m_hands_the_car_to_the_keyboard_and_back_to_the_ai() -> void:
 	assert_array(Array(agent.controls.action)).contains_exactly([0.0, 0.0])
 	for step: Array in [[KEY_W, [0.0, 1.0]], [KEY_S, [0.0, -1.0]], [KEY_A, [-1.0, 0.0]], [KEY_D, [1.0, 0.0]]]:
 		_hold(step[0], true)
-		for frame in 3:
-			await get_tree().physics_frame
+		await _wait_physics_frames(3)
 		assert_array(Array(agent.controls.action)).contains_exactly(step[1])
 		_hold(step[0], false)
-		for frame in 3:
-			await get_tree().physics_frame
+		await _wait_physics_frames(3)
 
 	_hold(KEY_S, true)
-	for frame in 120:
-		await get_tree().physics_frame
+	await _wait_physics_frames(120)
 	assert_float(agent.car.linear_velocity.dot(agent.car.global_basis.z)).is_between(-6.0, -2.0)
 	_hold(KEY_S, false)
 	await get_tree().physics_frame
@@ -233,11 +217,7 @@ func test_clicking_drops_an_obstacle_ahead_in_that_lane() -> void:
 	var track: RaceTrackPath = scene.get_node("Car/Agent").track
 	await get_tree().physics_frame
 
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_LEFT
-	click.pressed = true
-	click.position = Vector2(get_viewport().get_visible_rect().size.x * 0.1, 100.0)
-	Input.parse_input_event(click)
+	_click(MOUSE_BUTTON_LEFT, Vector2(get_viewport().get_visible_rect().size.x * 0.1, 100.0))
 	for frame in 3:
 		await get_tree().process_frame
 	assert_int(dropper.dropped.size()).is_equal(1)
@@ -277,13 +257,8 @@ func test_right_click_and_delete_remove_dropped_obstacles() -> void:
 	assert_int(dropper.dropped.size()).is_equal(2)
 	assert_bool(dropper.dropped.any(func(item: Dictionary) -> bool: return item.body.get_instance_id() == last_id)).is_false()
 
-	var click := InputEventMouseButton.new()
-	click.button_index = MOUSE_BUTTON_RIGHT
-	click.pressed = true
-	click.position = get_viewport().get_camera_3d().unproject_position(first.global_position)
-	Input.parse_input_event(click)
-	for frame in 3:
-		await get_tree().physics_frame
+	_click(MOUSE_BUTTON_RIGHT, get_viewport().get_camera_3d().unproject_position(first.global_position))
+	await _wait_physics_frames(3)
 	assert_int(dropper.dropped.size()).is_equal(1)
 	assert_bool(dropper.dropped.any(func(item: Dictionary) -> bool: return item.body.get_instance_id() == first_id)).is_false()
 
@@ -390,6 +365,18 @@ func _shows_rays(agent: RaceTrackAgent) -> bool:
 	return agent.rays.get_children(true).any(func(child: Node) -> bool: return child is MeshInstance3D and child.visible)
 
 
+func _wait_physics_frames(count: int) -> void:
+	for frame in count:
+		await get_tree().physics_frame
+
+
+func _collect_failures(steppers: Array) -> Array[String]:
+	var failures: Array[String] = []
+	for stepper: ScholaInferenceStepper in steppers:
+		stepper.inference_failed.connect(func(message: String) -> void: failures.append(message))
+	return failures
+
+
 func _hold(keycode: Key, pressed: bool) -> void:
 	var key := InputEventKey.new()
 	key.keycode = keycode
@@ -398,10 +385,17 @@ func _hold(keycode: Key, pressed: bool) -> void:
 	Input.parse_input_event(key)
 
 
+func _click(button: MouseButton, at: Vector2) -> void:
+	var click := InputEventMouseButton.new()
+	click.button_index = button
+	click.pressed = true
+	click.position = at
+	Input.parse_input_event(click)
+
+
 func _press_and_step(keycode: Key) -> void:
 	await _press(keycode)
-	for frame in 3:
-		await get_tree().physics_frame
+	await _wait_physics_frames(3)
 
 
 func _press(keycode: Key) -> void:

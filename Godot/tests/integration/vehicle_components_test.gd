@@ -7,10 +7,6 @@ extends GdUnitTestSuite
 const PathSensor := preload("res://addons/schola/components/path_sensor_3d.gd")
 const VelocitySensor := preload("res://addons/schola/components/velocity_sensor_3d.gd")
 const VehicleActuator := preload("res://addons/schola/components/vehicle_actuator_3d.gd")
-const FORWARD_RIGHT_UP := 1
-const SIGNED := 0
-const SEPARATE := 1
-const NO_PEDALS := 2
 
 var world: Node3D
 var agent: ScholaAgent
@@ -73,7 +69,7 @@ func test_path_sensor_reports_the_look_ahead_point_in_the_body_frame() -> void:
 	var body: Node3D = _add(Node3D.new(), "Body")
 	body.position = Vector3(2, 0, 10)
 	var sensor := _path_sensor()
-	sensor.axes = FORWARD_RIGHT_UP
+	sensor.axes = PathSensor.Axes.FORWARD_RIGHT_UP
 	sensor.look_ahead = 5.0
 	sensor.include_progress = true
 
@@ -114,7 +110,7 @@ func test_velocity_sensor_scales_and_selects_forward_right_up_components() -> vo
 	body.velocity = Vector3(3, 4, 8)
 	var sensor: VelocitySensor = _add(VelocitySensor.new(), "Velocity", agent)
 	sensor.body_path = NodePath("../../Body")
-	sensor.axes = FORWARD_RIGHT_UP
+	sensor.axes = VelocitySensor.Axes.FORWARD_RIGHT_UP
 	sensor.velocity_scale = 2.0
 
 	assert_array(Array(sensor.get_configuration_errors())).is_empty()
@@ -132,7 +128,7 @@ func test_velocity_sensor_reads_velocity_in_the_body_frame() -> void:
 	body.velocity = Vector3(1, 0, 0)
 	var sensor: VelocitySensor = _add(VelocitySensor.new(), "Velocity", agent)
 	sensor.body_path = NodePath("../../Body")
-	sensor.axes = FORWARD_RIGHT_UP
+	sensor.axes = VelocitySensor.Axes.FORWARD_RIGHT_UP
 
 	_assert_values(sensor._observe(), [1.0, 0.0, 0.0])
 	sensor.local_frame = false
@@ -152,10 +148,10 @@ func test_vehicle_actuator_space_follows_steering_and_pedal_mode() -> void:
 	var actuator := VehicleActuator.new()
 	assert_array(Array(actuator.space.low)).contains_exactly([-1.0, -1.0])
 	assert_array(Array(actuator.space.high)).contains_exactly([1.0, 1.0])
-	actuator.pedal_mode = SEPARATE
+	actuator.pedal_mode = VehicleActuator.PedalMode.SEPARATE
 	assert_array(Array(actuator.space.low)).contains_exactly([-1.0, 0.0, 0.0])
 	assert_array(Array(actuator.space.high)).contains_exactly([1.0, 1.0, 1.0])
-	actuator.pedal_mode = NO_PEDALS
+	actuator.pedal_mode = VehicleActuator.PedalMode.NONE
 	assert_array(Array(actuator.space.shape)).contains_exactly([1])
 	actuator.has_steering = false
 	assert_int(actuator.get_action_count()).is_equal(0)
