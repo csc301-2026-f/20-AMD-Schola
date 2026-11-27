@@ -181,7 +181,7 @@ The keyboard scene disables off-track, tilt, stall, and step-limit endings; pres
 
 The agent composes child nodes in this order:
 
-1. **Track** (`ScholaPathSensor3D`): six track-relative floats sampled 10 m ahead of the car, from a reusable sensor accepting any `Path3D`.
+1. **Track** (`ScholaPathSensor3D`): six track-relative floats sampled 10 m ahead of the car, from a reusable sensor accepting any `Path3D`. The direction sample spans up to one meter, capped at a quarter of the curve length on closed paths.
 2. **Velocity** (`ScholaVelocitySensor3D`): three velocity floats from the reusable add-on.
 3. **Rays** (`ScholaRayCastSensor3D`): 25 rays, one every 5° across 120° and 30 m long, from the front bumper that show walls and obstacles, from the reusable add-on. Like a driver's eyes, they only see in straight lines, so obstacles behind a bend stay hidden until the car is in it; on average an obstacle is first seen about 27 m ahead.
 4. **RoadAhead** (`RaceTrackRoadAheadSensor`): three values, one per lane (left, middle, right), giving the distance along the road to the next obstacle in that lane divided by 60 m, or 1 when the lane is clear for 60 m. It follows the road around bends and over hills, which the rays cannot, so the car can plan for obstacles about 2.4 s ahead at 90 km/h. It reads every visible, solid node in the `obstacle` group, so it also reports obstacles that viewers drop and ignores ones they removed.
