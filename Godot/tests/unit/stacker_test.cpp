@@ -82,3 +82,30 @@ TEST_CASE("Stacker rejects bad inputs without consuming a history slot", "[adapt
 	CHECK_FALSE(stacker.configure(Space(DiscreteSpace{ 0 }), output).is_ok());
 	CHECK(stacker.adapt(DiscretePoint{ 2 }, result).get_code() == StatusCode::FAILED_PRECONDITION);
 }
+
+TEST_CASE("Box history recycling preserves rollover and aliased input", "[adapters]") {
+	BoxStackerSettings settings;
+	settings.stacker.stack_size = GENERATE(1, 3);
+	BoxStacker stacker(settings);
+	Space output;
+	REQUIRE(stacker.configure(Space(BoxSpace{ { 0, 0 }, { 100, 100 }, { 2 } }), output).is_ok());
+	Point result;
+	for (int32_t i = 1; i <= 8; ++i) {
+		result = Point(BoxPoint{ { static_cast<float>(i), static_cast<float>(i + 10) } });
+		REQUIRE(stacker.adapt(result, result).is_ok());
+		REQUIRE(output.validate(result).is_ok());
+		const auto &values = result.get_if<BoxPoint>()->values;
+		CHECK(values[0] == i);
+		CHECK(values[1] == i + 10);
+		if (settings.stacker.stack_size == 3 && i >= 3) {
+			CHECK(values == std::vector<float>{ static_cast<float>(i), static_cast<float>(i + 10), static_cast<float>(i - 1), static_cast<float>(i + 9), static_cast<float>(i - 2), static_cast<float>(i + 8) });
+		}
+	}
+	stacker.reset();
+	REQUIRE(stacker.adapt(BoxPoint{ { 9, 19 } }, result).is_ok());
+	if (settings.stacker.stack_size == 3) {
+		CHECK(result == Point(BoxPoint{ { 9, 19, 0, 0, 0, 0 } }));
+	} else {
+		CHECK(result == Point(BoxPoint{ { 9, 19 } }));
+	}
+}
