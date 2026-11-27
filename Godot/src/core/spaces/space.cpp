@@ -273,6 +273,19 @@ Status validate_box(const BoxSpace &p_box, const BoxPoint &p_point, const std::s
 }
 
 Status validate_dict(const DictSpace &p_dict, const DictPoint &p_point, const std::string &p_path) {
+	// Matching ordered keys need no set allocation or repeated membership searches.
+	const bool matching_keys = p_dict.entries.size() == p_point.entries.size() &&
+			std::equal(p_dict.entries.begin(), p_dict.entries.end(), p_point.entries.begin(),
+					[](const auto &p_space, const auto &p_value) { return p_space.first == p_value.first; });
+	if (matching_keys && std::adjacent_find(p_point.entries.begin(), p_point.entries.end(), [](const auto &p_a, const auto &p_b) { return p_a.first >= p_b.first; }) == p_point.entries.end()) {
+		for (size_t i = 0; i < p_dict.entries.size(); ++i) {
+			Status status = validate_at(p_dict.entries[i].second, p_point.entries[i].second, join_path(p_path, p_dict.entries[i].first));
+			if (!status.is_ok()) {
+				return status;
+			}
+		}
+		return Status::ok();
+	}
 	std::set<std::string> seen;
 	for (const auto &entry : p_point.entries) {
 		if (!seen.insert(entry.first).second) {
