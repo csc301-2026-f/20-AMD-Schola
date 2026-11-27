@@ -1,5 +1,8 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
+class_name ArcadeVehicle
 extends VehicleBody3D
+
+const KMH_PER_METRE_PER_SECOND := 3.6
 
 ## Flat-track arcade grip with a mild brake-and-turn drift assist.
 @export var lateral_grip: float = 6.0
@@ -27,7 +30,7 @@ func reset_handling() -> void:
 	drift_amount = 0.0
 	_drift_active = false
 	_straight_time = 0.0
-	_restore_tire_grip()
+	_apply_rear_grip()
 	for dust in _drift_dust.values():
 		dust.emitting = false
 		dust.restart()
@@ -42,9 +45,9 @@ func _update_drift(delta: float, grounded: bool) -> void:
 	if not grounded or speed < drift_exit_speed or _straight_time >= drift_straighten_delay:
 		_drift_active = false
 	drift_amount = move_toward(drift_amount, 1.0 if _drift_active else 0.0, delta * (3.0 if _drift_active else 2.0))
-	_restore_tire_grip()
+	_apply_rear_grip()
 
-func _restore_tire_grip() -> void:
+func _apply_rear_grip() -> void:
 	for wheel in _rear_grip:
 		wheel.wheel_friction_slip = _rear_grip[wheel] * lerpf(1.0, drift_rear_tire_fraction, drift_amount)
 

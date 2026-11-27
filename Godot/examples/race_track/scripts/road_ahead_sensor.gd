@@ -3,7 +3,6 @@
 class_name RaceTrackRoadAheadSensor
 extends ScholaSensor
 
-const LANES: Array[float] = [2.5, 0.0, -2.5]
 const LANE_HALF_WIDTH := 2.0
 
 @export var body_path: NodePath
@@ -12,7 +11,7 @@ const LANE_HALF_WIDTH := 2.0
 
 func _init() -> void:
 	var box := ScholaBoxSpace.new()
-	box.shape = PackedInt32Array([LANES.size()])
+	box.shape = PackedInt32Array([RaceTrackPath.LANES.size()])
 	box.low = PackedFloat32Array([0.0])
 	box.high = PackedFloat32Array([1.0])
 	space = box
@@ -35,7 +34,7 @@ func _observe() -> Variant:
 		if ahead > view_distance:
 			continue
 		var side: float = body.get_meta("track_side", 0.0)
-		for lane in LANES.size():
-			if absf(side - LANES[lane]) < LANE_HALF_WIDTH:
+		for lane in RaceTrackPath.LANES.size():
+			if absf(side - RaceTrackPath.LANES[lane]) < LANE_HALF_WIDTH:
 				values[lane] = minf(values[lane], ahead / view_distance)
 	return values

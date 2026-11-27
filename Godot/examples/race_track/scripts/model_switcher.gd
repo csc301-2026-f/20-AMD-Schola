@@ -1,6 +1,8 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
 extends Label
 
+const PANEL: StyleBoxFlat = preload("res://examples/race_track/scenes/hud_panel.tres")
+
 @export var stepper_paths: Array[NodePath] = []
 @export var names := PackedStringArray()
 @export var agent_path: NodePath
@@ -14,11 +16,7 @@ var _restart := false
 func _ready() -> void:
 	for path in stepper_paths:
 		steppers.append(get_node(path))
-	var panel := StyleBoxFlat.new()
-	panel.bg_color = Color(0.0, 0.0, 0.0, 0.6)
-	panel.set_corner_radius_all(8)
-	panel.set_content_margin_all(10.0)
-	add_theme_stylebox_override("normal", panel)
+	add_theme_stylebox_override("normal", PANEL)
 	add_theme_font_size_override("font_size", 14)
 	select(selected)
 

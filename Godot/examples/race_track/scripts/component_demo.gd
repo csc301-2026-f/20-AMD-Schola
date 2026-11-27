@@ -3,7 +3,7 @@ extends Node3D
 
 @onready var host: ScholaTrainingHost = $TrainingHost
 @onready var agent: RaceTrackAgent = $RaceTrackEnvironment/Car/Agent
-@onready var car: VehicleBody3D = $RaceTrackEnvironment/Car
+@onready var car: ArcadeVehicle = $RaceTrackEnvironment/Car
 var telemetry: Label
 var running := false
 var smoke := false
@@ -66,14 +66,14 @@ func _physics_process(_delta: float) -> void:
 	peak_speed = maxf(peak_speed, car.linear_velocity.length())
 	minimum_upright = minf(minimum_upright, car.global_basis.y.dot(Vector3.UP))
 	maximum_turn = maxf(maximum_turn, starting_forward.angle_to(car.global_basis.z))
-	saw_drift = saw_drift or float(car.get("drift_amount")) > 0.05
-	if smoke and steps > 120 and pedal > 0.0 and car.brake < 1.0 and float(car.get("drift_amount")) > 0.5:
+	saw_drift = saw_drift or car.drift_amount > 0.05
+	if smoke and steps > 120 and pedal > 0.0 and car.brake < 1.0 and car.drift_amount > 0.5:
 		saw_sustained_drift = true
 	for child in car.get_children():
 		if child is CPUParticles3D and child.emitting:
 			saw_drift_dust = true
 	steps += 1
-	telemetry.text = "RACE TRACK / COMPOSED SENSORS + ACTUATOR\nW: throttle  S: brake/drift  A/D: steer  R: reset\nKeyboard controller (no trained policy) → native host → components\nSteps: %d   Speed: %.1f m/s  Drift: %.0f%%\nTrack [offset / 5m, direction]: %s\nVelocity [forward, right, up] / 2m/s: %s\nControls [steering, pedal]: %s\nReward: %.3f" % [steps, car.linear_velocity.length(), float(car.get("drift_amount")) * 100.0, observation[keys[0]], velocity, Vector2(steering, pedal), state.reward]
+	telemetry.text = "RACE TRACK / COMPOSED SENSORS + ACTUATOR\nW: throttle  S: brake/drift  A/D: steer  R: reset\nKeyboard controller (no trained policy) → native host → components\nSteps: %d   Speed: %.1f m/s  Drift: %.0f%%\nTrack [offset / 5m, direction]: %s\nVelocity [forward, right, up] / 2m/s: %s\nControls [steering, pedal]: %s\nReward: %.3f" % [steps, car.linear_velocity.length(), car.drift_amount * 100.0, observation[keys[0]], velocity, Vector2(steering, pedal), state.reward]
 	if smoke and (state.terminated or state.truncated):
 		push_error("Keyboard demo unexpectedly ended the episode")
 		get_tree().quit(1)

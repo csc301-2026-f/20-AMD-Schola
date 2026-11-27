@@ -2,9 +2,12 @@
 class_name RaceTrackPath
 extends Path3D
 
-const START_OFFSET_BACK := -4.0
-const START_OFFSET_LEFT := 0.0
+const START_OFFSET_AHEAD := 4.0
 const LANE := 2.5
+const LANES: Array[float] = [LANE, 0.0, -LANE]
+const ROAD_HALF_WIDTH := 5.5
+const START_CLEAR_AHEAD := 30.0
+const START_CLEAR_BEHIND := 10.0
 const OBSTACLE_SPACING := 25.0
 const GATE_SPACING := Vector2(20.0, 26.0)
 const CLEAR_AFTER_START := 45.0
@@ -45,14 +48,18 @@ func direction_at(offset: float) -> Vector3:
 	return (center_at(start + 1.0) - center_at(start)).normalized()
 
 
+func offset_between(from_offset: float, to_offset: float) -> float:
+	var length := curve.get_baked_length()
+	return wrapf(to_offset - from_offset, -length * 0.5, length * 0.5)
+
+
 func distance_from_center(global_point: Vector3) -> float:
 	return global_point.distance_to(center_at(progress_of(global_point)))
 
 
 func start_transform() -> Transform3D:
 	var forward := direction_at(0.0)
-	var left := Vector3.UP.cross(forward)
-	var start := center_at(0.0) - forward * START_OFFSET_BACK + left * START_OFFSET_LEFT + Vector3.UP
+	var start := center_at(0.0) + forward * START_OFFSET_AHEAD + Vector3.UP
 	return Transform3D(Basis.looking_at(-forward, Vector3.UP), start)
 
 
@@ -68,7 +75,7 @@ func is_clear(offset: float) -> bool:
 		blocked.append(obstacle.x)
 	for start in blocked:
 		var ahead := fposmod(start - offset, length)
-		if ahead < 30.0 or ahead > length - 10.0:
+		if ahead < START_CLEAR_AHEAD or ahead > length - START_CLEAR_BEHIND:
 			return false
 	return true
 
@@ -102,7 +109,7 @@ func _ready() -> void:
 			visual.transform = pose
 			walls.add_child(visual)
 	map_obstacles = obstacles
-	_add_obstacles()
+	set_obstacles(obstacles)
 	_add_jumps()
 
 
@@ -130,21 +137,15 @@ func _add_jumps() -> void:
 		body.add_child(visual)
 
 
-func _add_obstacles() -> void:
-	set_obstacles(obstacles)
-
-
 func set_obstacles(layout: PackedVector2Array) -> void:
 	obstacles = layout
 	while _obstacle_bodies.size() < layout.size():
-		_obstacle_bodies.append(add_obstacle(0.0, 0.0))
+		_obstacle_bodies.append(_new_obstacle())
 	for index in _obstacle_bodies.size():
 		var body := _obstacle_bodies[index]
 		set_solid(body, index < layout.size())
 		if body.visible:
-			body.global_transform = _obstacle_pose(layout[index].x, layout[index].y)
-			body.set_meta("track_offset", layout[index].x)
-			body.set_meta("track_side", layout[index].y)
+			_move_obstacle(body, layout[index].x, layout[index].y)
 
 
 static func set_solid(body: CollisionObject3D, solid: bool) -> void:
@@ -173,7 +174,7 @@ func random_obstacle_layout(rng: RandomNumberGenerator) -> PackedVector2Array:
 			var offset := rng.randf() * length
 			var open := LANE if rng.randf() < 0.5 else -LANE
 			for gate in rng.randi_range(2, 4):
-				for side in [LANE, 0.0, -LANE]:
+				for side in LANES:
 					if side != open:
 						candidate.append(Vector2(fposmod(offset, length), side))
 				open = -open
@@ -183,7 +184,7 @@ func random_obstacle_layout(rng: RandomNumberGenerator) -> PackedVector2Array:
 				break
 	for single in singles:
 		for attempt in 20:
-			var candidate := PackedVector2Array([Vector2(rng.randf() * length, [LANE, 0.0, -LANE][rng.randi_range(0, 2)])])
+			var candidate := PackedVector2Array([Vector2(rng.randf() * length, LANES[rng.randi_range(0, 2)])])
 			if _fits(candidate, layout):
 				layout.append_array(candidate)
 				break
@@ -200,23 +201,28 @@ func _fits(candidate: PackedVector2Array, layout: PackedVector2Array) -> bool:
 			if ahead < CLEAR_BEFORE_JUMP or ahead > length - CLEAR_AFTER_JUMP:
 				return false
 		for other in layout:
-			if absf(wrapf(other.x - obstacle.x, -length * 0.5, length * 0.5)) < OBSTACLE_SPACING:
+			if absf(offset_between(obstacle.x, other.x)) < OBSTACLE_SPACING:
 				return false
 	return true
 
 
-func _obstacle_pose(offset: float, side: float) -> Transform3D:
+func _move_obstacle(body: StaticBody3D, offset: float, side: float) -> void:
 	var forward := direction_at(offset)
-	return Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(offset) + Vector3.UP.cross(forward).normalized() * side + Vector3.UP * obstacle_size.y * 0.5)
+	body.global_transform = Transform3D(Basis.looking_at(-forward, Vector3.UP), center_at(offset) + Vector3.UP.cross(forward).normalized() * side + Vector3.UP * obstacle_size.y * 0.5)
+	body.set_meta("track_offset", offset)
+	body.set_meta("track_side", side)
 
 
 func add_obstacle(offset: float, side: float) -> StaticBody3D:
+	var body := _new_obstacle()
+	_move_obstacle(body, offset, side)
+	return body
+
+
+func _new_obstacle() -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.add_to_group("obstacle")
 	add_child(body)
-	body.global_transform = _obstacle_pose(offset, side)
-	body.set_meta("track_offset", offset)
-	body.set_meta("track_side", side)
 	var shape := BoxShape3D.new()
 	shape.size = obstacle_size
 	var collision := CollisionShape3D.new()
@@ -234,4 +240,4 @@ func add_obstacle(offset: float, side: float) -> StaticBody3D:
 
 func _edge(offset: float, side: float) -> Vector3:
 	var tangent := direction_at(offset)
-	return curve.sample_baked(offset) + Vector3.UP.cross(tangent) * side * 5.5
+	return curve.sample_baked(offset) + Vector3.UP.cross(tangent) * side * ROAD_HALF_WIDTH

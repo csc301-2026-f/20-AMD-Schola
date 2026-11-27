@@ -35,7 +35,7 @@ func _physics_process(_delta: float) -> void:
 
 
 func add() -> void:
-	var offset := _clear_offset(added)
+	var offset := _next_free_offset(added)
 	if offset < 0.0:
 		return
 	var car: VehicleBody3D = car_scene.instantiate()
@@ -60,12 +60,12 @@ func remove() -> void:
 
 func restart() -> void:
 	for index in added.size():
-		var offset := _clear_offset(added.slice(0, index))
+		var offset := _next_free_offset(added.slice(0, index))
 		if offset >= 0.0:
 			added[index].place(agent.track.transform_at(offset))
 
 
-func _clear_offset(others: Array[RaceTrackAgent]) -> float:
+func _next_free_offset(others: Array[RaceTrackAgent]) -> float:
 	var track := agent.track
 	var length := track.curve.get_baked_length()
 	var here := track.progress_of(agent.car.global_position)
@@ -86,6 +86,6 @@ func _is_clear(offset: float, others: Array[RaceTrackAgent]) -> bool:
 		if body.visible and (ahead < CLEAR_AHEAD or ahead > length - CLEAR_BEHIND):
 			return false
 	for other in others:
-		if absf(wrapf(track.progress_of(other.car.global_position) - offset, -length * 0.5, length * 0.5)) < SPACING:
+		if absf(track.offset_between(offset, track.progress_of(other.car.global_position))) < SPACING:
 			return false
 	return true

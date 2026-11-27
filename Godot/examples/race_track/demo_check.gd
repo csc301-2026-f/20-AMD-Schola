@@ -2,7 +2,7 @@
 extends SceneTree
 
 const SCENE := "res://examples/race_track/scenes/race_track_inference.tscn"
-const LANES: Array[float] = [2.5, 0.0, -2.5]
+const FRAMES_PER_SECOND := 60.0
 const DEMO_SECONDS := 120.0
 const DEMO_LAPS := 2
 const DEMO_MIN_KMH := 50.0
@@ -21,7 +21,7 @@ const SCREENING_SEEDS: Array[int] = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5
 const HELD_OUT_SEEDS: Array[int] = [9000, 9001, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009]
 
 var _scene: Node
-var _car: VehicleBody3D
+var _car: ArcadeVehicle
 var _track: RaceTrackPath
 var _length := 0.0
 
@@ -59,7 +59,7 @@ func _check(model: String, held_out: bool) -> Dictionary:
 	var dodged := 0
 	var run_up_failures := 0
 	for trigger in triggers:
-		for lane in LANES:
+		for lane in RaceTrackPath.LANES:
 			var outcome := await _drop_trial(trigger, lane)
 			dodged += int(outcome == 1)
 			run_up_failures += int(outcome == -1)
@@ -68,7 +68,7 @@ func _check(model: String, held_out: bool) -> Dictionary:
 		layouts_passed += int(await _layout(seed))
 	_scene.queue_free()
 	await process_frame
-	var trials := triggers.size() * LANES.size()
+	var trials := triggers.size() * RaceTrackPath.LANES.size()
 	var layouts := (HELD_OUT_SEEDS if held_out else SCREENING_SEEDS).size()
 	var demo_clean: bool = demo.contacts == 0 and demo.laps >= DEMO_LAPS and demo.kmh >= DEMO_MIN_KMH
 	var passed := demo_clean and (dodged == trials and layouts_passed == layouts if held_out else dodged >= 27 and layouts_passed >= 8)
@@ -129,18 +129,18 @@ func _demo_map() -> Dictionary:
 	var touching := false
 	var drifting := 0
 	var frames := 0
-	while frames < roundi(DEMO_SECONDS * 60.0) and driven < DEMO_LAPS * _length:
+	while frames < roundi(DEMO_SECONDS * FRAMES_PER_SECOND) and driven < DEMO_LAPS * _length:
 		await physics_frame
 		frames += 1
 		var now := _track.progress_of(_car.global_position)
-		driven += wrapf(now - previous, -_length * 0.5, _length * 0.5)
+		driven += _track.offset_between(previous, now)
 		previous = now
 		var touch := _touching()
 		contacts += int(touch and not touching)
 		touching = touch
-		drifting += int(float(_car.get("drift_amount")) > 0.5)
-	var seconds := frames / 60.0
-	return {"contacts": contacts, "laps": floori(driven / _length), "metres": driven, "kmh": driven / maxf(seconds, 0.001) * 3.6, "drift": drifting / 60.0}
+		drifting += int(_car.drift_amount > 0.5)
+	var seconds := frames / FRAMES_PER_SECOND
+	return {"contacts": contacts, "laps": floori(driven / _length), "metres": driven, "kmh": driven / maxf(seconds, 0.001) * ArcadeVehicle.KMH_PER_METRE_PER_SECOND, "drift": drifting / FRAMES_PER_SECOND}
 
 
 func _drop_trial(trigger: float, lane: float) -> int:
@@ -151,10 +151,10 @@ func _drop_trial(trigger: float, lane: float) -> int:
 	var previous := start
 	var obstacle: StaticBody3D = null
 	var outcome := -1
-	for frame in roundi(TRIAL_SECONDS * 60.0):
+	for frame in roundi(TRIAL_SECONDS * FRAMES_PER_SECOND):
 		await physics_frame
 		var now := _track.progress_of(_car.global_position)
-		covered += wrapf(now - previous, -_length * 0.5, _length * 0.5)
+		covered += _track.offset_between(previous, now)
 		previous = now
 		if _touching():
 			break
@@ -162,7 +162,7 @@ func _drop_trial(trigger: float, lane: float) -> int:
 			if covered >= RUN_UP:
 				obstacle = _track.add_obstacle(fposmod(trigger + DROP_AHEAD, _length), lane)
 				outcome = 0
-			elif frame >= roundi(RUN_UP_SECONDS * 60.0):
+			elif frame >= roundi(RUN_UP_SECONDS * FRAMES_PER_SECOND):
 				break
 		elif covered >= RUN_UP + DROP_AHEAD + PASSED_AFTER:
 			outcome = 1
@@ -179,10 +179,10 @@ func _layout(seed: int) -> bool:
 	await _place(-1.0)
 	var previous := _track.progress_of(_car.global_position)
 	var driven := 0.0
-	for frame in roundi(LAYOUT_SECONDS * 60.0):
+	for frame in roundi(LAYOUT_SECONDS * FRAMES_PER_SECOND):
 		await physics_frame
 		var now := _track.progress_of(_car.global_position)
-		driven += wrapf(now - previous, -_length * 0.5, _length * 0.5)
+		driven += _track.offset_between(previous, now)
 		previous = now
 		if _touching():
 			return false
