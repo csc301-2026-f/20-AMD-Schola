@@ -53,6 +53,7 @@ void DictStacker::make_stacked_point(const std::deque<Point> &p_history, Point &
 	for (const auto &entry : output_layout) {
 		const Point &point = p_history[entry.history_slot];
 		const auto *dict = point.get_if<DictPoint>();
+		// Stacker validates that Dict history keys match the input space in order.
 		stacked.entries.emplace_back(entry.key, dict ? dict->entries[entry.input_entry].second : point);
 	}
 

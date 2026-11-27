@@ -140,3 +140,21 @@ TEST_CASE("Box history recycling preserves rollover and aliased input", "[adapte
 		CHECK(result == Point(BoxPoint{ { 9, 19 } }));
 	}
 }
+
+TEST_CASE("Dict stacker rejects out-of-order keys without updating history", "[adapters]") {
+	DictStacker stacker(StackerSettings{ 2, {} });
+	const Space input(DictSpace{ { { "a", Space(DiscreteSpace{ 10 }) }, { "b", Space(DiscreteSpace{ 10 }) } } });
+	Space output;
+	REQUIRE(stacker.configure(input, output).is_ok());
+
+	Point result;
+	const Point unsorted(DictPoint{ { { "b", Point(DiscretePoint{ 5 }) }, { "a", Point(DiscretePoint{ 1 }) } } });
+	const Status status = stacker.adapt(unsorted, result);
+	REQUIRE(status.get_code() == StatusCode::INVALID_ARGUMENT);
+	CHECK(status.get_message().find("not sorted") != std::string::npos);
+	CHECK(stacker.get_num_valid() == 0);
+
+	const Point sorted(DictPoint{ { { "a", Point(DiscretePoint{ 1 }) }, { "b", Point(DiscretePoint{ 5 }) } } });
+	REQUIRE(stacker.adapt(sorted, result).is_ok());
+	CHECK(result == Point(DictPoint{ { { "a_0", Point(DiscretePoint{ 1 }) }, { "a_1", Point(DiscretePoint{ 0 }) }, { "b_0", Point(DiscretePoint{ 5 }) }, { "b_1", Point(DiscretePoint{ 0 }) } } }));
+}
