@@ -82,6 +82,25 @@ func test_path_sensor_reports_the_look_ahead_point_in_the_body_frame() -> void:
 	_assert_values(sensor._observe(), [5.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.1])
 
 
+func test_path_sensor_reports_direction_on_a_short_closed_curve() -> void:
+	_add(Node3D.new(), "Body")
+	var path := Path3D.new()
+	path.curve = Curve3D.new()
+	path.curve.bake_interval = 0.01
+	path.curve.add_point(Vector3.ZERO)
+	path.curve.add_point(Vector3(0.25, 0, 0))
+	path.curve.add_point(Vector3(0.25, 0, 0.25))
+	path.curve.add_point(Vector3(0, 0, 0.25))
+	path.curve.closed = true
+	_add(path, "Path")
+	var sensor := _path_sensor()
+	sensor.include_location = false
+
+	_assert_values(sensor._observe(), [1.0, 0.0, 0.0])
+	sensor.look_ahead = 0.875
+	_assert_values(sensor._observe(), [sqrt(0.5), 0.0, -sqrt(0.5)])
+
+
 func test_path_sensor_rejects_a_missing_path() -> void:
 	_add(Node3D.new(), "Body")
 	var sensor := _path_sensor()
