@@ -35,6 +35,10 @@ func _arguments() -> PackedStringArray:
 
 
 func _process(_delta: float) -> void:
+	_print_output()
+
+
+func _print_output() -> void:
 	for index in _pipes.size():
 		var text := _pipes[index].get_buffer(65536).get_string_from_utf8()
 		if text.is_empty():

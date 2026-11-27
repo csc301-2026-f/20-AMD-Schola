@@ -23,8 +23,7 @@ func test_training_scene_is_configured_for_train_py() -> void:
 	var connector: Node = scene.get_node("TrainingConnector")
 	assert_str(connector.get_class()).is_equal("ScholaTrainingConnector")
 	assert_int(connector.port).is_equal(TRAIN_PY_PORT)
-	scene.remove_child(connector)
-	connector.free()
+	_remove_connector(scene)
 
 	add_child(scene)
 	await get_tree().physics_frame
@@ -62,9 +61,7 @@ func test_training_scene_is_configured_for_train_py() -> void:
 
 func test_reward_chart_plots_the_average_reward_per_second() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
-	var connector: Node = scene.get_node("TrainingConnector")
-	scene.remove_child(connector)
-	connector.free()
+	_remove_connector(scene)
 	add_child(scene)
 	var environment: RaceTrackEnvironment = scene.get_node("RaceTrackEnvironment")
 	var chart: Control = scene.get_node("RewardChart")
@@ -81,9 +78,7 @@ func test_reward_chart_plots_the_average_reward_per_second() -> void:
 
 func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
 	var scene: Node = auto_free(load(SCENE).instantiate())
-	var connector: Node = scene.get_node("TrainingConnector")
-	scene.remove_child(connector)
-	connector.free()
+	_remove_connector(scene)
 	add_child(scene)
 	await get_tree().physics_frame
 	var track: RaceTrackPath = scene.get_node("RaceTrackEnvironment").agent.track
@@ -104,7 +99,7 @@ func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
 		for offset in lanes:
 			assert_int(lanes[offset]).is_less_equal(2)
 			for other in lanes:
-				var gap := absf(wrapf(other - offset, -length * 0.5, length * 0.5))
+				var gap := absf(track.offset_between(offset, other))
 				if gap > 0.0 and lanes[offset] == 1:
 					assert_float(gap).is_greater_equal(track.GATE_SPACING.x)
 	assert_int(sizes.min()).is_less_equal(2)
@@ -119,3 +114,9 @@ func test_random_obstacle_layouts_vary_and_stay_passable() -> void:
 	assert_int(shown.size()).is_equal(1)
 	assert_int(track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.collision_layer != 0).size()).is_equal(1)
 	assert_int(track.get_children().filter(func(child: Node) -> bool: return child.is_in_group("obstacle") and child.collision_mask != 0).size()).is_equal(1)
+
+
+func _remove_connector(scene: Node) -> void:
+	var connector := scene.get_node("TrainingConnector")
+	scene.remove_child(connector)
+	connector.free()

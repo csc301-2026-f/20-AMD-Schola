@@ -11,17 +11,14 @@ var _reading := true
 
 func _ready() -> void:
 	super()
+	set_process(false)
 	if _pid != 0:
 		_reader.start(_read)
 
 
-func _process(_delta: float) -> void:
-	pass
-
-
 func _read() -> void:
 	while _reading:
-		super._process(0.0)
+		_print_output()
 		OS.delay_msec(20)
 
 

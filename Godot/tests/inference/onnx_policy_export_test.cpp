@@ -26,23 +26,6 @@ struct Expected {
 	std::vector<float> action;
 };
 
-Expected read_expected(const std::string &p_name) {
-	std::ifstream file(std::string(SCHOLA_TEST_FIXTURES_DIR) + "/" + p_name + ".expected.txt");
-	REQUIRE(file.is_open());
-	Expected expected;
-	std::string line;
-	while (std::getline(file, line)) {
-		std::istringstream words(line);
-		std::string label;
-		words >> label;
-		std::vector<float> &values = label == "observation" ? expected.observation : expected.action;
-		for (float value; words >> value;) {
-			values.push_back(value);
-		}
-	}
-	return expected;
-}
-
 std::vector<Expected> read_expected_steps(const std::string &p_name) {
 	std::ifstream file(std::string(SCHOLA_TEST_FIXTURES_DIR) + "/" + p_name + ".expected.txt");
 	REQUIRE(file.is_open());
@@ -61,6 +44,12 @@ std::vector<Expected> read_expected_steps(const std::string &p_name) {
 		}
 	}
 	return steps;
+}
+
+Expected read_expected(const std::string &p_name) {
+	const std::vector<Expected> steps = read_expected_steps(p_name);
+	REQUIRE(steps.size() == 1);
+	return steps.front();
 }
 
 void load_and_init(OnnxPolicy &r_policy, const std::string &p_name, Space p_observation, Space p_action) {

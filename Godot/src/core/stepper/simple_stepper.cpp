@@ -137,10 +137,8 @@ Status SimpleStepper::reset_state(int32_t p_index) {
 }
 
 void SimpleStepper::reset_states() {
-	for (Entry &entry : entries) {
-		entry.state->reset();
-		entry.agent->reset_observation_history();
-		entry.observation = observation_space.make_point();
+	for (int32_t i = 0; i < get_agent_count(); ++i) {
+		(void)reset_state(i);
 	}
 }
 

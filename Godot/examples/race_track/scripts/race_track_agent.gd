@@ -3,7 +3,7 @@ class_name RaceTrackAgent
 extends ScholaAgent
 
 var track: RaceTrackPath
-@onready var car: VehicleBody3D = get_parent()
+@onready var car: ArcadeVehicle = get_parent()
 @onready var controls: ScholaVehicleActuator3D = $Controls
 @onready var rays: ScholaRayCastSensor3D = $Rays
 
@@ -25,5 +25,4 @@ func place(pose: Transform3D) -> void:
 	car.linear_velocity = Vector3.ZERO
 	car.angular_velocity = Vector3.ZERO
 	controls.reset()
-	if car.has_method("reset_handling"):
-		car.call("reset_handling")
+	car.reset_handling()

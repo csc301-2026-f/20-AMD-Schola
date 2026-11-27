@@ -12,20 +12,17 @@ namespace schola {
 
 class OnnxPolicyState final : public PolicyState {
 public:
-	struct Buffer {
-		std::string name;
-		int64_t sequence_length = 1;
-		int64_t state_size = 0;
-		std::vector<float> values;
-
-		float *sequence() { return values.data(); }
-		float *pending() { return values.data() + sequence_length * state_size; }
-	};
-
 	struct BufferLayout {
 		std::string name;
 		int64_t sequence_length = 1;
 		int64_t state_size = 0;
+	};
+
+	struct Buffer : BufferLayout {
+		std::vector<float> values;
+
+		float *sequence() { return values.data(); }
+		float *pending() { return values.data() + sequence_length * state_size; }
 	};
 
 	explicit OnnxPolicyState(const std::vector<BufferLayout> &p_layouts);

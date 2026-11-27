@@ -3,6 +3,8 @@
 class_name ScholaPathSensor3D
 extends ScholaSensor
 
+enum Axes { XYZ, FORWARD_RIGHT_UP }
+
 ## Reports, in this order and expressed in the observed body frame: the path point
 ## offset, the path tangent, and normalized progress along the path. Each feature
 ## can be disabled, and has_x/has_y/has_z select vector components.
@@ -18,7 +20,7 @@ extends ScholaSensor
 	set(value):
 		location_scale = value
 		update_configuration_warnings()
-@export_enum("XYZ", "Forward Right Up (+Z)") var axes: int = 0
+@export_enum("XYZ", "Forward Right Up (+Z)") var axes: int = Axes.XYZ
 ## Distance along the path, beyond the closest point, where the point and tangent
 ## are sampled. Closed curves wrap; open curves stop at their end.
 @export var look_ahead: float = 0.0:
@@ -102,10 +104,10 @@ func _validate_property(property: Dictionary) -> void:
 func _observe() -> Variant:
 	if not _get_component_errors().is_empty():
 		return null # The adapter reports invalid configuration/value.
-	var car := get_node(body_path) as Node3D
+	var body := get_node(body_path) as Node3D
 	var path := get_node(path_path) as Path3D
 	var curve := path.curve
-	var offset := curve.get_closest_offset(path.to_local(car.global_position))
+	var offset := curve.get_closest_offset(path.to_local(body.global_position))
 	var length := curve.get_baked_length()
 	var sample_offset := _along(offset + look_ahead, length, curve.closed)
 	# Keep the direction sample local when one meter would cover most of the loop.
@@ -114,12 +116,12 @@ func _observe() -> Variant:
 	var end := _along(start + direction_distance, length, curve.closed)
 	var center := path.to_global(curve.sample_baked(sample_offset))
 	var tangent := (path.to_global(curve.sample_baked(end)) - path.to_global(curve.sample_baked(start))).normalized()
-	var to_car_frame := car.global_basis.inverse()
+	var to_body_frame := body.global_basis.inverse()
 	var values := PackedFloat32Array()
 	if include_location:
-		_append_vector(values, _forward_right_up(to_car_frame * (center - car.global_position)) / location_scale)
+		_append_vector(values, _forward_right_up(to_body_frame * (center - body.global_position)) / location_scale)
 	if include_direction:
-		_append_vector(values, _forward_right_up(to_car_frame * tangent))
+		_append_vector(values, _forward_right_up(to_body_frame * tangent))
 	if include_progress:
 		values.append(clampf(offset / length, 0.0, 1.0))
 	for index in values.size() - int(include_progress):
@@ -139,7 +141,7 @@ func _append_vector(values: PackedFloat32Array, vector: Vector3) -> void:
 
 
 func _forward_right_up(local: Vector3) -> Vector3:
-	return Vector3(local.z, -local.x, local.y) if axes == 1 else local
+	return Vector3(local.z, -local.x, local.y) if axes == Axes.FORWARD_RIGHT_UP else local
 
 
 func _get_component_errors() -> PackedStringArray:

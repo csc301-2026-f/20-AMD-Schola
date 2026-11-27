@@ -50,7 +50,7 @@ func _refresh_space() -> void:
 func _get_component_errors() -> PackedStringArray:
 	var errors := PackedStringArray()
 	if not _valid_dimensions():
-		errors.append("Image dimensions must be 1..2048 and total values must not exceed 4194304.")
+		errors.append("Image dimensions must be 1..2048 and total values must not exceed %d." % MAX_VALUES)
 	if not _valid_channels():
 		errors.append("Enable at least one RGBA channel using only the four channel flags.")
 	if not ScholaComponentSpace.matches(space, _expected_space()):

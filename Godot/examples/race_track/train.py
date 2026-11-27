@@ -20,6 +20,7 @@ from schola.sb3.utils import VecMergeDictActionWrapper
 SCENE = "res://examples/race_track/scenes/race_track_train.tscn"
 CHECK_STEPS = 100_000
 TEST_DRIVE_LAYOUTS = 5
+FRAMES_PER_SECOND = 60
 PPO_SETTINGS = dict(
     n_steps=1024, batch_size=128, gamma=0.99, gae_lambda=0.98, learning_rate=1e-4
 )
@@ -62,7 +63,7 @@ def stop(process, env):
 
 
 def test_drive(model, godot, port):
-    process = launch(godot, port, "--race-track-start-line")
+    process = launch(godot, port, "--race-track-test-drive")
     env = None
     try:
         env = connect(port)
@@ -81,7 +82,7 @@ def test_drive(model, godot, port):
         score /= TEST_DRIVE_LAYOUTS
         print(
             f"Test drive on {TEST_DRIVE_LAYOUTS} layouts: average score {score:.1f}, "
-            f"{metres / TEST_DRIVE_LAYOUTS:.1f} m, drifting {drifting / 60 / TEST_DRIVE_LAYOUTS:.1f} s",
+            f"{metres / TEST_DRIVE_LAYOUTS:.1f} m, drifting {drifting / FRAMES_PER_SECOND / TEST_DRIVE_LAYOUTS:.1f} s",
             flush=True,
         )
         return score
@@ -199,7 +200,7 @@ def main():
     project = example.parents[1]
     output = example / "policies"
     output.mkdir(exist_ok=True)
-    godot = [args.godot, "--path", str(project), "--fixed-fps", "60"]
+    godot = [args.godot, "--path", str(project), "--fixed-fps", str(FRAMES_PER_SECOND)]
     if args.headless:
         godot.append("--headless")
     process = None if args.attach else [launch(godot, port) for port in ports]

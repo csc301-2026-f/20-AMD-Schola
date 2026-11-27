@@ -7,19 +7,17 @@ const PLOT := Rect2(16.0, 44.0, 208.0, 64.0)
 const LINE := Color(0.3, 0.85, 0.4)
 const MUTED := Color(1.0, 1.0, 1.0, 0.7)
 const BASELINE := Color(1.0, 1.0, 1.0, 0.25)
+const PANEL: StyleBoxFlat = preload("res://examples/race_track/scenes/hud_panel.tres")
 
 @export var environment_path: NodePath
 @onready var environment: RaceTrackEnvironment = get_node(environment_path)
 var points := PackedFloat32Array()
-var panel := StyleBoxFlat.new()
 var _steps := 0
 var _reward := 0.0
 
 
 func _ready() -> void:
-	panel.bg_color = Color(0.0, 0.0, 0.0, 0.6)
-	panel.set_corner_radius_all(10)
-	visible = not "--race-track-start-line" in OS.get_cmdline_user_args()
+	visible = not RaceTrackEnvironment.is_test_drive()
 	environment.step_rewarded.connect(_on_step_rewarded)
 
 
@@ -36,7 +34,7 @@ func _on_step_rewarded(reward: float) -> void:
 
 func _draw() -> void:
 	var font := get_theme_default_font()
-	draw_style_box(panel, Rect2(Vector2.ZERO, size))
+	draw_style_box(PANEL, Rect2(Vector2.ZERO, size))
 	draw_string(font, Vector2(14.0, 26.0), "REWARD PER SECOND", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, MUTED)
 	var lowest := 0.0
 	var highest := 1.0

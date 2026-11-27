@@ -6,16 +6,11 @@ const BRAKE := Color(0.95, 0.3, 0.25)
 const MARK := Color(1.0, 0.7, 0.2)
 const EMPTY := Color(1.0, 1.0, 1.0, 0.15)
 const MUTED := Color(1.0, 1.0, 1.0, 0.7)
+const PANEL: StyleBoxFlat = preload("res://examples/race_track/scenes/hud_panel.tres")
 
 @export var controls_path: NodePath
 @onready var controls: RaceTrackControls = get_node(controls_path)
-@onready var car: VehicleBody3D = controls.get_node(controls.body_path)
-var panel := StyleBoxFlat.new()
-
-
-func _ready() -> void:
-	panel.bg_color = Color(0.0, 0.0, 0.0, 0.6)
-	panel.set_corner_radius_all(10)
+@onready var car: ArcadeVehicle = controls.get_node(controls.body_path)
 
 
 func _process(_delta: float) -> void:
@@ -26,7 +21,7 @@ func _draw() -> void:
 	var steering := clampf(controls.action[0], -1.0, 1.0)
 	var pedal := clampf(controls.action[1], -1.0, 1.0)
 	var font := get_theme_default_font()
-	draw_style_box(panel, Rect2(Vector2.ZERO, size))
+	draw_style_box(PANEL, Rect2(Vector2.ZERO, size))
 	draw_string(font, Vector2(14.0, 26.0), "AGENT ACTIONS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, MUTED)
 	var center := Vector2(62.0, 84.0)
 	var turn := steering * PI * 0.5
@@ -41,7 +36,7 @@ func _draw() -> void:
 	_pedal(font, 140.0, maxf(-pedal, 0.0), BRAKE, "BRAKE")
 	_pedal(font, 192.0, maxf(pedal, 0.0), GAS, "GAS")
 	draw_line(Vector2(222.0, 46.0), Vector2(222.0, 166.0), EMPTY, 2.0)
-	draw_string(font, Vector2(222.0, 100.0), str(roundi(car.linear_velocity.length() * 3.6)), HORIZONTAL_ALIGNMENT_CENTER, 78.0, 34)
+	draw_string(font, Vector2(222.0, 100.0), str(roundi(car.linear_velocity.length() * ArcadeVehicle.KMH_PER_METRE_PER_SECOND)), HORIZONTAL_ALIGNMENT_CENTER, 78.0, 34)
 	_label(font, 261.0, "SPEED", "km/h")
 
 

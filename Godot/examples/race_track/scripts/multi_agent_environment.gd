@@ -6,8 +6,6 @@ extends RaceTrackEnvironment
 
 var returns: Dictionary[ScholaAgent, float] = {}
 var racing: Dictionary[ScholaAgent, bool] = {}
-var _distances: Dictionary[ScholaAgent, float] = {}
-var _stalls: Dictionary[ScholaAgent, int] = {}
 
 
 func _reset_episode(seed: Variant, options: Dictionary) -> void:
@@ -24,12 +22,11 @@ func _reset_episode(seed: Variant, options: Dictionary) -> void:
 		if index > 0:
 			racer.place(agent.track.transform_at(fposmod(start + index * start_spacing, length)))
 		returns[racer] = 0.0
-		_stalls[racer] = 0
-		_distances[racer] = agent.track.progress_of(racer.car.global_position)
+		_start_tracking(racer)
 	_show(racers[0])
 
 
-func _clear_offset() -> float:
+func _random_start_offset() -> float:
 	var track := agent.track
 	var length := track.curve.get_baked_length()
 	for attempt in 200:
@@ -43,17 +40,11 @@ func _clear_offset() -> float:
 
 
 func _get_step_result(stepped: ScholaAgent) -> Variant:
-	agent = stepped
-	car = agent.car
-	_previous_distance = _distances[agent]
-	_stalled_steps = _stalls[agent]
 	var result: Dictionary = super(stepped)
-	_distances[agent] = _previous_distance
-	_stalls[agent] = _stalled_steps
-	returns[agent] += result.reward
-	result.info.agent = agent.get_resolved_agent_id()
+	returns[stepped] += result.reward
+	result.info.agent = stepped.get_resolved_agent_id()
 	if result.terminated or result.truncated:
-		_retire.call_deferred(agent, get_episode_step())
+		_retire.call_deferred(stepped, get_episode_step())
 	return result
 
 
