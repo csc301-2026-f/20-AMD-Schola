@@ -40,7 +40,7 @@ jobs:
             editor_sha256: c58a24e31d720be9d62f60cb5627c4e695fb72f21b0cfe1bc9ccaa9a3b3ba63e
             editor_path: Godot.app/Contents/MacOS/Godot
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,7 +51,7 @@ jobs:
         env:
           GIT_CONFIG_COUNT: "1"
           GIT_CONFIG_KEY_0: lfs.fetchinclude
-          GIT_CONFIG_VALUE_0: Godot/vendor/onnxruntime/${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
+          GIT_CONFIG_VALUE_0: Godot/vendor/onnxruntime/${{ matrix.platform }}-${{ matrix.arch }}.tar.gz,Godot/vendor/grpc/${{ matrix.platform }}-${{ matrix.arch }}.zip
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -78,17 +78,23 @@ jobs:
           restore-keys: |
             plugin-scons-v1-${{ runner.os }}-${{ matrix.arch }}-${{ steps.build-cache.outputs.image }}-${{ hashFiles('Godot/dependencies.lock.json', 'Godot/requirements.txt', 'Godot/SConstruct') }}-
 
-      - name: Build release extension
+      - name: Build packaged extensions
         shell: pwsh
         run: |
           python Godot/tools/setup_onnxruntime.py
           if ($LASTEXITCODE -ne 0) { throw "ONNX Runtime setup failed" }
-          scons -C Godot schola platform=${{ matrix.platform }} arch=${{ matrix.arch }} target=template_debug -j2
-          if ($LASTEXITCODE -ne 0) { throw "Debug runtime build failed" }
-          scons -C Godot schola platform=${{ matrix.platform }} arch=${{ matrix.arch }} target=template_release -j2
-          if ($LASTEXITCODE -ne 0) { throw "Release runtime build failed" }
+          $targets = @('schola')
+          if ('${{ matrix.platform }}' -ne 'macos') {
+            python Godot/tools/setup_grpc.py
+            if ($LASTEXITCODE -ne 0) { throw "gRPC setup failed" }
+            $targets += 'schola_training'
+          }
+          foreach ($configuration in @('template_debug', 'template_release')) {
+            scons -C Godot @targets platform=${{ matrix.platform }} arch=${{ matrix.arch }} "target=$configuration" -j2
+            if ($LASTEXITCODE -ne 0) { throw "$configuration extension build failed" }
+          }
 
-      - name: Package runtime and editor add-on
+      - name: Package Schola for Godot
         shell: pwsh
         run: python Godot/tools/package_plugin.py --platform ${{ matrix.platform }} --arch ${{ matrix.arch }} --output dist/Schola-Godot-${{ matrix.platform }}-${{ matrix.arch }}.zip
 
@@ -119,7 +125,10 @@ jobs:
           @'
           extends SceneTree
           func _initialize():
-              for type_name in ["ScholaEnvironment", "ScholaAgent", "ScholaTrainingHost", "ScholaOnnxPolicy", "ScholaInferenceStepper"]:
+              var expected_classes = ["ScholaEnvironment", "ScholaAgent", "ScholaTrainingHost", "ScholaOnnxPolicy", "ScholaInferenceStepper"]
+              if OS.get_name() in ["Windows", "Linux"]:
+                  expected_classes.append("ScholaTrainingConnector")
+              for type_name in expected_classes:
                   if not ClassDB.class_exists(type_name):
                       push_error("Package is missing native class: " + type_name)
                       quit(1)

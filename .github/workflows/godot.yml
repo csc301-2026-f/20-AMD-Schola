@@ -38,7 +38,7 @@ jobs:
               --jq '.[].filename' > changed-files.txt
             while IFS= read -r path; do
               case "$path" in
-                .github/workflows/godot.yml|.github/workflows/godot-packages.yml|.github/workflows/d4-release.yml|.gitmodules|Godot/*|Proto/*)
+                .github/workflows/godot.yml|.github/workflows/godot-packages.yml|.github/workflows/d4-release.yml|.gitmodules|Godot/*|Proto/*|Resources/python/*)
                   relevant=true
                   break
                   ;;
