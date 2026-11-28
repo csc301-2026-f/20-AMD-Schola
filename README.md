@@ -9,19 +9,24 @@ AMD Schola originally only supported the Unreal engine. This project gives Godot
 The [user stories](Godot/docs/user_stories/README.md) track approved MVP and stretch scope. Each record links the delivered behavior to its implementation and verification evidence. Historical demos are preserved separately and are not the current plugin's training interface.
 
 ## Access and installation
-`<platform>` may be any of `windows`, `linux`, or `macos`
-`<arch>` may be any of `x86_64` or `arm64`
 
-Follow the appropriate flow depending on your usecase:
+- **Godot Developer:** Download your platform’s `Schola-Godot-<platform>-<arch>.zip` from the [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4). Windows and Linux x86_64 support training and inference. The macOS arm64 ZIP supports inference and editor tools.
+  - **Dependencies:**
+    + Godot 4.7.2
+    + Python 3.12 with pip, if you want to train models
+  - **Setup:** Extract the ZIP and copy `addons/schola/` into your project’s `addons/` directory. Open the project and enable **AMD Schola** under **Project Settings > Plugins**.
+  - **Training:** Also copy `addons/schola_training/` into your project. From the extracted ZIP folder, run `pip install "./python/schola-2.1.0-py3-none-any.whl[sb3]"` in your Python virtual environment. Replace `sb3` with `rllib` to use RLlib instead. Pip installs the selected trainer and its dependencies. See the [installation guide](Godot/docs/distribution.md) for how to start training.
 
-- **Release/prod:** download your platform's `Schola-Godot-<platform>-<arch>.zip` from the [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4).
-- **Dev:** open a successful `main` run of [Godot CI](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml), then download its `schola-plugin-<platform>-<arch>` artifact. Extract the Actions artifact wrapper to find the plugin ZIP.
-- **Building or modifying Schola:** use the source checkout and the [development guide](Godot/README.md).
+- **Schola Developer:** Clone the repo with `git clone --recurse-submodules https://github.com/csc301-2026-f/20-AMD-Schola.git`.
+  - **Dependencies:**
+    + Godot 4.7.2
+    + Python 3.12 with pip
+    + Git LFS
+    + A C++17 toolchain (GCC on Linux, MSVC on Windows, or Apple Clang on macOS)
+  - **Setup:** Fetch the Git LFS assets, create and activate a Python virtual environment, and run `pip install --require-hashes -r Godot/requirements.txt` to install SCons. Run `python Godot/tools/setup_onnxruntime.py` and, if building the training addon on Windows or Linux, `python Godot/tools/setup_grpc.py`. Build with SCons and open the `Godot/` project. The [build guide](Godot/README.md#build-and-run) has the exact commands for each platform.
+  - **Training:** From the repo root, run `pip install -e "Resources/python[sb3]"` for Stable-Baselines3, or replace `sb3` with `rllib` for RLlib. See [Train with Python](Godot/README.md#train-with-python) to connect the trainer to a scene.
 
-The plugin archives contain the runtime/editor addon, debug and release native libraries, ONNX Runtime, licenses, and a source commit record. The Windows and Linux x86_64 archives also include the training addon and Schola Python wheel. The macOS arm64 archive supports runtime inference and editor tools.
-
-With Godot closed, extract the plugin ZIP and copy its `addons/schola/` directory into your project's `addons/`. Open the project with Godot 4.7.2 and enable **AMD Schola** under **Project Settings > Plugins**. Preserve the archive's license notices when redistributing it. See [installation, distribution, and troubleshooting](Godot/docs/distribution.md) for the package layout and update procedure.
-
+For a recent development build, open a successful `main` run of [Godot CI](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml) and download the `schola-plugin-<platform>-<arch>` artifact. Extract the artifact to find the plugin ZIP.
 ## Core workflows
 
 1. **Define a task.** Add a `ScholaEnvironment` and child `ScholaAgent` nodes. Define observation/action spaces through Inspector resources or code; implement reset and `_get_step_result(agent)` for rewards and episode endings. See [code-defined spaces](Godot/examples/code_defined_spaces/README.md).
