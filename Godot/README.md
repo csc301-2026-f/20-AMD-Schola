@@ -8,7 +8,7 @@ Repository workflow and contribution requirements are defined in [`CONTRIBUTING.
 
 The [root README](../README.md) introduces current user workflows. Use [the distribution guide](docs/distribution.md) to install runtime/editor packages and [the AMD codebase map](docs/maintenance.md) to locate implementation, tests, and shared interfaces.
 
-[Godot CI](../.github/workflows/godot.yml) runs formatting, dependency checks, native unit/inference/transport suites, and headless Godot integration tests. [Plugin packaging](../.github/workflows/godot-packages.yml) builds debug/release runtime libraries for Windows x86_64, Linux x86_64, and macOS arm64, then checks the extracted add-on in a clean project. Successful main runs distribute dev artifacts; the [D4 publisher](../.github/workflows/d4-release.yml) automatically publishes versioned release/prod assets using the same packaging workflow. CI no longer trains or exports historical course demos.
+[Godot CI](../.github/workflows/godot.yml) runs formatting, dependency checks, native unit/inference/transport suites, and headless Godot integration tests. [Plugin packaging](../.github/workflows/godot-packages.yml) builds debug/release runtime libraries for Windows x86_64, Linux x86_64, and macOS arm64. Windows and Linux packages also include debug/release training libraries and the matching Schola Python wheel. CI checks the extracted native addons in a clean project. Successful main runs distribute dev artifacts, and the [D4 publisher](../.github/workflows/d4-release.yml) publishes versioned release assets using the same packaging workflow. CI no longer trains or exports historical course demos.
 
 Runner jobs have explicit timeouts. SCons caches reduce repeated native compilation; the optional 90-minute gRPC source rebuild is separate from normal checks. Continue following the course GitHub Actions Resource Policy, review workflow, and required checks. Check Actions results before describing a platform or revision as verified.
 
@@ -409,7 +409,7 @@ policy that turns an agent toward a ball it sees through `ScholaCameraSensor`.
 
 ## Train with Python
 
-Add one `ScholaTrainingConnector` node to the scene you want to train, as with Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the current scene and creates its own `ScholaTrainingHost` as an internal child, so nothing else is needed. The connector comes from the training extension, which needs the committed gRPC package:
+Add one `ScholaTrainingConnector` node to the scene you want to train, as with Unreal Schola's `AGymConnectorManager`. It trains every `ScholaEnvironment` in the current scene and creates its own `ScholaTrainingHost` as an internal child. On Windows and Linux x86_64, you can [install the training extension and Python client from the ZIP](docs/distribution.md#train-from-the-windows-or-linux-package) and continue with running the scene below. To build from source, install the committed gRPC package and build both extensions:
 
 ```sh
 python Godot/tools/setup_grpc.py

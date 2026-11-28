@@ -30,7 +30,7 @@ Follow [the developer README](../README.md#build-and-run), including Git LFS, pi
 
 Run Catch2 unit, inference, and transport suites plus GdUnit4 integration tests using [the documented commands](../README.md#supported-toolchain). Build with `integration_tests=yes` to include the native test helpers used by the training integration suites, as CI does. These tests exercise protocol/lifecycle behavior; also follow the production example's story record for real training, learning evidence, export, and playback validation.
 
-For distributions, use [the package guide](distribution.md). Record the source commit and platform when reporting failures. A release ZIP is a runtime installation; a source checkout is the development/training environment.
+For distributions, use [the package guide](distribution.md). Record the source commit and platform when reporting failures. The Windows and Linux ZIPs include the prebuilt training addon and Python wheel. Use a source checkout to build or modify Schola itself.
 
 ## Make a change
 

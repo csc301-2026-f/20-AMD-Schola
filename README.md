@@ -4,26 +4,35 @@ Schola for Godot brings AMD's reinforcement-learning toolkit to Godot 4.7. Devel
 
 ## Problem and project scope
 
-AMD Schola already supports Unreal Engine. This project gives Godot game developers, RL researchers, and simulation developers the same training-to-gameplay workflow while preserving the shared Python tools and protocol. Our contribution lives under `Godot/`: environment and agent APIs, spaces, episode lifecycle, Python training connector, local inference, reusable components, and editor tools. The existing Unreal implementation under `Source/` and upstream Python package under `Resources/python/` provide the shared foundation.
+AMD Schola originally only supported the Unreal engine. This project gives Godot game developers, RL researchers, and simulation developers the same training-to-gameplay toolkit that the Unreal side with a native Godot user experience. This project is less of a port and more of a recreation of the benefits that Schola gave to Unreal, but instead for Godot. Our contribution lives under `Godot/` and the existing Unreal implementation exists under `Source/` however we reused its Python libraries under `Resources/python/`.
 
 The [user stories](Godot/docs/user_stories/README.md) track approved MVP and stretch scope. Each record links the delivered behavior to its implementation and verification evidence. Historical demos are preserved separately and are not the current plugin's training interface.
 
 ## Access and installation
 
-- **Release/prod:** download your platform's `Schola-Godot-<platform>-<arch>.zip` from the [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4).
-- **Dev:** open a successful `main` run of [Godot CI](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml), then download its `schola-plugin-<platform>-<arch>` artifact. Extract the Actions artifact wrapper to find the plugin ZIP.
-- **Training and development:** use the source checkout and the [development guide](Godot/README.md).
+- **Godot Developer:** Download your platform’s `Schola-Godot-<platform>-<arch>.zip` from the [D4 release](https://github.com/csc301-2026-f/20-AMD-Schola/releases/tag/D4). Windows and Linux x86_64 support training and inference. The macOS arm64 ZIP supports inference and editor tools.
+  - **Dependencies:**
+    + Godot 4.7.2
+    + Python 3.12 with pip, if you want to train models
+  - **Setup:** Extract the ZIP and copy `addons/schola/` into your project’s `addons/` directory. Open the project and enable **AMD Schola** under **Project Settings > Plugins**.
+  - **Training:** Also copy `addons/schola_training/` into your project. From the extracted ZIP folder, run `pip install "./python/schola-2.1.0-py3-none-any.whl[sb3]"` in your Python virtual environment. Replace `sb3` with `rllib` to use RLlib instead. Pip installs the selected trainer and its dependencies. See the [installation guide](Godot/docs/distribution.md) for how to start training.
 
-The plugin archives contain the runtime/editor add-on, debug and release native libraries, ONNX Runtime, licenses, and a source commit record. They support Windows x86_64, Linux x86_64, and macOS arm64. They exclude the Python training extension; production training is a source-build workflow on Windows or Linux.
+- **Schola Developer:** Clone the repo with `git clone --recurse-submodules https://github.com/csc301-2026-f/20-AMD-Schola.git`.
+  - **Dependencies:**
+    + Godot 4.7.2
+    + Python 3.12 with pip
+    + Git LFS
+    + A C++17 toolchain (GCC on Linux, MSVC on Windows, or Apple Clang on macOS)
+  - **Setup:** Fetch the Git LFS assets, create and activate a Python virtual environment, and run `pip install --require-hashes -r Godot/requirements.txt` to install SCons. Run `python Godot/tools/setup_onnxruntime.py` and, if building the training addon on Windows or Linux, `python Godot/tools/setup_grpc.py`. Build with SCons and open the `Godot/` project. The [build guide](Godot/README.md#build-and-run) has the exact commands for each platform.
+  - **Training:** From the repo root, run `pip install -e "Resources/python[sb3]"` for Stable-Baselines3, or replace `sb3` with `rllib` for RLlib. See [Train with Python](Godot/README.md#train-with-python) to connect the trainer to a scene.
 
-With Godot closed, extract the plugin ZIP and copy its `addons/schola/` directory into your project's `addons/`. Open the project with Godot 4.7.2 and enable **AMD Schola** under **Project Settings > Plugins**. Preserve the archive's license notices when redistributing it. See [installation, distribution, and troubleshooting](Godot/docs/distribution.md) for the package layout and update procedure.
-
+For a recent development build, open a successful `main` run of [Godot CI](https://github.com/csc301-2026-f/20-AMD-Schola/actions/workflows/godot.yml) and download the `schola-plugin-<platform>-<arch>` artifact. Extract the artifact to find the plugin ZIP.
 ## Core workflows
 
 1. **Define a task.** Add a `ScholaEnvironment` and child `ScholaAgent` nodes. Define observation/action spaces through Inspector resources or code; implement reset and `_get_step_result(agent)` for rewards and episode endings. See [code-defined spaces](Godot/examples/code_defined_spaces/README.md).
 2. **Compose an agent.** Use reusable ray/camera sensors and movement, rotation, or teleport actuators, or implement custom observation/action hooks. See the [component guide](Godot/README.md#reusable-sensors-and-actuators) and [interactive component example](Godot/examples/us8_components/README.md).
 3. **Inspect before training.** Use the Inspector's configuration warnings, Schola editor dock, and episode monitor. The [manual environment example](Godot/examples/manual_environment/README.md) exercises reset, actions, and results without Python.
-4. **Connect Python training.** Build both extensions and add `ScholaTrainingConnector` to your training scene. Start Godot, then connect Schola's supported Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
+4. **Connect Python training.** Install both extensions and the Python client from the [Windows or Linux package](Godot/docs/distribution.md#train-from-the-windows-or-linux-package), or build them from source. Add `ScholaTrainingConnector` to your training scene, start Godot, and connect the Python trainer over localhost gRPC. The [training guide](Godot/README.md#train-with-python) explains timeouts, reconnects, and the training-only scene boundary.
 5. **Configure multiple agents.** One environment can expose agents with different spaces and independent episode results. Use RLlib for heterogeneous agents; follow the [two-agent example](Godot/examples/multi_agent/README.md). The Windows RLlib run completed 4,096 steps and 300 episodes; see [US12](Godot/docs/user_stories/US12.md) for the review record.
 6. **Run a policy locally.** Export the trained policy to ONNX, assign it to `ScholaOnnxPolicy`, and configure `ScholaInferenceStepper` with the agents to drive. Python is not required during playback. See [policy setup and observation stacking](Godot/README.md#running-a-trained-policy).
 
@@ -56,7 +65,7 @@ Partner feedback shaped the current interfaces: one step-result callback replace
 | Validated inputs | Spaces reject invalid definitions and values; configuration warnings surface missing or incompatible agent/component setup. [Space unit tests](Godot/tests/unit/spaces_test.cpp), [space integration tests](Godot/tests/integration/spaces_test.gd), and [component tests](Godot/tests/integration/components_parity_test.gd). |
 | Reliable episode lifecycle | Reset, step, per-agent results, completion, invalid-action rejection, and session failure are explicit. [Training-host integration tests](Godot/tests/integration/training_host_test.gd) and [multi-agent tests](Godot/tests/integration/multi_agent_training_test.gd). |
 | Bounded communication and recovery | Connector start/step timeouts and normal-session reconnection distinguish waiting, closure, and failure. [Connector integration tests](Godot/tests/integration/training_connector_test.gd), native transport tests under `Godot/tests/transport/`, and [reconnection guidance](Godot/README.md#train-with-python). |
-| Local inference and portable distribution | ONNX runs without Python; runtime-only packages omit training dependencies. Native inference suites under `Godot/tests/inference/` and clean-project package loading in [packaging CI](.github/workflows/godot-packages.yml). |
+| Local inference and portable distribution | ONNX runs without Python. Game exports can omit the training addon. Native inference suites under `Godot/tests/inference/` and clean-project package loading in [packaging CI](.github/workflows/godot-packages.yml). |
 | Maintainability | Core excludes engine and technology headers; module-specific adapters own conversions. Pinned dependencies, clang-format, review, and automated suites support changes. [Contract](Godot/docs/development_contract.md), [dependency lock](Godot/dependencies.lock.json), and [CI](.github/workflows/godot.yml). |
 | Useful Godot diagnostics | Inspector warnings, named errors, dock configuration, and a textual episode monitor support setup and debugging. [UI guide](Godot/README.md#inspect-the-schola-ui). Screen-reader support and a full accessibility audit are not claimed. |
 | Communication boundary | Training defaults to loopback. There is no documented authentication/TLS deployment for untrusted networks; use trusted local training. [Connector configuration](Godot/README.md#train-with-python). |

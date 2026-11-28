@@ -84,6 +84,6 @@ jobs:
           else
             gh release create "$TAG" "${assets[@]}" --verify-tag --repo "$GITHUB_REPOSITORY" \
               --title "Deliverable ${TAG#D}" \
-              --notes "Schola for Godot runtime plugin packages built and load-tested at commit $TARGET. Training uses the source checkout; see the repository README and Godot/docs/distribution.md."
+              --notes "Schola for Godot packages built and load-tested at commit $TARGET. Windows and Linux include the training addon and Schola Python wheel. macOS includes the runtime and editor addon. See INSTALL.md in each ZIP for setup."
           fi
           echo "Release: https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

@@ -1,16 +1,19 @@
 # Copyright (c) 2026 Advanced Micro Devices, Inc. All Rights Reserved.
-"""Package the runtime and editor add-on for installation in a Godot project."""
+"""Package the runtime/editor add-on and training on supported platforms."""
 
 import argparse
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 
 def package(repository: Path, platform: str, arch: str, output: Path) -> None:
-    addon = repository / "Godot/addons/schola"
+    addons = repository / "Godot/addons"
+    addon = addons / "schola"
+    include_training = (platform, arch) in {("linux", "x86_64"), ("windows", "x86_64")}
     suffix = {"windows": "dll", "linux": "so", "macos": "dylib"}[platform]
     prefix = "" if platform == "windows" else "lib"
     binaries = addon / "bin" / platform
@@ -36,6 +39,15 @@ def package(repository: Path, platform: str, arch: str, output: Path) -> None:
             "ui/schola_monitor.gd",
         )
     )
+    if include_training:
+        training = addons / "schola_training"
+        required.append(training / "schola_training.gdextension")
+        training_binaries = training / "bin" / platform
+        required.extend(
+            training_binaries
+            / f"{prefix}schola_training.{platform}.{target}.{arch}.{suffix}"
+            for target in ("template_debug", "template_release")
+        )
     for path in required:
         if not path.is_file() or path.stat().st_size == 0:
             raise FileNotFoundError(f"Missing or empty package input: {path}")
@@ -43,12 +55,12 @@ def package(repository: Path, platform: str, arch: str, output: Path) -> None:
         ["git", "rev-parse", "HEAD"], cwd=repository, text=True
     ).strip()
     with tempfile.TemporaryDirectory() as temporary:
-        stage = Path(temporary)
+        stage = Path(temporary) / "archive"
         destination = stage / "addons/schola"
         destination.mkdir(parents=True)
         for path in required:
-            if path.is_relative_to(addon):
-                target = destination / path.relative_to(addon)
+            if path.is_relative_to(addons):
+                target = stage / "addons" / path.relative_to(addons)
             else:
                 target = stage / "licenses/onnxruntime" / path.name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -67,6 +79,36 @@ def package(repository: Path, platform: str, arch: str, output: Path) -> None:
             if path.is_file():
                 shutil.copyfile(path, destination / "bin" / platform / path.name)
         (stage / "licenses/godot-cpp").mkdir(parents=True)
+        contents = "runtime and editor add-on"
+        if include_training:
+            shutil.copytree(
+                repository / "Godot/thirdparty/grpc/licenses", stage / "licenses/grpc"
+            )
+            # Build only the shared client, without neighboring packages or local
+            # setuptools build outputs in the source checkout.
+            python_source = repository / "Resources/python"
+            wheel_source = Path(temporary) / "python-source"
+            shutil.copytree(
+                python_source / "schola",
+                wheel_source / "schola",
+                ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+            )
+            for name in ("pyproject.toml", "README.md", "LICENSE.txt"):
+                shutil.copyfile(python_source / name, wheel_source / name)
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "wheel",
+                    "--no-deps",
+                    "--wheel-dir",
+                    str(stage / "python"),
+                    str(wheel_source),
+                ],
+                check=True,
+            )
+            contents += "; training extension and Schola Python wheel"
         shutil.copyfile(
             repository / "Godot/godot-cpp/LICENSE.md",
             stage / "licenses/godot-cpp/LICENSE.md",
@@ -80,7 +122,7 @@ def package(repository: Path, platform: str, arch: str, output: Path) -> None:
         (stage / "INSTALL.md").write_text(guide, encoding="utf-8")
         (stage / "BUILD.txt").write_text(
             f"commit={revision}\nplatform={platform}\narch={arch}\n"
-            "contents=runtime and editor add-on; training extension excluded\n",
+            f"contents={contents}\n",
             encoding="utf-8",
         )
         output.parent.mkdir(parents=True, exist_ok=True)
